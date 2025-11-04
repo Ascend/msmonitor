@@ -23,6 +23,7 @@
 #include "dynolog/src/utils.h"
 
 constexpr int CLIENT_QUEUE_LEN = 50;
+constexpr int MAX_MESSAGE_LEN = 2 * 4096;   // twice the maximum linux path length
 
 namespace dynolog {
 
@@ -186,7 +187,8 @@ public:
     std::string get_message()
     {
         int32_t msg_size = -1;
-        if (!read_helper((uint8_t*)&msg_size, sizeof(msg_size)) || msg_size <= 0) {
+
+        if (!read_helper((uint8_t*)&msg_size, sizeof(msg_size)) || msg_size <= 0 || msg_size >= MAX_MESSAGE_LEN) {
             LOG(ERROR) << "Invalid message size = " << msg_size;
             return "";
         }
@@ -195,9 +197,18 @@ public:
         message.resize(msg_size);
         int recv = 0;
         int ret = 1;
+        // set timeout 3s
+        const auto timeout = std::chrono::seconds(3);
+        auto start = std::chrono::steady_clock::now();
         while (recv < msg_size && ret > 0) {
             ret = read_helper((uint8_t*)&message[recv], msg_size - recv);
             recv += ret > 0 ? ret : 0;
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = now - start;
+            if (elapsed > timeout) {
+                LOG(WARNING) << "Timeout! Message received size is " << recv;
+                break;
+            }
         }
 
         if (recv != msg_size) {
