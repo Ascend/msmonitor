@@ -9,6 +9,7 @@
 #include <glog/logging.h>
 #include <nlohmann/json.hpp>
 #include "dynolog/src/rpc/SimpleJsonServer.h"
+#include "dynolog/src/utils.h"
 
 namespace dynolog {
 
@@ -43,11 +44,15 @@ inline nlohmann::json toJson(const std::string& message)
         return result;
     }
     try {
+        if (!(json::accept(message) && CheckJsonDepth(message))) {
+            LOG(ERROR) << "Error parsing message = " << message;
+            return json();
+        }
         result = json::parse(message);
     }
-    catch (json::parse_error&) {
-        LOG(ERROR) << "Error parsing message = " << message;
-        return result;
+    catch (const std::exception& e) {
+        LOG(ERROR) << "Error parsing message = " << message << " : " << e.what();
+        return json();
     }
 
     if (result.empty() || !result.is_object()) {
