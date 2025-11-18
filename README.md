@@ -1,7 +1,7 @@
-# msMonitor
+# MindStudio-Monitor
 
 ## 📌 简介
-msMonitor是MindStudio推出的一站式在线监控工具，提供用户在集群场景性能监控定位端到端能力。msMonitor基于[dynolog](https://github.com/facebookincubator/dynolog)开发，结合AI框架（[Ascend PyTorch Profiler](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0090.html#ZH-CN_TOPIC_0000002353635602__zh-cn_topic_0000002370275077_section17272160135118)、[MindSpore Profiler](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0087.html#ZH-CN_TOPIC_0000002353475766__zh-cn_topic_0000002370195177_section0157845102716)）的动态采集能力和[MSPTI](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0021.html)，为用户提供**nputrace**和**npu-monitor**功能：
+MindStudio-Monitor（msmonitor）是MindStudio推出的一站式在线监控工具，提供用户在集群场景性能监控定位端到端能力。msMonitor基于[dynolog](https://github.com/facebookincubator/dynolog)开发，结合AI框架（[Ascend PyTorch Profiler](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0090.html#ZH-CN_TOPIC_0000002353635602__zh-cn_topic_0000002370275077_section17272160135118)、[MindSpore Profiler](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0087.html#ZH-CN_TOPIC_0000002353475766__zh-cn_topic_0000002370195177_section0157845102716)）的动态采集能力和[MSPTI](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0021.html)，为用户提供**nputrace**和**npu-monitor**功能：
 1. **npu-monitor功能**：轻量常驻后台，监控关键算子耗时
 2. **nputrace功能**：获取到框架、CANN以及device的详细性能数据
 
