@@ -48,6 +48,7 @@ if (OPENSSL_LIB AND CRYPTO_LIB)
     return()
 endif()
 
+message("start to build openssl...")
 execute_process(
     WORKING_DIRECTORY ${DIR_NAME}
     COMMAND ./config -fPIC no-shared --prefix=${BUILD_DEPENDENCY_PATH} --libdir=${LIBDIR}
