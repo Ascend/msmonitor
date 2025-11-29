@@ -149,7 +149,9 @@ elif [ "$PACKAGE_TYPE" = "deb" ]; then
     mv dynolog_*.deb ../../
     echo "Build dynolog deb package success"
 elif [ "$PACKAGE_TYPE" = "rpm" ]; then
+    export ARCH=$(uname -m)
     bash scripts/rpm/make_rpm.sh
+    unset ARCH
     mv dynolog-*.rpm ../../
     echo "Build dynolog rpm package success"
 fi
