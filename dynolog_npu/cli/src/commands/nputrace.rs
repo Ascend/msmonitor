@@ -67,10 +67,12 @@ pub struct NpuTraceOptions {
     pub sys_interconnection: bool,
     pub mstx_domain_include: Option<String>,
     pub mstx_domain_exclude: Option<String>,
+    pub rank_list: Option<String>,
 }
 
 impl NpuTraceOptions {
     fn config(&self) -> String {
+        let is_rank = self.rank_list.is_some();
         format!(
             r#"
 PROFILE_RECORD_SHAPES={}
@@ -93,7 +95,9 @@ PROFILE_HOST_SYS={}
 PROFILE_SYS_IO={}
 PROFILE_SYS_INTERCONNECTION={}
 PROFILE_MSTX_DOMAIN_INCLUDE={}
-PROFILE_MSTX_DOMAIN_EXCLUDE={}"#,
+PROFILE_MSTX_DOMAIN_EXCLUDE={}
+PROFILE_IS_RANK={}
+PROFILE_RANK_LIST={}"#,
             self.record_shapes,
             self.profile_memory,
             self.with_stack,
@@ -114,7 +118,9 @@ PROFILE_MSTX_DOMAIN_EXCLUDE={}"#,
             self.sys_io,
             self.sys_interconnection,
             self.mstx_domain_include.clone().map_or("None".to_string(), |v| v.to_string()),
-            self.mstx_domain_exclude.clone().map_or("None".to_string(), |v| v.to_string())
+            self.mstx_domain_exclude.clone().map_or("None".to_string(), |v| v.to_string()),
+            is_rank,
+            self.rank_list.clone().map_or("None".to_string(), |v| v.to_string()),
         )
     }
 }
@@ -214,7 +220,7 @@ ACTIVITIES_DURATION_MSECS=1000"#
         );
 
         let trigger_config = NpuTraceTriggerConfig::IterationBased {
-            profile_start_step: 1000,
+            start_step: 1000,
             iterations: 1000,
         };
         assert_eq!(
@@ -247,14 +253,15 @@ ACTIVITIES_ITERATIONS=1000"#
                 l2_cache: true,
                 op_attr: true,
                 msprof_tx: true,
-                gc_detect_threshold: 0.1,
+                gc_detect_threshold: Some(0.1),
                 data_simplification: "true",
                 export_type: "Text".to_string(),
                 host_sys: "cpu".to_string(),
                 sys_io: true,
                 sys_interconnection: true,
-                mstx_domain_include: "domain1".to_string(),
-                mstx_domain_exclude: "domain2".to_string(),
+                mstx_domain_include: Some("domain1".to_string()),
+                mstx_domain_exclude: Some("domain2".to_string()),
+                rank_list: Some("0,1,2,3".to_string()),
             },
         };
         assert_eq!(
@@ -282,7 +289,9 @@ PROFILE_HOST_SYS=cpu
 PROFILE_SYS_IO=true
 PROFILE_SYS_INTERCONNECTION=true
 PROFILE_MSTX_DOMAIN_INCLUDE=domain1
-PROFILE_MSTX_DOMAIN_EXCLUDE=domain2"#
+PROFILE_MSTX_DOMAIN_EXCLUDE=domain2
+PROFILE_IS_RANK=true
+PROFILE_RANK_LIST=0,1,2,3"#
         );
     }
 }
