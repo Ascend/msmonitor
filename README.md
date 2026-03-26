@@ -1,272 +1,240 @@
-# MindStudio Monitor
+<!-- markdownlint-disable MD033 MD041 -->
+<h1 align="center">MindStudio Monitor</h1>
 
-## 简介
+<div align="center">
+  <p><b>昇腾集群在线性能监控与动态采集工具</b></p>
+  <p>
+    <a href="./docs/zh/quick_start.md">🚀 快速入门</a> |
+    <a href="./docs/zh/install_guide.md">🛠️ 安装指南</a> |
+    <a href="./docs/zh/release_notes.md">📦 版本说明</a> |
+    <a href="./docs/zh/overview.md">📖 工具文档</a> |
+    <a href="https://gitcode.com/Ascend/msmonitor/issues">💬 问题反馈</a>
+  </p>
+</div>
+<!-- markdownlint-enable MD033 MD041 -->
 
-MindStudio Monitor（MindStudio一站式在线监控工具，msMonitor）提供用户在集群场景性能监控定位端到端能力。
+## 📢 最新消息
 
-msMonitor基于[dynolog](https://github.com/facebookincubator/dynolog)开发，结合AI框架（[Ascend PyTorch Profiler](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0090.html#ZH-CN_TOPIC_0000002353635602__zh-cn_topic_0000002370275077_section17272160135118)、[MindSpore Profiler](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0087.html)）的动态采集能力和[MSPTI](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0021.html)，为用户提供**nputrace**和**npu-monitor**功能：
+- [2025.12.30] msMonitor开源
 
-- **npu-monitor功能**：轻量常驻后台，监控关键算子耗时。
-- **nputrace功能**：获取到框架、CANN以及device的详细性能数据。
+## 📌 简介
+
+MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监控与动态采集工具，
+基于 [dynolog][dynolog] 和 [MSPTI][mspti] 构建，支持 `npu-monitor`、
+`nputrace` 和 `Monitor API` 等能力。
+
+支持框架 Profiler：[Ascend PyTorch Profiler][ascend-pytorch-profiler] |
+[MindSpore Profiler][mindspore-profiler]
 
 ![msMonitor](./docs/zh/figures/msMonitor.png)
 
-如上图所示msMonitor分为三部分：
+核心组件如下：
 
-1. **Dynolog daemon**：dynolog守护进程，每个节点只有一个守护进程，负责接收dyno CLI的RPC请求、触发nputrace和npu-monitor功能、上报数据的处理以及最终数据的展示，dynolog的详细介绍请参见[dynolog](./docs/zh/dynolog_instruct.md)。
-2. **Dyno CLI**：dyno客户端，为用户提供nputrace和npu-monitor子命令，任意节点都可以安装，dyno的详细介绍请参见[dyno](./docs/zh/dyno_instruct.md)。
-3. **MSPTI Monitor**：基于MSPTI实现的监控子模块，通过调用MSPTI的API获取性能数据，并上报给Dynolog daemon。
+| 组件 | 作用 | 文档 |
+| --- | --- | --- |
+| `Dynolog daemon` | 服务端守护进程，负责接收 dyno 请求并触发监控与采集。 | [dynolog 使用说明](./docs/zh/dynolog_instruct.md) |
+| `Dyno CLI` | 客户端命令行入口，用于下发 `npu-monitor` 和 `nputrace` 命令。 | [dyno 使用说明](./docs/zh/dyno_instruct.md) |
+| `MSPTI Monitor` | 基于 MSPTI 的采集模块，负责获取并上报性能数据。 | - |
 
-## 目录结构
+## 🔍 目录结构
 
-关键目录如下，详细目录介绍参见[项目目录](./docs/zh/dir_structure.md)。
+关键目录如下，详细目录介绍请参见 [《项目目录》](./docs/zh/dir_structure.md)。
 
-```ColdFusion
+```text
 ├── docs                    # 项目文档目录
 │   └── zh                  # 中文文档目录
-├── dynolog_npu             # dynolog_npu模块代码目录
+├── dynolog_npu             # dynolog_npu 模块代码目录
 ├── plugin                  # 插件模块代码目录
 ├── scripts                 # 构建、测试等脚本目录
-│   ├── build.sh            # dynolog_npu构建脚本
+│   ├── build.sh            # dynolog_npu 构建脚本
 │   ├── run_st.sh           # 系统测试脚本
 │   └── run_ut.sh           # 单元测试脚本
 ├── test                    # 测试代码目录
 │   ├── st                  # 系统测试用例
 │   └── ut                  # 单元测试用例
 ├── third_party             # 第三方依赖库
+├── CONTRIBUTING.md         # 贡献指南
 └── README.md               # 项目说明文档
 ```
 
-## 版本说明
+## 📖 功能介绍
 
-msMonitor由三个文件组成，如下表所示。
+msMonitor 提供以下核心能力：
 
-其中dyno和dynolog可以被打包为deb包或者rpm包。目前msMonitor支持在[PyTorch](https://gitcode.com/Ascend/pytorch)框架和[MindSpore](https://www.mindspore.cn/)框架上运行。 最新的软件包见《[版本配套说明](#版本配套说明)》。
+| 功能名称 | 功能简介 | 说明文档 |
+| --- | --- | --- |
+| **npu-monitor** | 轻量常驻后台，持续监控关键算子耗时，适合在线观察性能波动。 | [点击查看](./docs/zh/npumonitor_instruct.md) |
+| **nputrace** | 动态触发框架、CANN 和 Device 侧性能数据采集与解析，无需中断任务运行。 | [点击查看](./docs/zh/nputrace_instruct.md) |
+| **Monitor API** | 提供 Python 接口，采集计算类算子、通信类算子、API、Runtime API、Mstx 等性能数据。 | [点击查看](./docs/zh/monitor_feature.md) |
 
-| 文件名                                                                                                  | 用途                                                                                                                |
-|------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
-| dyno                                                                                                 | dyno客户端二进制文件                                                                                                      |
-| dynolog                                                                                              | dynolog服务端二进制文件                                                                                                   |
-| mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl | MSPTI Monitor、IPC等公共能力工具包，{mindstudio_version}表示mindstudio版本号，{python_version}表示python版本号，{system_architecture}表示CPU架构系统 |
+> [!NOTE]
+> 由于底层资源限制，`npu-monitor` 与 `nputrace` 不能同时开启。
 
-**版本配套说明**<a name="版本配套说明"></a>
+## 🛠️ 安装指南
 
-msMonitor详细版本配套关系及对应软件包下载链接如下：
+msMonitor 当前支持**软件包安装**和**编译安装**两种方式：
 
-| msMonitor版本  | 发布日期   | 配套CANN版本  | 配套torch_npu版本 | 配套MindSpore版本 | 下载链接                                                     | 校验码                                                       |
-| -------------- | ---------- | ------------- | ----------------- | ----------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| 8.3.0(aarch64) | 2025-12-29 | 8.3.RC1及以上 | v7.3.0及以上      | 2.7.2及以上   | [aarch64_8.3.0.zip](https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.3.0/aarch64_8.3.0.zip) | 2c675ae346dfc1c70f5e9c7103d6f8c7e53be00dca28ed5f9cc577ac59e4bc44 |
-| 8.3.0(x86)     | 2025-12-29 | 8.3.RC1及以上 | v7.3.0及以上      | 2.7.2及以上   | [x86_8.3.0.zip](https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.3.0/x86_8.3.0.zip) | 1a38cc141e67c50eb09ebdc757c1fd3ed54439f227459e71292b2d18bb78e7f0 |
-| 8.1.0(aarch64) | 2025-07-11 | 8.1.RC1及以上 | v7.1.0及以上      | 2.7.0-rc1及以上   | [aarch64_8.1.0.zip](https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.1.0/aarch64_8.1.0.zip) | ce136120c0288291cc0a7803b1efc8c8416c6105e9d54c17ccf2e2510869fada |
-| 8.1.0(x86)     | 2025-07-11 | 8.1.RC1及以上 | v7.1.0及以上      | 2.7.0-rc1及以上   | [x86_8.1.0.zip](https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.1.0/x86_8.1.0.zip) | 097d11c7994793b6389b19259269ceb3b6b7ac5ed77da3949b3f09da2103b7f2 |
+- 软件包安装：适合直接部署使用，推荐优先采用，详见
+  [《msMonitor 工具安装指南》](./docs/zh/install_guide.md)。
+- 编译安装：适合源码调试、二次开发与定制构建，详见
+  [《msMonitor 工具安装指南》](./docs/zh/install_guide.md#编译安装)。
+- 升级、卸载与日志：详见 [《msMonitor 工具安装指南》](./docs/zh/install_guide.md)。
 
-## 环境部署
+## 🚀 快速入门
 
-安装msMonitor工具。包括软件包安装和编译安装两种方式，具体请参见《[msMonitor工具安装指南](./docs/zh/install_guide.md)》。
+首次使用 msMonitor 时，推荐直接按下面这条主线完成从安装到采集的端到端体验。
+更完整的安装说明请参见 [《安装指南》](./docs/zh/install_guide.md)。
 
-推荐使用软件包安装，步骤如下：
+1. 选择匹配版本并下载安装包。
 
-1. 根据[版本配套说明](#版本配套说明)选择对应软件包并下载到Linux安装环境。
+   根据 [版本配套说明](#版本配套说明) 选择与当前 `CANN`、
+   `torch_npu`、`MindSpore` 和 CPU 架构匹配的软件包，并下载到 Linux 环境。
 
-2. 校验包完整性。
-
-   进入zip包所在目录，执行如下命令。
-
-   ```bash
-   sha256sum {name}.zip
-   ```
-
-   {name}为zip包名称。
-
-   若打印呈现对应版本zip包一致的**校验码**，则表示下载了正确的性能工具zip安装包。示例如下：
-
-   ```ColdFusion
-   2c675ae346dfc1c70f5e9c7103d6f8c7e53be00dca28ed5f9cc577ac59e4bc44 aarch64_8.3.0.zip
-   ```
-
-3. 安装whl包。
+2. 校验并安装 msMonitor 软件包。
 
    ```bash
-   # 解压压缩包
+   # 校验下载包
+   sha256sum x86_8.3.0.zip
+
+   # 解压安装包
    mkdir x86
    unzip x86_8.3.0.zip -d x86
-
-   # 进入解压后的目录
    cd x86
 
-   # 安装whl包，须选择与当前环境Python版本一致的whl包
-   pip install mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl
+   # 安装 whl 包，需选择与当前 Python 版本匹配的文件
+   pip install \
+     mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl
+
+   # 安装 dynolog，按服务器系统选择其一
+   dpkg -i --force-overwrite dynolog*.deb
+   # rpm -ivh dynolog*.rpm --nodeps
    ```
 
-   安装成功打印如下信息：
-
-   ```ColdFusion
-   Successfully installed mindstudio_monitor-<version> pybind11-<version>
-   ```
-
-4. 安装dynolog。
-
-   有以下安装方式可供选择，根据用户服务器系统自行选择：
-
-   - 方式一：使用deb软件包安装（适用于Debian/Ubuntu等系统）。
-
-     ```bash
-     dpkg -i --force-overwrite dynolog*.deb
-     ```
-
-   - 方式二：使用rpm软件包安装（适用于RedHat/Fedora/openSUSE等系统）。
-
-     ```bash
-     rpm -ivh dynolog*.rpm --nodeps
-     ```
-
-## 快速入门
-
-npu-monitor和nputrace功能详细说明请参见[特性介绍](#特性介绍)章节，下面介绍msMonitor常见的使用场景：
-
-1. 先使用npu-monitor功能获取关键算子耗时。
-2. 当发现监控到关键算子耗时劣化，使用nputrace功能采集详细性能数据做分析。
-
-**操作步骤**
-
-1. 启动dynolog daemon进程。
-
-   命令示例如下：
+3. 启动 `dynolog` daemon 进程。
 
    ```bash
-   # 命令行方式开启dynolog daemon
    dynolog --enable-ipc-monitor --certs-dir /home/server_certs
-
-   # 如需使用Tensorboard展示数据，传入参数--metric_log_dir用于指定Tensorboard文件落盘路径
-   dynolog --enable-ipc-monitor --certs-dir /home/server_certs --metric_log_dir /tmp/metric_log_dir    # dynolog daemon的日志路径为：/var/log/dynolog.log
    ```
 
-2. 配置msMonitor环境变量。
+4. 配置环境变量并启动训练或推理任务。
 
    ```bash
    export MSMONITOR_USE_DAEMON=1
-   ```
+   export LD_PRELOAD=<CANN安装路径>/ascend-toolkit/latest/lib64/libmspti.so
 
-3. 设置LD_PRELOAD启动MSPTI（启动npu-monitor功能设置）。
-
-   ```bash
-   # 默认路径示例：export LD_PRELOAD=/usr/local/Ascend/ascend-toolkit/latest/lib64/libmspti.so
-   export LD_PRELOAD=<CANN toolkit安装路径>/ascend-toolkit/latest/lib64/libmspti.so
-   ```
-
-4. 启动训练或推理任务。
-
-   ```bash
    bash run_ai_task.sh
    ```
 
-5. 使用dyno命令行触发npu-monitor监控关键算子耗时。
+5. 先使用 `npu-monitor` 观察关键算子耗时。
 
    ```bash
-   # 开启npu-monitor，上报周期30s, 上报数据类型为Kernel
-   dyno --certs-dir /home/client_certs npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Kernel
+   dyno --certs-dir /home/client_certs npu-monitor \
+     --npu-monitor-start --report-interval-s 30 \
+     --mspti-activity-kind Kernel
+   ```
 
-   # 关闭npu-monitor
+6. 发现耗时劣化后，关闭 `npu-monitor` 并触发 `nputrace`
+   采集详细数据。
+
+   ```bash
    dyno --certs-dir /home/client_certs npu-monitor --npu-monitor-stop
+   dyno --certs-dir /home/client_certs nputrace \
+     --start-step 10 --iterations 2 --activities CPU,NPU \
+     --analyse --data-simplification false \
+     --log-file /tmp/profile_data
    ```
 
-6. 使用dyno命令行触发nputrace采集详细trace数据（需要关闭npu-monitor功能才能触发nputrace功能）。
+7. 按需查看详细说明。
 
-   ```bash
-   # 从第10个step开始采集，采集2个step，采集框架、CANN和device数据，同时采集完后自动解析以及解析完成不做数据精简，落盘路径为/tmp/profile_data
-   dyno --certs-dir /home/client_certs nputrace --start-step 10 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
-   ```
+   - `npu-monitor` 使用说明：
+     [`docs/zh/npumonitor_instruct.md`](./docs/zh/npumonitor_instruct.md)
+   - `nputrace` 使用说明：
+     [`docs/zh/nputrace_instruct.md`](./docs/zh/nputrace_instruct.md)
+   - `MindSpore` 适配说明：
+     [`docs/zh/mindspore_adapter_instruct.md`](./docs/zh/mindspore_adapter_instruct.md)
 
-## 特性介绍
->
-> [!NOTE]  说明
->
-> 由于底层资源限制，npu-monitor功能和nputrace不能同时开启。
+## 版本配套说明
 
-执行nputrace或者npu-monitor命令后，响应结果里有一个`response`的json字符串。该字符串中的`commandStatus`字段用于标识命令是否生效：`effective`表示命令会生效，`ineffective`表示命令无效。其他字段均为dynolog的原生字段（仅状态为`effective`时存在）。
+msMonitor 由以下三个交付件组成：
 
-### status状态查询
+<!-- markdownlint-disable MD013 -->
+| 交付件 | 说明 |
+| --- | --- |
+| `dyno` | dyno 客户端二进制文件 |
+| `dynolog` | dynolog 服务端二进制文件 |
+| `mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl` | MSPTI Monitor、IPC 等公共能力工具包 |
+<!-- markdownlint-enable MD013 -->
 
-```bash
-dyno --certs-dir <CERT_DIR> status  # dyno和dynolog中--certs-dir传入参数值须保持一致；<CERT_DIR>可传入证书路径，如果不使用TLS证书密钥，设置为NO_CERTS。
-```
+当前仓库维护的软件包版本如下，完整版本说明请参见
+[《版本说明》](./docs/zh/release_notes.md)。
 
-输入以上命令后，会打印一个json字符串，例如：{"current_step":1,"npumonitor":"Idle","nputrace":"Ready","start_step":5,"stop_step":10}。
+<!-- markdownlint-disable MD013 -->
+| 版本 | 架构 | 发布日期 | CANN | torch_npu | MindSpore | 下载 | 校验码 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `8.3.0` | `aarch64` | `2025-12-29` | `8.3.RC1+` | `v7.3.0+` | `2.7.2+` | [aarch64_8.3.0.zip][pkg-830-aarch64] | `2c675ae346dfc1c70f5e9c7103d6f8c7e53be00dca28ed5f9cc577ac59e4bc44` |
+| `8.3.0` | `x86` | `2025-12-29` | `8.3.RC1+` | `v7.3.0+` | `2.7.2+` | [x86_8.3.0.zip][pkg-830-x86] | `1a38cc141e67c50eb09ebdc757c1fd3ed54439f227459e71292b2d18bb78e7f0` |
+| `8.1.0` | `aarch64` | `2025-07-11` | `8.1.RC1+` | `v7.1.0+` | `2.7.0-rc1+` | [aarch64_8.1.0.zip][pkg-810-aarch64] | `ce136120c0288291cc0a7803b1efc8c8416c6105e9d54c17ccf2e2510869fada` |
+| `8.1.0` | `x86` | `2025-07-11` | `8.1.RC1+` | `v7.1.0+` | `2.7.0-rc1+` | [x86_8.1.0.zip][pkg-810-x86] | `097d11c7994793b6389b19259269ceb3b6b7ac5ed77da3949b3f09da2103b7f2` |
+<!-- markdownlint-enable MD013 -->
 
-**状态说明：**
+## 📝 相关说明
 
-- Uninitialized：程序未启动或者dynolog init之前。
-- Idle：没有下发命令。
-- Ready：命令已下发，暂未到达指定step。
-- Running：正在采集数据。
-
-**其他说明：**
-
-- nputrace字段有Uninitialized、Idle、Running、Ready四种状态，npumonitor字段有Uninitialized、Idle、Running三种状态。
-- start_step、stop_step表示采集step的范围。PyTorch框架下有效采集范围为[start_step, stop_step)，即包含start_step，但不包含stop_step。MindSpore框架下有效采集范围为[start_step, stop_step]，包含stop_step。
-- nputrace为Running或者Ready状态时，才会打印start_step和stop_step。
-- current_step默认值为-1。
-- MindSpore框架下nputrace没有Ready状态。
-
-### npu-monitor特性
-
-npu-monitor特性为用户提供轻量化监控关键指标的能力，npu-monitor基于[MSPTI](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0021.html)开发，用户可以通过npu-monitor查看模型运行时的计算、通信算子执行耗时。
-具体使用方式请参见[npu-monitor](./docs/zh/npumonitor_instruct.md)，MindSpore框架下使用方式请参见[MindSpore框架下msMonitor的使用方法](./docs/zh/mindspore_adapter_instruct.md)。
-
-### nputrace特性
-
-nputrace特性为用户提供动态触发AI框架（[Ascend PyTorch Profiler](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0090.html)、[MindSpore Profiler](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0087.html)）采集解析的能力，即实现模型拉起后不需要中断模型运行，可多次触发不同配置Profiler采集解析。采集的性能数据可以使用[MindStudio Insight](https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/GUI_baseddevelopmenttool/msascendinsightug/Insight_userguide_0002.html)进行可视化，效果图如下。
-具体使用方式请参见[nputrace](./docs/zh/nputrace_instruct.md)，MindSpore框架下使用方式请参见[MindSpore框架下msMonitor的使用方法](./docs/zh/mindspore_adapter_instruct.md)。
-![MindStudio Insight TimeLine可视化效果图](./docs/zh/figures/mindstudio_insight.png)
-
-### Monitor特性
-
-提供简单易用接口，采集计算类算子、通信类算子、API、Runtime API、Mstx等性能数据，用户可以根据需要选择采集的指标，具体使用方式请参见[Monitor](./docs/zh/monitor_feature.md)。
-
-## API参考
-
-[mindstudio_monitor模块接口参考](./docs/zh/mindstudio_monitor_api_reference.md)，包含以下特性接口：
-
-- 与dynolog组件交互接口，请参见 “PyDynamicMonitorProxy接口说明” 章节。
-- Monitor特性接口，请参见 “Monitor特性接口说明” 章节。
-
-## FAQ
-
-FAQ汇总了在使用msMonitor工具过程中可能遇到的问题，具体请参见[FAQ](./docs/zh/faq.md)。
-
-## 贡献指导
-
-介绍如何向msMonitor反馈问题、需求以及为msMonitor贡献的代码开发流程，具体请参见[为MindStudio Monitor贡献](CONTRIBUTING.md)。
+- [《安全声明》](./docs/zh/security_statement.md)
+- [《漏洞机制说明》](./docs/zh/mindstudio_vulnerability_handling_procedure.md)
+- [《公网地址声明》](./docs/zh/public_ip_address.md)
+- [《贡献指南》](./CONTRIBUTING.md)
+- [《License》](./LICENSE)
+- [《文档 License》](./docs/LICENSE)
 
 ## 联系我们
 
-[![img](https://img-transfer.gitcode.com/?p=https%3A%2F%2Fimg.shields.io%2Fbadge%2FWeChat-07C160%3Fstyle%3Dfor-the-badge%26logo%3Dwechat%26logoColor%3Dwhite&projectId=Ascend/msprof&pageUrl=https%3A%2F%2Fgitcode.com%2FAscend%2Fmsprof)](https://raw.gitcode.com/kali20gakki1/Imageshack/raw/main/CDC0BEE2-8F11-477D-BD55-77A15417D7D1_4_5005_c.jpeg)
+欢迎大家通过 [Issues](https://gitcode.com/Ascend/msmonitor/issues)
+反馈问题、需求和建议，我们会尽快响应。
+若希望加入社区交流，也可以通过以下入口进一步了解 MindStudio 团队。
 
-## 安全声明
+<!-- markdownlint-disable MD033 MD013 -->
+<div style="display: flex; align-items: center; gap: 10px;">
+  <span>昇腾论坛：</span>
+  <a href="https://www.hiascend.com/forum/" rel="nofollow">
+    <img
+      src="https://img.shields.io/badge/Website-%231e37ff?style=for-the-badge&logo=bytedance&logoColor=white"
+      alt="昇腾论坛"
+      style="max-width: 100%;"
+    >
+  </a>
+  <span style="margin-left: 20px;">昇腾小助手：</span>
+  <a href="https://raw.gitcode.com/kali20gakki1/Imageshack/raw/main/CDC0BEE2-8F11-477D-BD55-77A15417D7D1_4_5005_c.jpeg">
+    <img
+      src="https://img.shields.io/badge/WeChat-07C160?style=for-the-badge&logo=wechat&logoColor=white"
+      alt="昇腾小助手二维码"
+      style="max-width: 100%;"
+    >
+  </a>
+</div>
+<!-- markdownlint-enable MD033 MD013 -->
 
-MindStudio Monitor产品的安全加固信息、公网地址信息等内容，具体请参见《[安全声明](./docs/zh/security_statement.md)》。
+## 🤝 致谢
 
-## 免责声明
+msMonitor 由华为公司的下列部门联合贡献：
 
-- 本工具仅供调试和开发使用，使用者需自行承担使用风险，并理解以下内容：
-  - 数据处理及删除：用户在使用本工具过程中产生的数据属于用户责任范畴。建议用户在使用完毕后及时删除相关数据，以防不必要的信息泄露。
-  - 数据保密与传播：使用者了解并同意不得将通过本工具产生的数据随意外发或传播。对于由此产生的信息泄露、数据泄露或其他不良后果，本工具及其开发者概不负责。
-  - 用户输入安全性：用户需自行保证输入的命令行的安全性，并承担因输入不当而导致的任何安全风险或损失。对于输入命令行不当所导致的问题，本工具及其开发者概不负责。
-- 免责声明范围：本免责声明适用于所有使用本工具的个人或实体。使用本工具即表示您同意并接受本声明的内容，并愿意承担因使用该功能而产生的风险和责任，如有异议请停止使用本工具。
-- 在使用本工具之前，请**谨慎阅读并理解以上免责声明的内容**。对于使用本工具所产生的任何问题或疑问，请及时联系开发者。
+- 昇腾计算 MindStudio 开发部
 
-## License
+感谢来自社区的每一个 Pull Request，欢迎贡献 msMonitor。
 
-MindStudio Monitor产品的使用许可证，具体请参见[LICENSE](./LICENSE)文件。
+## 关于 MindStudio 团队
 
-介绍msMonitor工具docs目录下的文档适用CC-BY 4.0许可证，具体请参见[LICENSE](docs/LICENSE)文件。
+华为 MindStudio 全流程开发工具链团队致力于提供端到端的昇腾 AI
+应用开发解决方案，帮助开发者高效完成训练开发、推理开发和性能调优。
+更多信息可访问：
 
-## 致谢
+- [昇腾社区 MindStudio 专区](https://www.hiascend.com/developer/software/mindstudio)
+- [昇腾论坛](https://www.hiascend.com/forum/)
 
-msMonitor由华为公司的下列部门联合贡献 ：
-
-华为公司：
-
-- 昇腾计算MindStudio开发部
-
-感谢来自社区的每一个PR，欢迎贡献msMonitor！
+[dynolog]: https://github.com/facebookincubator/dynolog
+[mspti]: https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0021.html
+[ascend-pytorch-profiler]: https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0090.html#ZH-CN_TOPIC_0000002353635602__zh-cn_topic_0000002370275077_section17272160135118
+[mindspore-profiler]: https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0087.html
+[pkg-830-aarch64]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.3.0/aarch64_8.3.0.zip
+[pkg-830-x86]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.3.0/x86_8.3.0.zip
+[pkg-810-aarch64]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.1.0/aarch64_8.1.0.zip
+[pkg-810-x86]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.1.0/x86_8.1.0.zip
