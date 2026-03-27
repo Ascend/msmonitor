@@ -80,6 +80,17 @@ void MsptiMonitor::Start()
         LOG(ERROR) << "MsptiMonitor Start failed, dataProcessor init failed";
         return;
     }
+
+    // subscribe and register callbacks to mspti first, ensure before enable the activity
+    if (msptiSubscribe(&subscriber_, nullptr, nullptr) != MSPTI_SUCCESS) {
+        LOG(ERROR) << "MsptiMonitor start failed, msptiSubscribe failed";
+        return;
+    }
+    if (msptiActivityRegisterCallbacks(BufferRequest, BufferComplete) != MSPTI_SUCCESS) {
+        LOG(ERROR) << "MsptiMonitor start failed, msptiActivityRegisterCallbacks failed";
+        return;
+    }
+
     SetThreadName("MsptiMonitor");
     if (Thread::Start() != 0) {
         LOG(ERROR) << "MsptiMonitor start failed";
@@ -270,14 +281,6 @@ bool MsptiMonitor::ShouldKeepRecord(msptiActivity *record)
 
 void MsptiMonitor::Run()
 {
-    if (msptiSubscribe(&subscriber_, nullptr, nullptr) != MSPTI_SUCCESS) {
-        LOG(ERROR) << "MsptiMonitor run failed, msptiSubscribe failed";
-        return;
-    }
-    if (msptiActivityRegisterCallbacks(BufferRequest, BufferComplete) != MSPTI_SUCCESS) {
-        LOG(ERROR) << "MsptiMonitor run failed, msptiActivityRegisterCallbacks failed";
-        return;
-    }
     auto startTime = std::chrono::steady_clock::now();
     auto lastFlushTime = startTime;
     auto isDurationExpired = false;
