@@ -66,6 +66,7 @@ if __name__ == '__main__':
 Step 5：使用dyno CLI使能trace dump或npu-monitor
 
 1. 动态profiling callback方式
+
 该使能方式与动态profiling自定义for循环方式一致，唯一区别是将step()方法适配在step_begin、step_end回调函数中。
 
 - 示例代码如下：
