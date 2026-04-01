@@ -34,6 +34,7 @@ target_compile_options(dynolog_lib PRIVATE
     -fPIC
     -fstack-protector-all
     -ftrapv
+    -D_FORTIFY_SOURCE=2 -O2
 )
 
 target_link_options(dynolog_lib PRIVATE
@@ -65,12 +66,14 @@ add_executable(dynolog Main.cpp)
 target_link_libraries(dynolog PRIVATE dynolog_lib dynolog_rpc_lib)
 
 target_compile_options(dynolog PRIVATE
-    -fPIC
+    -fPIE
     -fstack-protector-all
     -ftrapv
+    -D_FORTIFY_SOURCE=2 -O2
 )
 
 target_link_options(dynolog PRIVATE
     -Wl,-z,relro,-z,now,-z,noexecstack
+    -pie
     -s
 )

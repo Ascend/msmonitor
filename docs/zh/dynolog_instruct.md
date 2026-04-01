@@ -15,6 +15,7 @@ dynolog负责接收dyno CLI的RPC请求，触发nputrace和npu-monitor功能。
 | --certs-dir         | String | 用于指定dyno与dynolog RPC通信时TLS证书的路径，当值为`NO_CERTS`时不使用证书校验 |  Y   |
 | --metric_log_dir    | String | 用于指定metric数据的落盘路径                                     |  N   |
 | --use_JSON          | action | 是否使用JSON格式记录metric数据到日志中，默认不启用                        |  N   |
+| --help              | action | 显示帮助信息，其中包含的dynolog原生参数在此不再赘述 |  N   |
 
 **使用示例**
 
