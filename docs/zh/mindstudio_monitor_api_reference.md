@@ -22,7 +22,7 @@
 * `poll_dyno` 向 dynolog daemon 获取 Profiler 控制参数
   * input: None
   * return: str，返回控制参数
-* `enable_dyno_npu_monitor` 开启mspti监控
+* `enable_dyno_npu_monitor` 开启mspti监测
   * input: cfg_map(Dict[str,str]) 参数配置
   * return: None
 * `finalize_dyno` 释放 msmonitor 中相关资源、线程

@@ -10,7 +10,7 @@ dynolog负责接收dyno CLI的RPC请求，触发nputrace和npu-monitor功能。
 
 | 命令                  | 参数类型   | 说明                                                    | 是否必选 |
 |---------------------|--------|-------------------------------------------------------|:----:|
-| --enable-ipc-monitor | action | 是否启用IPC监控功能，用于与dyno进行通信，设置参数开启，默认不开启                  |  N   |
+| --enable-ipc-monitor | action | 是否启用IPC监测功能，用于与dyno进行通信，设置参数开启，默认不开启                  |  N   |
 | --port              |  i32   | dynolog daemon进程监听的端口号，默认值1778                        |  N   |
 | --certs-dir         | String | 用于指定dyno与dynolog RPC通信时TLS证书的路径，当值为`NO_CERTS`时不使用证书校验 |  Y   |
 | --metric_log_dir    | String | 用于指定metric数据的落盘路径                                     |  N   |
