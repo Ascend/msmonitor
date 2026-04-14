@@ -2,7 +2,7 @@
 
 ## 简介
 
-Monitor 是集成在MindStudio Monitor中的一套接口，用户可以通过调用这些接口来开启、停止性能监控，以及获取监控数据。
+Monitor 是集成在MindStudio Monitor中的一套接口，用户可以通过调用这些接口来开启、停止性能监测，以及获取监测数据。
 
 ## 使用前准备
 
@@ -26,7 +26,7 @@ Monitor 是集成在MindStudio Monitor中的一套接口，用户可以通过调
    from msmonitor import Monitor, ActivityKind
    ```
 
-2. 在模型 Python 脚本中调用 Monitor 接口启动性能监控。
+2. 在模型 Python 脚本中调用 Monitor 接口启动性能监测。
 
    ```python
    import torch
@@ -48,7 +48,7 @@ Monitor 是集成在MindStudio Monitor中的一套接口，用户可以通过调
 
    from msmonitor import Monitor, ActivityKind
 
-   # 开启性能监控
+   # 开启性能监测
    monitor = Monitor()
    monitor.start(kinds=[
        ActivityKind.API,
@@ -73,7 +73,7 @@ Monitor 是集成在MindStudio Monitor中的一套接口，用户可以通过调
 
    torch.npu.synchronize()
 
-   # 停止性能监控
+   # 停止性能监测
    monitor.stop()
 
    # （可选）在线获取性能数据，参考步骤3

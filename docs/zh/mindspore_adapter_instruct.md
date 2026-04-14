@@ -2,7 +2,7 @@
 
 ## 简介
 
-在MindSpore框架下使用msMonitor组件，用于监控MindSpore模型的训练过程中的性能指标，支持动态profiling自定义for循环方式和callback方式。
+在MindSpore框架下使用msMonitor组件，用于监测MindSpore模型的训练过程中的性能指标，支持动态profiling自定义for循环方式和callback方式。
 
 ## 功能介绍
 

@@ -28,8 +28,8 @@
 │       └── rpm                                              # RPM打包相关文件
 ├── plugin                                                   # 插件模块代码目录
 │   ├── CMakeLists.txt
-│   ├── IPCMonitor                                           # IPC监控Python模块
-│   ├── ipc_monitor                                          # IPC监控核心代码
+│   ├── IPCMonitor                                           # IPC监测Python模块
+│   ├── ipc_monitor                                          # IPC监测核心代码
 │   ├── cmake                                                # CMake相关配置文件
 │   ├── stub
 │   └── third_party                                          # 第三方依赖库

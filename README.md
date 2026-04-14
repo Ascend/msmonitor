@@ -2,7 +2,7 @@
 <h1 align="center">MindStudio Monitor</h1>
 
 <div align="center">
-  <p><b>昇腾集群在线性能监控与动态采集工具</b></p>
+  <p><b>昇腾集群在线性能监测与动态采集工具</b></p>
   <p>
     <a href="./docs/zh/quick_start.md">🚀 快速入门</a> |
     <a href="./docs/zh/install_guide.md">🛠️ 安装指南</a> |
@@ -19,7 +19,7 @@
 
 ## 📌 简介
 
-MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监控与动态采集工具，
+MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监测与动态采集工具，
 基于 [dynolog][dynolog] 和 [MSPTI][mspti] 构建，支持 `npu-monitor`、
 `nputrace` 和 `Monitor API` 等能力。
 
@@ -32,13 +32,13 @@ MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监
 
 | 组件 | 作用 | 文档 |
 | --- | --- | --- |
-| `Dynolog daemon` | 服务端守护进程，负责接收 dyno 请求并触发监控与采集。 | [dynolog 使用说明](./docs/zh/dynolog_instruct.md) |
-| `Dyno CLI` | 客户端命令行入口，用于下发 `npu-monitor` 和 `nputrace` 命令。 | [dyno 使用说明](./docs/zh/dyno_instruct.md) |
+| `Dynolog daemon` | 服务端守护进程，负责接收 dyno 请求并触发监测与采集。 | [dynolog](./docs/zh/dynolog_instruct.md) |
+| `Dyno CLI` | 客户端命令行入口，用于下发 `npu-monitor` 和 `nputrace` 命令。 | [dyno](./docs/zh/dyno_instruct.md) |
 | `MSPTI Monitor` | 基于 MSPTI 的采集模块，负责获取并上报性能数据。 | - |
 
 ## 🔍 目录结构
 
-关键目录如下，详细目录介绍请参见 [《项目目录》](./docs/zh/dir_structure.md)。
+关键目录如下，详细目录介绍请参见 《[项目目录](./docs/zh/dir_structure.md)》。
 
 ```text
 ├── docs                    # 项目文档目录
@@ -61,29 +61,31 @@ MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监
 
 msMonitor 提供以下核心能力：
 
-| 功能名称 | 功能简介 | 说明文档 |
+| 功能名称 | 功能简介 | 文档 |
 | --- | --- | --- |
-| **npu-monitor** | 轻量常驻后台，持续监控关键算子耗时，适合在线观察性能波动。 | [点击查看](./docs/zh/npumonitor_instruct.md) |
-| **nputrace** | 动态触发框架、CANN 和 Device 侧性能数据采集与解析，无需中断任务运行。 | [点击查看](./docs/zh/nputrace_instruct.md) |
-| **Monitor API** | 提供 Python 接口，采集计算类算子、通信类算子、API、Runtime API、Mstx 等性能数据。 | [点击查看](./docs/zh/monitor_feature.md) |
+| **npu-monitor** | 轻量常驻后台，持续监测关键算子耗时，适合在线观察性能波动。 | [npu-monitor](./docs/zh/npumonitor_instruct.md) |
+| **nputrace** | 动态触发框架、CANN 和 Device 侧性能数据采集与解析，无需中断任务运行。 | [nputrace](./docs/zh/nputrace_instruct.md) |
+| **Monitor API** | 提供 Python 接口，采集计算类算子、通信类算子、API、Runtime API、Mstx 等性能数据。 | [Monitor](./docs/zh/monitor_feature.md) |
 
-> [!NOTE]
+> [!note] 说明
+>
 > 由于底层资源限制，`npu-monitor` 与 `nputrace` 不能同时开启。
 
 ## 🛠️ 安装指南
 
-msMonitor 当前支持**软件包安装**和**编译安装**两种方式：
+msMonitor 工具安装指南包含如下内容：
 
-- 软件包安装：适合直接部署使用，推荐优先采用，详见
-  [《msMonitor 工具安装指南》](./docs/zh/install_guide.md)。
-- 编译安装：适合源码调试、二次开发与定制构建，详见
-  [《msMonitor 工具安装指南》](./docs/zh/install_guide.md#编译安装)。
-- 升级、卸载与日志：详见 [《msMonitor 工具安装指南》](./docs/zh/install_guide.md)。
+- 下载软件包安装：适合直接部署使用，推荐优先采用。
+- 编译软件包安装：适合源码调试、二次开发与定制构建。
+- 升级、卸载与日志。
+
+具体请参见《[msMonitor 工具安装指南](./docs/zh/install_guide.md)》。
 
 ## 🚀 快速入门
 
 首次使用 msMonitor 时，推荐直接按下面这条主线完成从安装到采集的端到端体验。
-更完整的安装说明请参见 [《安装指南》](./docs/zh/install_guide.md)。
+
+更完整的安装说明请参见 《[msMonitor 工具安装指南](./docs/zh/install_guide.md)》。
 
 1. 选择匹配版本并下载安装包。
 
@@ -165,10 +167,10 @@ msMonitor 由以下三个交付件组成：
 | `mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl` | MSPTI Monitor、IPC 等公共能力工具包 |
 <!-- markdownlint-enable MD013 -->
 
-当前仓库维护的软件包版本如下，完整版本说明请参见
-[《版本说明》](./docs/zh/release_notes.md)。
+当前仓库维护的软件包版本如下，完整版本说明请参见《[版本说明](./docs/zh/release_notes.md)》。
 
 <!-- markdownlint-disable MD013 -->
+
 | 版本 | 架构 | 发布日期 | CANN | torch_npu | MindSpore | 下载 | 校验码 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `8.3.0` | `aarch64` | `2025-12-29` | `8.3.RC1+` | `v7.3.0+` | `2.7.2+` | [aarch64_8.3.0.zip][pkg-830-aarch64] | `2c675ae346dfc1c70f5e9c7103d6f8c7e53be00dca28ed5f9cc577ac59e4bc44` |
@@ -179,12 +181,12 @@ msMonitor 由以下三个交付件组成：
 
 ## 📝 相关说明
 
-- [《安全声明》](./docs/zh/security_statement.md)
-- [《漏洞机制说明》](./docs/zh/mindstudio_vulnerability_handling_procedure.md)
-- [《公网地址声明》](./docs/zh/public_ip_address.md)
-- [《贡献指南》](./CONTRIBUTING.md)
-- [《License》](./LICENSE)
-- [《文档 License》](./docs/LICENSE)
+- 《[安全声明](./docs/zh/security_statement.md)》
+- 《[漏洞机制说明](./docs/zh/mindstudio_vulnerability_handling_procedure.md)》
+- 《[公网地址声明](./docs/zh/public_ip_address.md)》
+- 《[贡献指南](./CONTRIBUTING.md)》
+- 《[License](./LICENSE)》
+- 《[文档 License](./docs/LICENSE)》
 
 ## 联系我们
 
