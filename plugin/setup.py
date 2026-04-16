@@ -72,7 +72,7 @@ class CustomBuildPy(build_py):
 
 setup(
     name="mindstudio_monitor",
-    version="26.0.0",
+    version=os.getenv("WHL_VERSION", "26.0.0"),
     description="mindstudio monitor",
     packages=find_namespace_packages(include=["IPCMonitor*"]),
     include_package_data=True,
