@@ -44,7 +44,7 @@ source $HOME/.cargo/env
 
 ### 2.2 TLS 证书环境
 
-若开发和测试场景需要验证 dyno CLI 与 dynolog daemon 的 TLS 通信，需要额外准备客户端和服务端证书目录。目录规范可参见 [《安装指南》](../getting_started/install_guide.md)。
+若开发和测试场景需要验证 dyno CLI 与 dynolog daemon 的 TLS 通信，需要额外准备客户端和服务端证书目录。目录规范可参见 [《安装指南》](../install_guide.md)。
 
 ## 3. 开发步骤
 
