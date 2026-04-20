@@ -19,6 +19,7 @@ if(PACKAGE STREQUAL "ut")
     find_package(googletest MODULE REQUIRED)
     find_package(nlohmannjson MODULE REQUIRED)
     find_package(sqlite3 MODULE REQUIRED)
+    find_package(mockcpp MODULE REQUIRED)
 
     if(MODE STREQUAL "plugin" OR MODE STREQUAL "all")
         add_subdirectory(ut/plugin/ipc_monitor)

@@ -23,7 +23,7 @@ endif()
 
 execute_process(
     WORKING_DIRECTORY ${DIR_NAME}
-    COMMAND cmake --build build --target install
+    COMMAND cmake --build build --target install --parallel 8
     RESULT_VARIABLE RESULT
 )
 if (NOT RESULT EQUAL 0)

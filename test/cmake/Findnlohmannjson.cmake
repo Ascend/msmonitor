@@ -1,7 +1,7 @@
 set(PACKAGE_VERSION 3.12.0)
 
 set(PKG_NAME nlohmannjson)
-set(DOWNLOAD_PATH "$ENV{PROJECT_ROOT_PATH}/third_party")
+set(DOWNLOAD_PATH "$ENV{MSMONITOR_TOP_DIR}/test/third_party")
 set(GIT_TAG "v3.12.0")
 set(DIR_NAME "${DOWNLOAD_PATH}/nlohmann-json")
 
