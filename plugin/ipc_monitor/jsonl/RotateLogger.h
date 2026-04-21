@@ -29,7 +29,7 @@ namespace jsonl {
 class RotateLogger {
 public:
     RotateLogger(const std::string& logDir, const uint32_t maxLines, const int32_t maxFiles)
-        : logDir_(logDir), maxLines_(maxLines), maxFiles_(maxFiles) {}
+        : logDir_(logDir), maxLines_(maxLines), maxFiles_(maxFiles), initialized_(true) {}
     ~RotateLogger();
     void UnInit();
     void Log(std::string message);
@@ -44,6 +44,7 @@ private:
     std::string logDir_;
     uint32_t maxLines_{10000};
     int32_t maxFiles_{-1};
+    bool initialized_{false};
     uint32_t curLines_{0};
     std::FILE* logFile_{nullptr};
     uint64_t lastLogFileTime_{0};

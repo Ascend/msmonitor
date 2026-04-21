@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 
 set(TEST_SOURCES
     test_DynoLogNpuMonitor.cpp
+    test_RingBuffer.cpp
+    test_RotateLogger.cpp
 )
 
 find_package(Python 3.9 REQUIRED COMPONENTS Interpreter Development)
@@ -42,7 +44,8 @@ foreach(TEST_SOURCE ${TEST_SOURCES})
         pybind11::module
         ${Python_LIBRARIES}
         ${glog_LIBRARIES}
-        $ENV{MSMONITOR_TOP_DIR}/test/third_party/googletest/build/lib/libgtest.a
+        ${googletest_LIBRARIES}
+        ${mockcpp_LIBRARIES}
     )
 
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})

@@ -65,6 +65,11 @@ RotateLogger::~RotateLogger()
 
 void RotateLogger::UnInit()
 {
+    if (!initialized_) {
+        LOG(WARNING) << "RotateLogger not initialized";
+        return;
+    }
+    initialized_ = false;
     if (logFile_ != nullptr) {
         std::fclose(logFile_);
     }
@@ -76,6 +81,10 @@ void RotateLogger::UnInit()
 
 void RotateLogger::Log(std::string message)
 {
+    if (!initialized_) {
+        LOG(WARNING) << "RotateLogger not initialized";
+        return;
+    }
     if (message.empty()) {
         LOG(WARNING) << "Empty message";
         return;
@@ -93,6 +102,10 @@ void RotateLogger::Log(std::string message)
 
 void RotateLogger::Flush()
 {
+    if (!initialized_) {
+        LOG(WARNING) << "RotateLogger not initialized";
+        return;
+    }
     if (logFile_ != nullptr) {
         std::fflush(logFile_);
     }

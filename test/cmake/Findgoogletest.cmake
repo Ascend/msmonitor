@@ -12,7 +12,7 @@ download_opensource_pkg(${PKG_NAME}
 
 execute_process(
     WORKING_DIRECTORY ${DIR_NAME}
-    COMMAND cmake -S . -B build -G "Unix Makefiles" -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=${DIR_NAME}/install -DCMAKE_INSTALL_LIBDIR=${DIR_NAME}/install/lib64 -DWITH_GFLAGS=OFF -DWITH_GTEST=OFF -DWITH_SYMBOLIZE=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+    COMMAND cmake -S . -B build -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX=${DIR_NAME}/install -DCMAKE_INSTALL_LIBDIR=${DIR_NAME}/install/lib64 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
     RESULT_VARIABLE RESULT
 )
 if (NOT RESULT EQUAL 0)
@@ -21,7 +21,7 @@ endif()
 
 execute_process(
     WORKING_DIRECTORY ${DIR_NAME}
-    COMMAND cmake --build build --target install
+    COMMAND cmake --build build --target install --parallel 8
     RESULT_VARIABLE RESULT
 )
 if (NOT RESULT EQUAL 0)
