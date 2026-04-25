@@ -67,7 +67,7 @@ msMonitor 提供以下核心能力：
 | **nputrace** | 动态触发框架、CANN 和 Device 侧性能数据采集与解析，无需中断任务运行。 | [nputrace](./docs/zh/user_guide/nputrace_instruct.md) |
 | **Monitor API** | 提供 Python 接口，采集计算类算子、通信类算子、API、Runtime API、Mstx 等性能数据。 | [Monitor API](./docs/zh/advanced_features/monitor_feature.md) |
 
-> [!NOTE] 说明
+> [!note]
 >
 > 由于底层资源限制，`npu-monitor` 与 `nputrace` 不能同时开启。
 
