@@ -30,6 +30,10 @@ if(USE_PROMETHEUS)
   target_link_libraries(dynolog_lib PRIVATE prometheus-cpp::pull)
 endif()
 
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+find_package(openssl REQUIRED)
+target_link_libraries(dynolog_lib PRIVATE ${openssl_LIBRARIES})
+
 target_compile_options(dynolog_lib PRIVATE
     -fPIC
     -fstack-protector-all
