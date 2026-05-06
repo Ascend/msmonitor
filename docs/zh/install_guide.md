@@ -1,66 +1,75 @@
 # msMonitor工具安装指南
 
-msMonitor工具的安装方式包括[下载软件包安装](#下载软件包安装)和[编译软件包安装](#编译软件包安装)。
+## 安装说明
+
+msMonitor工具的安装方式包括[下载软件包安装](#下载软件包安装)和[源码编译安装](#源码编译安装)。
 
 ## 下载软件包安装
 
 推荐使用下载软件包安装，步骤如下：
 
-1. 根据[版本配套说明](../../README.md#版本配套说明)选择对应软件包并下载到Linux安装环境。
+1. 请参考[msMonitor Release](https://gitcode.com/Ascend/msmonitor/releases)下载msMonitor的软件包和对应数字签名文件（.sha256）。
 
-2. 校验包完整性。
+   msMonitor需要安装dynolog和mindstudio_monitor两个软件包，请根据如下软件包清单选择合适的软件包和对应数字签名文件。
 
-   进入zip包所在目录，执行如下命令。
+   **表 1** 软件包清单
 
-   ```bash
-   sha256sum {name}.zip
-   ```
+   | 软件包                                                       | 说明                                                         |
+   | ------------------------------------------------------------ | ------------------------------------------------------------ |
+   | dynolog\_{version}.{arch}.deb<br>dynolog\_{version}.{arch}.deb.sha256<br>dynolog\_{version}.{arch}.rpm<br>dynolog\_{version}.{arch}.rpm.sha256 | deb软件包适用于Debian/Ubuntu等系统；rpm软件包适用于RedHat/Fedora/openSUSE等系统。<br>deb包或者rpm包根据实际环境选择一种下载即可。 |
+   | mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux\_{arch}.whl<br>mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{arch}.whl.sha256 | {mindstudio_version}表示MindStudio版本号；{python_version}表示适配的Python版本号；{arch}表示CPU架构。<br>请根据实际环境选择下载对应版本的软件包。 |
 
-   {name}为zip包名称。
+   下载本软件即表示您同意《[华为企业业务最终用户许可协议（EULA）](https://e.huawei.com/cn/about/eula)》的条款和条件。
 
-   若回显呈现对应版本zip包一致的**校验码**，则表示下载了正确的性能工具zip安装包。示例如下：
+2. 验证软件包的完整性。（以whl包为例）
 
-   ```bash
-   2c675ae346dfc1c70f5e9c7103d6f8c7e53be00dca28ed5f9cc577ac59e4bc44 aarch64_8.3.0.zip
-   ```
+   1. 在whl包所在目录执行如下命令获取whl软件包的sha256校验码。
+
+      ```bash
+      sha256sum {name}.whl
+      ```
+
+      打印如下示例信息。
+
+      ```ColdFusion
+      {sha256} {name}.whl
+      ```
+
+   2. 用记事本打开数字签名文件查看sha256校验码。
+
+   3. 比对两个文件的sha256校验码是否一致。
+
+      若两个校验码一致，则表示下载了正确的软件包；若不一致，请不要使用该软件包，需要支持与服务请在论坛求助或提交技术工单。
 
 3. 安装mindstudio_monitor whl包。
 
    ```bash
-   # 解压压缩包
-   mkdir x86
-   unzip x86_8.3.0.zip -d x86
-
-   # 进入解压后的目录
-   cd x86
-
-   # 安装whl包，须选择与当前环境Python版本一致的whl包
-   pip install mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl
+   pip install mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{arch}.whl
    ```
-
+   
    安装成功打印如下信息：
-
+   
    ```ColdFusion
    Successfully installed mindstudio_monitor-<version> pybind11-<version>
    ```
-
+   
 4. 安装dynolog。
 
    有以下安装方式可供选择，根据用户服务器系统自行选择：
 
-   - 方式一：使用deb软件包安装（适用于Debian/Ubuntu等系统）。
+   - 方式一：使用deb软件包安装。
 
      ```bash
      dpkg -i --force-overwrite dynolog*.deb
      ```
 
-   - 方式二：使用rpm软件包安装（适用于RedHat/Fedora/openSUSE等系统）。
+   - 方式二：使用rpm软件包安装。
 
      ```bash
      rpm -ivh dynolog*.rpm --nodeps
      ```
 
-## 编译软件包安装
+## 源码编译安装
 
 ### 安装依赖
 
