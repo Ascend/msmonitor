@@ -1,6 +1,4 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-find_package(openssl REQUIRED)
 
 add_library(dynolog_rpc_lib STATIC
     SimpleJsonServer.cpp SimpleJsonServer.h
@@ -14,6 +12,7 @@ target_include_directories(dynolog_rpc_lib
 target_include_directories(dynolog_rpc_lib
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
+
 target_link_libraries(dynolog_rpc_lib PRIVATE dynolog_lib)
 target_link_libraries(dynolog_rpc_lib PUBLIC gflags::gflags)
 target_link_libraries(dynolog_rpc_lib PUBLIC glog::glog)

@@ -12,5 +12,6 @@ target_include_directories(dynolog_ipcmonitor_lib
 )
 
 target_link_libraries(dynolog_ipcmonitor_lib PUBLIC glog::glog)
+target_link_libraries(dynolog_ipcmonitor_lib PUBLIC gflags::gflags)
 target_link_libraries(dynolog_ipcmonitor_lib PUBLIC dynolog_ipcfabric_lib)
 target_link_libraries(dynolog_ipcmonitor_lib PUBLIC nlohmann_json::nlohmann_json)

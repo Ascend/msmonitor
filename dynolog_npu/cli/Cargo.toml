@@ -17,7 +17,7 @@ pem = "1.1"
 chrono = "0.4"
 num-bigint = "0.4"
 openssl = { version = "0.10", features = ["vendored"] }
-rpassword = "7.2.0"
+rpassword = "=7.2.0"
 libc = "0.2"
 nix = { version = "0.26", features = ["user"] }
 path-clean = "0.1"
