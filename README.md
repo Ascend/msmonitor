@@ -3,13 +3,13 @@
 
 <div align="center">
   <p><b>昇腾集群在线性能监测与动态采集工具</b></p>
-  <p>
-    <a href="./docs/zh/getting_started/quick_start.md">🚀 快速入门</a> |
-    <a href="./docs/zh/getting_started/install_guide.md">🛠️ 安装指南</a> |
-    <a href="./docs/zh/release_notes.md">📦 版本说明</a> |
-    <a href="./docs/zh/overview.md">📖 工具文档</a> |
-    <a href="https://gitcode.com/Ascend/msmonitor/issues">💬 问题反馈</a>
-  </p>
+
+[![Ask DeepWiki](https://badgen.net/badge/Ask/DeepWiki/blue)](https://deepwiki.com/kali20gakki/msprof )
+[![Ask ZRead](https://badgen.net/badge/Ask/ZRead/orange)](https://zread.ai/kali20gakki/msprof)
+[![doc](https://badgen.net/badge/doc/readthedocs/green)](https://mindstudio-profiler-docs.readthedocs.io/zh-cn/latest/msmonitor/)
+[![License](https://badgen.net/badge/License/MulanPSL-2.0/blue)](https://raw.gitcode.com/Ascend/msinsight/files/master/License)
+[![Ascend](https://img.shields.io/badge/Hardware-Ascend-orange.svg)](https://www.hiascend.com/)
+
 </div>
 <!-- markdownlint-enable MD033 MD041 -->
 
