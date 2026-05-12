@@ -14,14 +14,19 @@
  * limitations under the License.
  */
 #include "DynoLogNpuMonitor.h"
+
 #include <glog/logging.h>
+
 #include <algorithm>
 #include <iterator>
-#include "utils.h"
-#include "MsptiMonitor.h"
 
-namespace dynolog_npu {
-namespace ipc_monitor {
+#include "MsptiMonitor.h"
+#include "utils.h"
+
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
 DynoLogNpuMonitor::DynoLogNpuMonitor()
 {
     // init glog
@@ -31,16 +36,19 @@ DynoLogNpuMonitor::DynoLogNpuMonitor()
 
 bool DynoLogNpuMonitor::Init()
 {
-    if (isInitialized_) {
+    if (isInitialized_)
+    {
         LOG(WARNING) << "DynoLog npu monitor already initialized";
         return true;
     }
-    if (!ipcClient_.Init()) {
+    if (!ipcClient_.Init())
+    {
         LOG(ERROR) << "DynoLog npu monitor ipcClient init failed";
         return false;
     }
     bool res = ipcClient_.RegisterInstance(npuId_);
-    if (res) {
+    if (res)
+    {
         isInitialized_ = true;
         LOG(INFO) << "DynoLog npu monitor initialized successfully";
     }
@@ -50,47 +58,58 @@ bool DynoLogNpuMonitor::Init()
 ErrCode DynoLogNpuMonitor::DealMonitorReq(MsptiMonitorCfg& cmd)
 {
     auto msptiMonitor = MsptiMonitor::GetInstance();
-    if (cmd.monitorStop) {
-        if (msptiMonitor->IsStarted()) {
+    if (cmd.monitorStop)
+    {
+        if (msptiMonitor->IsStarted())
+        {
             msptiMonitor->Stop();
             LOG(INFO) << "Stop mspti monitor thread successfully";
         }
         return ErrCode::SUC;
     }
 
-    if (cmd.reportIntervals != 0) {
+    if (cmd.reportIntervals != 0)
+    {
         msptiMonitor->SetFlushInterval(cmd.reportIntervals);
     }
 
-    if (cmd.monitorStart && !msptiMonitor->IsStarted()) {
-        if (!cmd.savePath.empty() && !msptiMonitor->CheckAndSetSavePath(cmd.savePath)) {
+    if (cmd.monitorStart && !msptiMonitor->IsStarted())
+    {
+        if (!cmd.savePath.empty() && !msptiMonitor->CheckAndSetSavePath(cmd.savePath))
+        {
             LOG(ERROR) << "Invalid log path, mspti monitor start failed";
             return ErrCode::PERMISSION;
         }
-        if (cmd.duration > 0.0f) {
+        if (cmd.duration > 0.0f)
+        {
             msptiMonitor->SetDuration(cmd.duration);
         }
-        if (!msptiMonitor->IsMetricMode()) {
+        if (!msptiMonitor->IsMetricMode())
+        {
             msptiMonitor->SetExportType(cmd.export_type);
         }
-        msptiMonitor->Start();
+        msptiMonitor->Start(cmd);
         LOG(INFO) << "Start mspti monitor thread successfully, rankid: " << GetRankId();
     }
-    if (msptiMonitor->IsStarted()) {
+    if (msptiMonitor->IsStarted())
+    {
         msptiMonitor->SetFilterItems(cmd.filterItems);
     }
-    if (msptiMonitor->IsStarted() && !cmd.enableActivities.empty()) {
+    if (msptiMonitor->IsStarted() && !cmd.enableActivities.empty())
+    {
         auto curActivities = msptiMonitor->GetEnabledActivities();
         std::vector<msptiActivityKind> enableKinds;
         std::vector<msptiActivityKind> disableKinds;
-        std::set_difference(cmd.enableActivities.begin(), cmd.enableActivities.end(), curActivities.begin(), curActivities.end(),
-                            std::back_inserter(enableKinds));
-        std::set_difference(curActivities.begin(), curActivities.end(), cmd.enableActivities.begin(), cmd.enableActivities.end(),
-                            std::back_inserter(disableKinds));
-        for (auto activity : enableKinds) {
+        std::set_difference(cmd.enableActivities.begin(), cmd.enableActivities.end(), curActivities.begin(),
+                            curActivities.end(), std::back_inserter(enableKinds));
+        std::set_difference(curActivities.begin(), curActivities.end(), cmd.enableActivities.begin(),
+                            cmd.enableActivities.end(), std::back_inserter(disableKinds));
+        for (auto activity : enableKinds)
+        {
             msptiMonitor->EnableActivity(activity);
         }
-        for (auto activity : disableKinds) {
+        for (auto activity : disableKinds)
+        {
             msptiMonitor->DisableActivity(activity);
         }
     }
@@ -100,11 +119,13 @@ ErrCode DynoLogNpuMonitor::DealMonitorReq(MsptiMonitorCfg& cmd)
 std::string DynoLogNpuMonitor::Poll()
 {
     std::string res = ipcClient_.IpcClientNpuConfig();
-    if (res.size() == 4) {  // res为4，表示dynolog注册进程成功
+    if (res.size() == 4)  // res为4，表示dynolog注册进程成功
+    {
         LOG(INFO) << "Regist to dynolog daemon successfully";
         return "";
     }
-    if (res.empty()) {
+    if (res.empty())
+    {
         return "";
     }
     LOG(INFO) << "Received NPU configuration successfully";
@@ -114,9 +135,11 @@ std::string DynoLogNpuMonitor::Poll()
 void DynoLogNpuMonitor::EnableMsptiMonitor(std::unordered_map<std::string, std::string>& cfg_map)
 {
     auto cmd = InputParser::GetInstance()->DynoLogGetOpts(cfg_map);
-    if (cmd.isMonitor) {
+    if (cmd.isMonitor)
+    {
         auto ans = DealMonitorReq(cmd);
-        if (ans != ErrCode::SUC) {
+        if (ans != ErrCode::SUC)
+        {
             LOG(ERROR) << "Deal monitor request failed, because" << IPC_ERROR(ans);
         }
         NpuStatus npuStatus;
@@ -125,17 +148,15 @@ void DynoLogNpuMonitor::EnableMsptiMonitor(std::unordered_map<std::string, std::
     }
 }
 
-void DynoLogNpuMonitor::Finalize() const
-{
-    MsptiMonitor::GetInstance()->Uninit();
-}
+void DynoLogNpuMonitor::Finalize() const { MsptiMonitor::GetInstance()->Uninit(); }
 
 void DynoLogNpuMonitor::UpdateNpuStatus(const NpuStatus& status, const std::string& msgType)
 {
     bool res = ipcClient_.SendNpuStatus(status, msgType);
-    if (!res) {
+    if (!res)
+    {
         LOG(WARNING) << "Send NPU status failed: msgType=" << msgType;
     }
 }
-} // namespace ipc_monitor
-} // namespace dynolog_npu
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu

@@ -18,35 +18,41 @@
 #define MSMONITOR_JSONL_DATA_DUMPER_H_
 
 #include <atomic>
-#include <memory>
 #include <chrono>
+#include <memory>
 #include <nlohmann/json.hpp>
-#include "thread.h"
+
 #include "RingBuffer.h"
 #include "jsonl/RotateLogger.h"
+#include "thread.h"
 
-namespace dynolog_npu {
-namespace ipc_monitor {
-namespace jsonl {
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace jsonl
+{
 constexpr uint32_t kMaxWaitTimeUs = 1024;
 constexpr uint32_t kNotifyInterval = 256;
 
-class JsonlDataDumper : public Thread {
-public:
+class JsonlDataDumper : public Thread
+{
+   public:
     explicit JsonlDataDumper() : dumpDir_(""), start_(false), init_(false) {}
     virtual ~JsonlDataDumper() { UnInit(); }
-    void Init(const std::string &dirPath, size_t capacity, uint32_t maxDumpIntervalMs);
+    void Init(const std::string &dirPath, size_t capacity, uint32_t maxDumpIntervalMs,
+              const std::string &jsons_rotate_log_lines, const std::string &jsons_rotate_log_files);
     void UnInit();
     void Record(std::unique_ptr<nlohmann::json> data);
     void Start();
     void Stop();
 
-private:
+   private:
     void Flush();
     void Run();
     void DumpData();
 
-private:
+   private:
     std::string dumpDir_;
     std::atomic<bool> start_;
     std::atomic<bool> init_;
@@ -55,8 +61,8 @@ private:
     RingBuffer<std::unique_ptr<nlohmann::json>> dataBuf_;
     std::unique_ptr<RotateLogger> rotateLogger_{nullptr};
 };
-} // namespace jsonl
-} // namespace ipc_monitor
-} // namespace dynolog_npu
+}  // namespace jsonl
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
 
-#endif // MSMONITOR_JSONL_DATA_DUMPER_H_
+#endif  // MSMONITOR_JSONL_DATA_DUMPER_H_

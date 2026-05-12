@@ -140,6 +140,35 @@ fn parse_duration(src: &str) -> Result<f32, String> {
     Ok(duration)
 }
 
+fn parse_i32_in_range(src: &str, min: i32, max: i32) -> Result<i32, String> {
+    validate_string_max_len(src)?;
+    let value = src.trim().parse::<i32>().map_err(|e| format!("{}", e))?;
+    if value < min || value > max {
+        return Err(format!("Must be an integer in [{}, {}]", min, max));
+    }
+    Ok(value)
+}
+
+fn parse_json_rotate_log_lines(src: &str) -> Result<String, String> {
+    if src.trim().is_empty() {
+        return Ok(String::new());
+    }
+    parse_i32_in_range(src, 100, 500000)?;
+    Ok(src.trim().to_string())
+}
+
+fn parse_json_rotate_log_files(src: &str) -> Result<String, String> {
+    if src.trim().is_empty() {
+        return Ok(String::new());
+    }
+    validate_string_max_len(src)?;
+    let value = src.trim().parse::<i32>().map_err(|e| format!("{}", e))?;
+    if value == -1 || value >= 2 {
+        return Ok(src.trim().to_string());
+    }
+    Err("Must be -1 or an integer greater than or equal to 2".to_string())
+}
+
 #[derive(Debug, Parser)]
 enum Command {
     /// Check the status of a dynolog process
@@ -259,6 +288,12 @@ enum Command {
         /// Export type for NPU monitor.
         #[clap(long, value_parser = ["DB", "Jsonl"], default_value = "DB")]
         export_type: String,
+        /// Jsonl rotate log lines for NPU monitor.
+        #[clap(long, value_parser = parse_json_rotate_log_lines, default_value = "")]
+        json_rotate_log_lines: String,
+        /// Jsonl rotate log files for NPU monitor.
+        #[clap(long, value_parser = parse_json_rotate_log_files, default_value = "", allow_negative_numbers = true)]
+        json_rotate_log_files: String,
         /// Filter for NPU monitor.
         #[clap(long, value_parser = validate_string_max_len, default_value = "")]
         filter: String,
@@ -774,9 +809,10 @@ fn main() -> Result<()> {
             mspti_activity_kind,
             log_file,
             export_type,
+            json_rotate_log_lines,
+            json_rotate_log_files,
             filter,
         } => {
-
             if !log_file.is_empty() && !PathUtils::check_dir(&log_file, false, false) {
                 return Err(anyhow!("--log-file must be a valid directory!"));
             }
@@ -788,6 +824,8 @@ fn main() -> Result<()> {
                 mspti_activity_kind,
                 log_file,
                 export_type,
+                json_rotate_log_lines,
+                json_rotate_log_files,
                 filter,
             };
             npumonitor::run_npumonitor(client, npu_mon_config)
