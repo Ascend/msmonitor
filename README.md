@@ -192,26 +192,12 @@ msMonitor 由以下三个交付件组成：
 反馈问题、需求和建议，我们会尽快响应。
 若希望加入社区交流，也可以通过以下入口进一步了解 MindStudio 团队。
 
-<!-- markdownlint-disable MD033 MD013 -->
-<div style="display: flex; align-items: center; gap: 10px;">
-  <span>昇腾论坛：</span>
-  <a href="https://www.hiascend.com/forum/" rel="nofollow">
-    <img
-      src="https://img.shields.io/badge/Website-%231e37ff?style=for-the-badge&logo=bytedance&logoColor=white"
-      alt="昇腾论坛"
-      style="max-width: 100%;"
-    >
-  </a>
-  <span style="margin-left: 20px;">昇腾小助手：</span>
-  <a href="https://raw.gitcode.com/kali20gakki1/Imageshack/raw/main/CDC0BEE2-8F11-477D-BD55-77A15417D7D1_4_5005_c.jpeg">
-    <img
-      src="https://img.shields.io/badge/WeChat-07C160?style=for-the-badge&logo=wechat&logoColor=white"
-      alt="昇腾小助手二维码"
-      style="max-width: 100%;"
-    >
-  </a>
-</div>
-<!-- markdownlint-enable MD033 MD013 -->
+诚邀参与[满意度问卷调查](https://rdccucd.wjx.cn/vm/PKPfKqO.aspx)抽取惊喜好礼😎。
+
+| 💬 技术交流群 | 📢 官方公众号 | 🤝 更多加入渠道 |
+| :---: | :---: | :--- |
+| <img src="https://raw.gitcode.com/Ascend/msinsight/raw/master/docs/zh/user_guide/figures/readme/officialGroupChat.jpg" width="120"><br><sub>*扫码直接加入技术交流群*</sub> | <img src="https://raw.gitcode.com/Ascend/msinsight/raw/master/docs/zh/user_guide/figures/readme/officialAccount.jpg" width="120"><br><sub>*扫码关注获取最新动态*</sub> |欢迎扫码关注技术交流群跟官方公众号。这里是 MindStudio 用户与开发者最快捷的交流阵地：<br> **快速提问：** 与社区小伙伴即时探讨技术问题<br>**掌握动态：** 第一时间获取版本发布与功能更新通知<br> **经验共享：** 与其他开发者交流最佳实践  <br>🛠️ **其他渠道**：<br>👉 昇腾助手：[![WeChat](https://img.shields.io/badge/WeChat-07C160?style=flat-square&logo=wechat&logoColor=white)](https://gitcode.com/Ascend/msit/blob/master/docs/zh/figures/readme/xiaozhushou.png)<br>👉 昇腾论坛：[![Website](https://img.shields.io/badge/Website-%231e37ff?style=flat-square&logo=RSS&logoColor=white)](https://www.hiascend.com/forum/) |
+
 
 ## 🤝 致谢
 
