@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD033 MD041 -->
+
 <h1 align="center">MindStudio Monitor</h1>
 
 <div align="center">
@@ -19,12 +20,9 @@
 
 ## 📌 简介
 
-MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监测与动态采集工具，
-基于 [dynolog][dynolog] 和 [MSPTI][mspti] 构建，支持 `npu-monitor`、
-`nputrace` 和 `Monitor API` 等能力。
+MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监测与动态采集工具，基于 [dynolog][dynolog] 和 [msPTI][mspti] 构建，支持 `npu-monitor` 、 `nputrace` 和 `Monitor API` 等能力。
 
-支持框架 Profiler：[Ascend PyTorch Profiler][ascend-pytorch-profiler] |
-[MindSpore Profiler][mindspore-profiler]
+支持框架 Profiler：[Ascend PyTorch Profiler][ascend-pytorch-profiler] | [MindSpore Profiler][mindspore-profiler]
 
 ![msMonitor](./docs/zh/figures/msMonitor.png)
 
@@ -34,7 +32,7 @@ MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监
 | --- | --- | --- |
 | `Dynolog daemon` | 服务端守护进程，负责接收 dyno 请求并触发监测与采集。 | [dynolog](./docs/zh/dynolog_instruct.md) |
 | `Dyno CLI` | 客户端命令行入口，用于下发 `npu-monitor` 和 `nputrace` 命令。 | [dyno](./docs/zh/dyno_instruct.md) |
-| `MSPTI Monitor` | 基于 MSPTI 的采集模块，负责获取并上报性能数据。 | - |
+| `MSPTI Monitor` | 基于 msPTI 的采集模块，负责获取并上报性能数据。 | - |
 
 ## 🔍 目录结构
 
@@ -233,9 +231,9 @@ msMonitor 由华为公司的下列部门联合贡献：
 - [昇腾论坛](https://www.hiascend.com/forum/)
 
 [dynolog]: https://github.com/facebookincubator/dynolog
-[mspti]: https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0021.html
-[ascend-pytorch-profiler]: https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0090.html#ZH-CN_TOPIC_0000002353635602__zh-cn_topic_0000002370275077_section17272160135118
-[mindspore-profiler]: https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0087.html
+[mspti]: https://gitcode.com/Ascend/mspti/blob/26.0.0/docs/zh/quick_start.md
+[ascend-pytorch-profiler]: https://gitcode.com/Ascend/pytorch/blob/v2.7.1-26.0.0/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md
+[mindspore-profiler]: https://gitcode.com/Ascend/docs/blob/master/MindStudio/26.0.0/mindspore_profiler_user_guide.md
 [pkg-830-aarch64]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.3.0/aarch64_8.3.0.zip
 [pkg-830-x86]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.3.0/x86_8.3.0.zip
 [pkg-810-aarch64]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.1.0/aarch64_8.1.0.zip
