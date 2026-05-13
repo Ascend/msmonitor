@@ -11,7 +11,6 @@
 [![Ascend](https://img.shields.io/badge/Hardware-Ascend-orange.svg)](https://www.hiascend.com/)
 
 </div>
-<!-- markdownlint-enable MD033 MD041 -->
 
 ## 📢 最新消息
 
@@ -19,9 +18,7 @@
 
 ## 📌 简介
 
-MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监测与动态采集工具，
-基于 [dynolog][dynolog] 和 [MSPTI][mspti] 构建，支持 `npu-monitor`、
-`nputrace` 和 `Monitor API` 等能力。
+MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监测与动态采集工具，基于 [dynolog][dynolog] 和 [msPTI][mspti] 构建，支持 `npu-monitor` 、 `nputrace` 和  `Monitor API` 等能力。
 
 支持框架 Profiler：[Ascend PyTorch Profiler][ascend-pytorch-profiler] |
 [MindSpore Profiler][mindspore-profiler]
@@ -34,7 +31,7 @@ MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监
 | --- | --- | --- |
 | `Dynolog daemon` | 服务端守护进程，负责接收 dyno 请求并触发监测与采集。 | [dynolog](./docs/zh/user_guide/dynolog_instruct.md) |
 | `Dyno CLI` | 客户端命令行入口，用于下发 `npu-monitor` 和 `nputrace` 命令。 | [dyno](./docs/zh/user_guide/dyno_instruct.md) |
-| `MSPTI Monitor` | 基于 MSPTI 的采集模块，负责获取并上报性能数据。 | - |
+| `MSPTI Monitor` | 基于 msPTI 的采集模块，负责获取并上报性能数据。 | - |
 
 ## 🔍 目录结构
 
@@ -158,24 +155,20 @@ msMonitor 工具安装指南包含如下内容：
 
 msMonitor 由以下三个交付件组成：
 
-<!-- markdownlint-disable MD013 -->
 | 交付件 | 说明 |
 | --- | --- |
 | `dyno` | dyno 客户端二进制文件 |
 | `dynolog` | dynolog 服务端二进制文件 |
 | `mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl` | MSPTI Monitor、IPC 等公共能力工具包 |
-<!-- markdownlint-enable MD013 -->
 
 当前仓库维护的软件包版本如下，完整版本说明请参见《[版本说明](./docs/zh/release_notes.md)》。
 
-<!-- markdownlint-disable MD013 -->
 | 版本 | 架构 | 发布日期 | CANN | torch_npu | MindSpore | 下载 | 校验码 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `8.3.0` | `aarch64` | `2025-12-29` | `8.3.RC1+` | `v7.3.0+` | `2.7.2+` | [aarch64_8.3.0.zip][pkg-830-aarch64] | `2c675ae346dfc1c70f5e9c7103d6f8c7e53be00dca28ed5f9cc577ac59e4bc44` |
 | `8.3.0` | `x86` | `2025-12-29` | `8.3.RC1+` | `v7.3.0+` | `2.7.2+` | [x86_8.3.0.zip][pkg-830-x86] | `1a38cc141e67c50eb09ebdc757c1fd3ed54439f227459e71292b2d18bb78e7f0` |
 | `8.1.0` | `aarch64` | `2025-07-11` | `8.1.RC1+` | `v7.1.0+` | `2.7.0-rc1+` | [aarch64_8.1.0.zip][pkg-810-aarch64] | `ce136120c0288291cc0a7803b1efc8c8416c6105e9d54c17ccf2e2510869fada` |
 | `8.1.0` | `x86` | `2025-07-11` | `8.1.RC1+` | `v7.1.0+` | `2.7.0-rc1+` | [x86_8.1.0.zip][pkg-810-x86] | `097d11c7994793b6389b19259269ceb3b6b7ac5ed77da3949b3f09da2103b7f2` |
-<!-- markdownlint-enable MD013 -->
 
 ## 📝 相关说明
 
@@ -192,26 +185,11 @@ msMonitor 由以下三个交付件组成：
 反馈问题、需求和建议，我们会尽快响应。
 若希望加入社区交流，也可以通过以下入口进一步了解 MindStudio 团队。
 
-<!-- markdownlint-disable MD033 MD013 -->
-<div style="display: flex; align-items: center; gap: 10px;">
-  <span>昇腾论坛：</span>
-  <a href="https://www.hiascend.com/forum/" rel="nofollow">
-    <img
-      src="https://img.shields.io/badge/Website-%231e37ff?style=for-the-badge&logo=bytedance&logoColor=white"
-      alt="昇腾论坛"
-      style="max-width: 100%;"
-    >
-  </a>
-  <span style="margin-left: 20px;">昇腾小助手：</span>
-  <a href="https://raw.gitcode.com/kali20gakki1/Imageshack/raw/main/CDC0BEE2-8F11-477D-BD55-77A15417D7D1_4_5005_c.jpeg">
-    <img
-      src="https://img.shields.io/badge/WeChat-07C160?style=for-the-badge&logo=wechat&logoColor=white"
-      alt="昇腾小助手二维码"
-      style="max-width: 100%;"
-    >
-  </a>
-</div>
-<!-- markdownlint-enable MD033 MD013 -->
+诚邀参与[满意度问卷调查](https://rdccucd.wjx.cn/vm/PKPfKqO.aspx)抽取惊喜好礼😎。
+
+| 💬 技术交流群 | 📢 官方公众号 | 🤝 更多加入渠道 |
+| :---: | :---: | :--- |
+| <img src="https://raw.gitcode.com/Ascend/msinsight/raw/master/docs/zh/user_guide/figures/readme/officialGroupChat.jpg" width="120"><br><sub>*扫码直接加入技术交流群*</sub> | <img src="https://raw.gitcode.com/Ascend/msinsight/raw/master/docs/zh/user_guide/figures/readme/officialAccount.jpg" width="120"><br><sub>*扫码关注获取最新动态*</sub> |欢迎扫码关注技术交流群跟官方公众号。这里是 MindStudio 用户与开发者最快捷的交流阵地：<br> **快速提问：** 与社区小伙伴即时探讨技术问题<br>**掌握动态：** 第一时间获取版本发布与功能更新通知<br> **经验共享：** 与其他开发者交流最佳实践  <br>🛠️ **其他渠道**：<br>👉 昇腾助手：[![WeChat](https://img.shields.io/badge/WeChat-07C160?style=flat-square&logo=wechat&logoColor=white)](https://gitcode.com/Ascend/msit/blob/master/docs/zh/figures/readme/xiaozhushou.png)<br>👉 昇腾论坛：[![Website](https://img.shields.io/badge/Website-%231e37ff?style=flat-square&logo=RSS&logoColor=white)](https://www.hiascend.com/forum/) |
 
 ## 🤝 致谢
 
@@ -231,9 +209,9 @@ msMonitor 由华为公司的下列部门联合贡献：
 - [昇腾论坛](https://www.hiascend.com/forum/)
 
 [dynolog]: https://github.com/facebookincubator/dynolog
-[mspti]: https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0021.html
-[ascend-pytorch-profiler]: https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0090.html#ZH-CN_TOPIC_0000002353635602__zh-cn_topic_0000002370275077_section17272160135118
-[mindspore-profiler]: https://www.hiascend.com/document/detail/zh/mindstudio/81RC1/T&ITools/Profiling/atlasprofiling_16_0087.html
+[mspti]: https://gitcode.com/Ascend/mspti/blob/master/docs/zh/getting_started/quick_start.md
+[ascend-pytorch-profiler]: https://gitcode.com/Ascend/pytorch/blob/v2.7.1/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md
+[mindspore-profiler]: https://gitcode.com/Ascend/docs/blob/master/MindStudio/master/mindspore_profiler_user_guide.md
 [pkg-830-aarch64]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.3.0/aarch64_8.3.0.zip
 [pkg-830-x86]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.3.0/x86_8.3.0.zip
 [pkg-810-aarch64]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.1.0/aarch64_8.1.0.zip
