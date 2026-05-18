@@ -1,16 +1,18 @@
 use anyhow::Result;
-use crate::DynoClient;
 use super::utils;
+use crate::DynoClient;
 
 #[derive(Debug)]
 pub struct NpuMonitorConfig {
     pub npu_monitor_start: bool,
     pub npu_monitor_stop: bool,
     pub report_interval_s: u32,
-    pub duration : f32,
+    pub duration: f32,
     pub mspti_activity_kind: String,
     pub log_file: String,
     pub export_type: String,
+    pub json_rotate_log_lines: String,
+    pub json_rotate_log_files: String,
     pub filter: String,
 }
 
@@ -24,6 +26,8 @@ DURATION={}
 MSPTI_ACTIVITY_KIND={}
 NPU_MONITOR_LOG_FILE={}
 NPU_MONITOR_EXPORT_TYPE={}
+JSONL_ROTATE_LOG_LINES={}
+JSONL_ROTATE_LOG_FILES={}
 NPU_MONITOR_FILTER={}"#,
             self.npu_monitor_start,
             self.npu_monitor_stop,
@@ -32,6 +36,8 @@ NPU_MONITOR_FILTER={}"#,
             self.mspti_activity_kind,
             self.log_file,
             self.export_type,
+            self.json_rotate_log_lines,
+            self.json_rotate_log_files,
             self.filter,
         )
     }

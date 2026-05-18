@@ -18,29 +18,41 @@
 
 #include <atomic>
 #include <mutex>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
+
 #include "MsptiDataProcessBase.h"
 #include "jsonl/JsonlDataDumper.h"
 
-namespace dynolog_npu {
-namespace ipc_monitor {
-namespace jsonl {
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace jsonl
+{
 
-struct MstxHostData {
+struct MstxHostData
+{
     uint64_t timestamp;
     std::string domain;
     std::string message;
 };
 
-struct MstxDeviceData {
+struct MstxDeviceData
+{
     uint64_t timestamp;
 };
 
-class JsonlProcessManager : public MsptiDataProcessBase {
-public:
-    JsonlProcessManager(std::string savePath)
-        : MsptiDataProcessBase("JsonlProcessManager"), savePath_(std::move(savePath)) {}
+class JsonlProcessManager : public MsptiDataProcessBase
+{
+   public:
+    JsonlProcessManager(std::string savePath, std::string jsons_rotate_log_lines, std::string jsons_rotate_log_files)
+        : MsptiDataProcessBase("JsonlProcessManager"),
+          savePath_(std::move(savePath)),
+          jsons_rotate_log_lines_(std::move(jsons_rotate_log_lines)),
+          jsons_rotate_log_files_(std::move(jsons_rotate_log_files))
+    {
+    }
     ~JsonlProcessManager() = default;
     ErrCode ConsumeMsptiData(msptiActivity *record) override;
     void SetReportInterval(uint32_t interval) override;
@@ -48,7 +60,7 @@ public:
     void ExecuteTask() override;
     void RunPostTask() override;
 
-private:
+   private:
     void ProcessApiData(msptiActivityApi *record, const std::string &kind);
     void ProcessCommunicationData(msptiActivityCommunication *record);
     void ProcessKernelData(msptiActivityKernel *record);
@@ -59,9 +71,11 @@ private:
     bool SaveParallelGroupData();
     bool SaveRankDeviceData();
 
-private:
+   private:
     uint64_t sessionStartTime_{0};
     std::string savePath_;
+    std::string jsons_rotate_log_lines_;
+    std::string jsons_rotate_log_files_;
     std::mutex fileMutex_;
     std::atomic<uint32_t> reportInterval_{0};
     JsonlDataDumper dataDumper_;
@@ -73,7 +87,7 @@ private:
     std::unordered_map<uint64_t, MstxHostData> mstxRangeHostData_;
     std::unordered_map<uint64_t, MstxDeviceData> mstxRangeDeviceData_;
 };
-} // namespace jsonl
-} // namespace ipc_monitor
-} // namespace dynolog_npu
-#endif // MSMONITOR_JSONL_PROCESS_MANAGER_H
+}  // namespace jsonl
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
+#endif  // MSMONITOR_JSONL_PROCESS_MANAGER_H

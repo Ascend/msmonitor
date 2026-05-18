@@ -20,22 +20,26 @@
 #include <condition_variable>
 #include <mutex>
 #include <set>
+
 #include "InputParser.h"
-#include "mspti.h"
-#include "thread.h"
-#include "singleton.h"
 #include "MsptiDataProcessBase.h"
+#include "mspti.h"
+#include "singleton.h"
+#include "thread.h"
 
-
-namespace dynolog_npu {
-namespace ipc_monitor {
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
 const std::string MSPTI_EXPORT_TYPE_DB = "DB";
 const std::string MSPTI_EXPORT_TYPE_JSONL = "Jsonl";
 
-class MsptiMonitor : public Singleton<MsptiMonitor>, public Thread {
-public:
+class MsptiMonitor : public Singleton<MsptiMonitor>, public Thread
+{
+   public:
     virtual ~MsptiMonitor();
     void Start();
+    void Start(const MsptiMonitorCfg& cmd);
     void Stop();
     void EnableActivity(msptiActivityKind kind);
     void DisableActivity(msptiActivityKind kind);
@@ -47,29 +51,26 @@ public:
     bool CheckAndSetSavePath(const std::string& path);
     bool IsMetricMode() const { return savePath_.empty(); }
     void SetExportType(const std::string& type) { exportType_ = type; }
-    void SetDataProcessor(std::shared_ptr<MsptiDataProcessBase> dataProcessor)
-    {
-        dataProcessor_ = dataProcessor;
-    }
+    void SetDataProcessor(std::shared_ptr<MsptiDataProcessBase> dataProcessor) { dataProcessor_ = dataProcessor; }
     void SetClusterConfigData(const std::unordered_map<std::string, std::string>& configData)
     {
         clusterConfigData_ = configData;
     }
     void SetFilterItems(const msptiFilterItems& filterItems);
-    bool ShouldKeepRecord(msptiActivity *record);
+    bool ShouldKeepRecord(msptiActivity* record);
     const std::unordered_map<std::string, std::string>& GetClusterConfigData() const { return clusterConfigData_; }
 
-private:
-    static void BufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords);
-    static void BufferComplete(uint8_t *buffer, size_t size, size_t validSize);
-    static void BufferConsume(msptiActivity *record);
+   private:
+    static void BufferRequest(uint8_t** buffer, size_t* size, size_t* maxNumRecords);
+    static void BufferComplete(uint8_t* buffer, size_t size, size_t validSize);
+    static void BufferConsume(msptiActivity* record);
     static std::shared_ptr<MsptiDataProcessBase> GetDataProcessor();
     static std::atomic<uint32_t> allocCnt;
 
-private:
+   private:
     void Run() override;
 
-private:
+   private:
     std::atomic<bool> start_{false};
     msptiSubscriberHandle subscriber_{nullptr};
     std::mutex activityMtx_;
@@ -83,6 +84,6 @@ private:
     std::shared_ptr<MsptiDataProcessBase> dataProcessor_{nullptr};
     std::unordered_map<std::string, std::string> clusterConfigData_;
 };
-} // namespace ipc_monitor
-} // namespace dynolog_npu
-#endif // MSPTI_MONITOR_H
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
+#endif  // MSPTI_MONITOR_H

@@ -14,22 +14,30 @@
  * limitations under the License.
  */
 #include "InputParser.h"
-#include <unordered_set>
-#include <unordered_map>
+
+#include <glog/logging.h>
+
+#include <algorithm>
+#include <climits>
 #include <functional>
 #include <limits>
-#include <climits>
-#include <algorithm>
-#include <glog/logging.h>
+#include <unordered_map>
+#include <unordered_set>
+
 #include "utils.h"
 
-namespace dynolog_npu {
-namespace ipc_monitor {
-namespace {
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace
+{
 
 const std::string MSPTI_ACTIVITY_KIND_KEY = "MSPTI_ACTIVITY_KIND";
 const std::string REPORT_INTERVAL_S_KEY = "REPORT_INTERVAL_S";
 const std::string DURATION_KEY = "DURATION";
+const std::string JSONL_ROTATE_LOG_LINES_KEY = "JSONL_ROTATE_LOG_LINES";
+const std::string JSONL_ROTATE_LOG_FILES_KEY = "JSONL_ROTATE_LOG_FILES";
 const std::string NPU_MONITOR_START_KEY = "NPU_MONITOR_START";
 const std::string NPU_MONITOR_STOP_KEY = "NPU_MONITOR_STOP";
 const std::string NPU_MONITOR_SAVE_PATH = "NPU_MONITOR_LOG_FILE";
@@ -47,15 +55,13 @@ const std::unordered_map<std::string, msptiActivityKind> kindStrMap = {
     {"Communication", MSPTI_ACTIVITY_KIND_COMMUNICATION},
     {"AclAPI", MSPTI_ACTIVITY_KIND_ACL_API},
     {"NodeAPI", MSPTI_ACTIVITY_KIND_NODE_API},
-    {"RuntimeAPI", MSPTI_ACTIVITY_KIND_RUNTIME_API}
-};
+    {"RuntimeAPI", MSPTI_ACTIVITY_KIND_RUNTIME_API}};
 
 bool isValidKind(const std::string& kindStrs)
 {
     auto kindStrList = split(kindStrs, ',');
-    return std::all_of(kindStrList.begin(), kindStrList.end(), [&kindStrMap](const std::string& kindStr) {
-        return kindStrMap.find(kindStr) != kindStrMap.end();
-    });
+    return std::all_of(kindStrList.begin(), kindStrList.end(), [&kindStrMap](const std::string& kindStr)
+                       { return kindStrMap.find(kindStr) != kindStrMap.end(); });
 }
 
 bool isValidExportType(const std::string& s)
@@ -67,26 +73,34 @@ bool isValidExportType(const std::string& s)
 
 bool isUint32(const std::string& s)
 {
-    if (s.empty() || s.find_first_not_of("0123456789") != std::string::npos) {
+    if (s.empty() || s.find_first_not_of("0123456789") != std::string::npos)
+    {
         return false;
     }
-    try {
+    try
+    {
         unsigned long long value = std::stoull(s);
         return value <= std::numeric_limits<uint32_t>::max();
-    } catch (...) {
+    }
+    catch (...)
+    {
         return false;
     }
 }
 
 bool isFloat(const std::string& s)
 {
-    if (s.empty() || s.find_first_not_of("0123456789.-") != std::string::npos) {
+    if (s.empty() || s.find_first_not_of("0123456789.-") != std::string::npos)
+    {
         return false;
     }
-    try {
+    try
+    {
         std::stof(s);
         return true;
-    } catch (...) {
+    }
+    catch (...)
+    {
         return false;
     }
 }
@@ -98,20 +112,19 @@ bool isBool(const std::string& s)
     return lowerS == "true" || lowerS == "false";
 }
 
-bool isValidPath(const std::string& s)
-{
-    return s.length() <= PATH_MAX;
-}
+bool isValidPath(const std::string& s) { return s.length() <= PATH_MAX; }
 
-struct Rule {
+struct Rule
+{
     bool required = true;
     std::function<bool(const std::string&)> validate;
     std::string description;
 };
 
 std::unordered_map<std::string, Rule> rules = {
-    {MSPTI_ACTIVITY_KIND_KEY, {true, isValidKind,
-        "valid values: Marker, Kernel, API, Hccl, Memory, MemSet, MemCpy, Communication, AclAPI, NodeAPI, RuntimeAPI"}},
+    {MSPTI_ACTIVITY_KIND_KEY,
+     {true, isValidKind,
+      "valid values: Marker, Kernel, API, Hccl, Memory, MemSet, MemCpy, Communication, AclAPI, NodeAPI, RuntimeAPI"}},
     {REPORT_INTERVAL_S_KEY, {true, isUint32, "valid values: uint32"}},
     {DURATION_KEY, {true, isFloat, "valid values: float"}},
     {NPU_MONITOR_START_KEY, {true, isBool, "valid values: true/True, false/False"}},
@@ -123,20 +136,23 @@ std::unordered_map<std::string, Rule> rules = {
 bool validateArgs(const std::unordered_map<std::string, std::string>& args,
                   const std::unordered_map<std::string, Rule>& rules)
 {
-    for (const auto& rulePair : rules) {
+    for (const auto& rulePair : rules)
+    {
         const std::string& key = rulePair.first;
         const Rule& rule = rulePair.second;
         auto it = args.find(key);
-        if (it == args.end()) {
-            if (rule.required) {
+        if (it == args.end())
+        {
+            if (rule.required)
+            {
                 LOG(ERROR) << "Missing required key: " << key << "\n";
-                continue;
+                return false;
             }
+            continue;
         }
-        if (!rule.validate(it->second)) {
-            LOG(ERROR) << "Invalid value for " << key
-                      << " = '" << it->second
-                      << "' (" << rule.description << ")\n";
+        if (!rule.validate(it->second))
+        {
+            LOG(ERROR) << "Invalid value for " << key << " = '" << it->second << "' (" << rule.description << ")\n";
             return false;
         }
     }
@@ -147,9 +163,11 @@ std::set<msptiActivityKind> str2Kinds(const std::string& kindStrs)
 {
     std::set<msptiActivityKind> res;
     auto kindStrList = split(kindStrs, ',');
-    for (auto& kindStr : kindStrList) {
+    for (auto& kindStr : kindStrList)
+    {
         auto kind = kindStrMap.find(kindStr);
-        if (kind == kindStrMap.end()) {
+        if (kind == kindStrMap.end())
+        {
             return {MSPTI_ACTIVITY_KIND_INVALID};
         }
         res.insert(kind->second);
@@ -160,30 +178,35 @@ std::set<msptiActivityKind> str2Kinds(const std::string& kindStrs)
 msptiFilterItems str2FilterItems(const std::string& filterStr)
 {
     msptiFilterItems res;
-    auto filterItems = split(filterStr, ';'); 
-    for (const auto& filterItem : filterItems) {
+    auto filterItems = split(filterStr, ';');
+    for (const auto& filterItem : filterItems)
+    {
         auto tmpList = split(filterItem, ':');
-        if (tmpList.size() != 2) {
+        if (tmpList.size() != 2)
+        {
             continue;
         }
         auto it = kindStrMap.find(tmpList[0]);
-        if (it == kindStrMap.end()) {
+        if (it == kindStrMap.end())
+        {
             continue;
         }
         auto kind = it->second;
         auto opList = split(tmpList[1], ',');
-        for (const auto& op : opList) {
+        for (const auto& op : opList)
+        {
             res[kind].emplace(op);
         }
     }
     return res;
 }
-}
+}  // namespace
 
 MsptiMonitorCfg InputParser::DynoLogGetOpts(std::unordered_map<std::string, std::string>& cmd)
 {
-    if (!validateArgs(cmd, rules)) {
-        return {{MSPTI_ACTIVITY_KIND_INVALID}, 0, 0.0f, false, false, false, "", "", {}};
+    if (!validateArgs(cmd, rules))
+    {
+        return {{MSPTI_ACTIVITY_KIND_INVALID}, 0, 0.0f, false, false, false, "", "", {}, "", ""};
     }
     auto activityKinds = str2Kinds(cmd[MSPTI_ACTIVITY_KIND_KEY]);
     auto filterItems = str2FilterItems(cmd[NPU_MONITOR_FILTER]);
@@ -195,8 +218,17 @@ MsptiMonitorCfg InputParser::DynoLogGetOpts(std::unordered_map<std::string, std:
     Str2Bool(startSwitch, cmd[NPU_MONITOR_START_KEY]);
     bool endSwitch = false;
     Str2Bool(endSwitch, cmd[NPU_MONITOR_STOP_KEY]);
-    return {activityKinds, reportTimes, duration, startSwitch, endSwitch, true, cmd[NPU_MONITOR_SAVE_PATH],
-        cmd[NPU_MONITOR_EXPORT_TYPE], filterItems};
+    return {activityKinds,
+            reportTimes,
+            duration,
+            startSwitch,
+            endSwitch,
+            true,
+            cmd[NPU_MONITOR_SAVE_PATH],
+            cmd[NPU_MONITOR_EXPORT_TYPE],
+            filterItems,
+            cmd[JSONL_ROTATE_LOG_LINES_KEY],
+            cmd[JSONL_ROTATE_LOG_FILES_KEY]};
 }
-} // namespace ipc_monitor
-} // namespace dynolog_npu
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu

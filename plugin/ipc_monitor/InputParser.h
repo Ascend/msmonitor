@@ -16,18 +16,22 @@
 #ifndef INPUT_PARSER_H
 #define INPUT_PARSER_H
 
+#include <set>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <string>
-#include <set>
+
 #include "mspti.h"
 #include "singleton.h"
 
-namespace dynolog_npu {
-namespace ipc_monitor {
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
 
 using msptiFilterItems = std::unordered_map<msptiActivityKind, std::unordered_set<std::string>>;
-struct MsptiMonitorCfg {
+struct MsptiMonitorCfg
+{
     std::set<msptiActivityKind> enableActivities;
     uint32_t reportIntervals;
     float duration;
@@ -37,14 +41,16 @@ struct MsptiMonitorCfg {
     std::string savePath;
     std::string export_type;
     msptiFilterItems filterItems;
+    std::string json_rotate_log_lines;
+    std::string json_rotate_log_files;
 };
 
-
-class InputParser : public Singleton<InputParser> {
-public:
+class InputParser : public Singleton<InputParser>
+{
+   public:
     MsptiMonitorCfg DynoLogGetOpts(std::unordered_map<std::string, std::string>& cmd);
 };
 
-} // namespace ipc_monitor
-} // namespace dynolog_npu
-#endif // INPUT_PARSER_H
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
+#endif  // INPUT_PARSER_H
