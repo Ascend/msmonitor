@@ -53,7 +53,7 @@ endif()
 include_directories(".")
 add_subdirectory(dynolog)
 add_subdirectory(cli)
-# The following dummy depdendency ensures the cli is built
+# The following dummy dependency ensures the cli is built
 add_dependencies(dynolog_lib dyno)
 add_subdirectory(hbt)
 

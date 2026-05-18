@@ -13,10 +13,10 @@ mkdir -p ${CARGO_HOME}
 # 创建 config.toml(安全编译选项)
 cat > ${CARGO_HOME}/config.toml << EOF
 [source.crates-io]
-replace-with = "tuna"
+replace-with = 'aliyun'
 
-[source.tuna]
-registry = "sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/"
+[source.aliyun]
+registry = "sparse+https://mirrors.aliyun.com/crates.io-index/"
 
 [net]
 git-fetch-with-cli = true
