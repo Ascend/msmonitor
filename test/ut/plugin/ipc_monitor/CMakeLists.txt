@@ -4,6 +4,8 @@ set(TEST_SOURCES
     test_DynoLogNpuMonitor.cpp
     test_RingBuffer.cpp
     test_RotateLogger.cpp
+    test_TimerTask.cpp
+    test_DBConnection.cpp
 )
 
 find_package(Python 3.9 REQUIRED COMPONENTS Interpreter Development)
