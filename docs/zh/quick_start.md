@@ -38,6 +38,8 @@
 
 4. 启动训练或推理任务。
 
+   以下run_ai_task.sh为用户脚本示例，请以实际情况为准。
+
    ```bash
    bash run_ai_task.sh
    ```
