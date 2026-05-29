@@ -48,8 +48,9 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
 | --l2-cache            | 可选 | L2 Cache数据采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                             |     Y     |      Y      |
 | --op-attr             | 可选 | 算子属性信息采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                                 |     Y     |      N      |
 | --msprof-tx           | 可选 | mstx打点数据采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。<br/>PyTorch或MindSpore场景下，该开关开启后，mstx打点数据默认采集通信算子（domain为communication）和dataloader耗时、保存检查点接口耗时（domain为default）。                                                |     Y     |      Y      |
-| --mstx-domain-include | 可选 | 开启--msprof-tx采集mstx打点数据的情况下，配置该参数，设置实际采集的domain范围。默认未配置实际采集的domain范围。<br>与--mstx-domain-exclude参数互斥，若同时设置，则只有--mstx-domain-include生效。<br/>可配置一个或多个domain，例如：--mstx-domain-include domain1, domain2。 |     Y     |      Y      |
-| --mstx-domain-exclude | 可选 | 开启--msprof-tx采集mstx打点数据的情况下，配置该参数，设置实际不采集的domain范围。默认未配置实际不采集的domain范围。<br/>与--mstx-domain-include参数互斥，若同时设置，则只有--mstx-domain-include生效。<br/>可配置一个或多个domain，例如：--mstx-domain-exclude domain1, domain2                                                         |     Y     |      Y      |
+| --mstx-domain-include | 可选 | 开启--msprof-tx采集mstx打点数据的情况下，配置该参数，设置实际采集的domain范围，String类型。默认未配置实际采集的domain范围。<br>与--mstx-domain-exclude参数互斥，若同时设置，则只有--mstx-domain-include生效。<br/>可配置一个或多个domain，例如：--mstx-domain-include domain1,domain2。 |     Y     |      Y      |
+| --mstx-domain-exclude | 可选 | 开启--msprof-tx采集mstx打点数据的情况下，配置该参数，设置实际不采集的domain范围，String类型。默认未配置实际不采集的domain范围。<br/>与--mstx-domain-include参数互斥，若同时设置，则只有--mstx-domain-include生效。<br/>可配置一个或多个domain，例如：--mstx-domain-exclude domain1,domain2。 |     Y     |      Y      |
+| --rank-list           | 可选 | 指定需要采集的rank列表，String类型。多个rank使用逗号分隔，例如：--rank-list 0,1,2,3。未配置时采集所有rank的数据。 |     Y     |      N      |
 | --data-simplification | 可选 | 数据精简模式，取值为：<br/>&#8226; true：表示开启数据精简，开启后将在导出性能数据后删除多余数据，仅保留profiler_*.json文件、ASCEND_PROFILER_OUTPUT目录、PROF_XXX目录下的原始性能数据、FRAMEWORK目录和logs目录，以节省存储空间。<br/>&#8226; false：表示关闭数据精简。<br/>默认值为true。              |     Y     |      Y      |
 | --activities          | 可选 | 控制CPU、NPU事件采集范围，取值为：<br/>&#8226; CPU：框架侧数据采集的开关。<br/>&#8226; NPU：CANN软件栈及NPU数据采集的开关。<br/>默认情况下CPU、NPU事件采集同时开启，即配置为--activities CPU,NPU。                                     |     Y     |      Y      |
 | --profiler-level      | 可选 | 控制Profiler的采集等级，取值为：<br/>&#8226; Level_none：不采集所有Level层级控制的数据，即关闭--profiler_level。<br/>&#8226; Level0：采集上层应用数据、底层NPU数据以及NPU上执行的算子信息。<br/>&#8226; Level1：效果为在Level0的基础上，多采集CANN层AscendCL数据和NPU上执行的AI Core性能指标信息、开启--aic-metrics PipeUtilization、生成通信算子的communication.json和communication_matrix.json以及api_statistic.csv文件。<br/>&#8226; Level2：效果为在Level1的基础上多采集CANN层Runtime数据以及AI CPU（data_preprocess.csv文件）数据。<br/>&#8226; 默认值为Level0。 |     Y     |      Y      |
@@ -87,16 +88,16 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
    ```bash
    # 示例1：从第10个step开始采集，采集2个step，采集框架、CANN和device数据，同时采集完后自动解析以及解析完成不做数据精简，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
-   
+
    # 示例2：从下一个step开始采集，采集2个step，采集框架、CANN和device数据，同时采集完后自动解析以及解析完成不做数据精简，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step -1 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
-   
+
    # 示例3：从第10个step开始采集，采集2个step，只采集CANN和device数据，同时采集完后自动解析以及解析完成后开启数据精简，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities NPU --analyse --data-simplification true --log-file /tmp/profile_data
-   
+
    # 示例4：从第10个step开始采集，采集2个step，只采集CANN和device数据，只采集不解析，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities NPU --log-file /tmp/profile_data
-   
+
    # 示例5：多机场景下向特定机器x.x.x.x发送参数信息，参数表示从第10个step开始采集，采集2个step，只采集CANN和device数据，只采集不解析，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs --hostname x.x.x.x nputrace --start-step 10 --iterations 2 --activities NPU --log-file /tmp/profile_data
    ```

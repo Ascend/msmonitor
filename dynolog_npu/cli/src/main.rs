@@ -169,6 +169,23 @@ fn parse_json_rotate_log_files(src: &str) -> Result<String, String> {
     Err("Must be -1 or an integer greater than or equal to 2".to_string())
 }
 
+fn parse_comma_separated_integers(src: &str) -> Result<String, String> {
+    validate_string_max_len(src)?;
+
+    let values: Vec<&str> = src.split(',').map(|s| s.trim()).collect();
+    if values.is_empty() || values.iter().any(|value| value.is_empty()) {
+        return Err("Must be a comma-separated list of integers".to_string());
+    }
+
+    for value in &values {
+        value
+            .parse::<i64>()
+            .map_err(|_| format!("Invalid integer value: {}", value))?;
+    }
+
+    Ok(values.join(","))
+}
+
 #[derive(Debug, Parser)]
 enum Command {
     /// Check the status of a dynolog process
@@ -264,6 +281,9 @@ enum Command {
         /// Domains that do not need to be enabled in mstx mode.
         #[clap(long)]
         mstx_domain_exclude: Option<String>,
+        /// Rank list to collect data.
+        #[clap(long)]
+        rank_list: Option<String>,
     },
     /// Ascend MSPTI Monitor
     NpuMonitor {
@@ -745,15 +765,21 @@ fn main() -> Result<()> {
             sys_interconnection,
             mstx_domain_include,
             mstx_domain_exclude,
+            rank_list,
         } => {
             if let Some(value) = &mstx_domain_include {
                 if let Err(err_msg) = validate_string_max_len(value) {
-                    return Err(anyhow!("--mstx_domain_include error: {}", err_msg));
+                    return Err(anyhow!("--mstx-domain-include error: {}", err_msg));
                 }
             }
             if let Some(value) = &mstx_domain_exclude {
                 if let Err(err_msg) = validate_string_max_len(value) {
-                    return Err(anyhow!("--mstx_domain_exclude error: {}", err_msg));
+                    return Err(anyhow!("--mstx-domain-exclude error: {}", err_msg));
+                }
+            }
+            if let Some(value) = &rank_list {
+                if let Err(err_msg) = parse_comma_separated_integers(value) {
+                    return Err(anyhow!("--rank-list error: {}", err_msg));
                 }
             }
             if !PathUtils::check_dir(&log_file, false, false) {
@@ -793,6 +819,7 @@ fn main() -> Result<()> {
                 sys_interconnection,
                 mstx_domain_include,
                 mstx_domain_exclude,
+                rank_list,
             };
             let trace_config = NpuTraceConfig {
                 log_file,
