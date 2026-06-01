@@ -170,12 +170,17 @@ msMonitor 由以下三个交付件组成：
 | `8.1.0` | `aarch64` | `2025-07-11` | `8.1.RC1+` | `v7.1.0+` | `2.7.0-rc1+` | [aarch64_8.1.0.zip][pkg-810-aarch64] | `ce136120c0288291cc0a7803b1efc8c8416c6105e9d54c17ccf2e2510869fada` |
 | `8.1.0` | `x86` | `2025-07-11` | `8.1.RC1+` | `v7.1.0+` | `2.7.0-rc1+` | [x86_8.1.0.zip][pkg-810-x86] | `097d11c7994793b6389b19259269ceb3b6b7ac5ed77da3949b3f09da2103b7f2` |
 
+## 📋 使用案例
+
+msMonitor 在大模型训练&推理场景下的使用案例，请参见《[msMonitor使用案例](./docs/zh/user_guide/msmonitor_use_case.md)》。
+
 ## 📝 相关说明
 
 - 《[安全声明](./docs/zh/legal/security_statement.md)》
 - 《[漏洞机制说明](./docs/zh/legal/mindstudio_vulnerability_handling_procedure.md)》
 - 《[公网地址声明](./docs/zh/legal/public_ip_address.md)》
 - 《[贡献指南](./CONTRIBUTING.md)》
+- 《[FAQ](./docs/zh/faq.md)》
 - 《[License](./LICENSE)》
 - 《[文档 License](./docs/LICENSE)》
 
