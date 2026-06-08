@@ -15,7 +15,7 @@ use path_clean::PathClean;
 
 use super::utils;
 
-const MAX_PATH_SIZE: usize = 1024;
+const MAX_PATH_SIZE: usize = 4096;
 const INPUT_DIR_CHECK_MODE: i32 = R_OK | X_OK;
 const OUTPUT_DIR_CHECK_MODE: i32 = W_OK | X_OK;
 
@@ -122,8 +122,7 @@ impl PathUtils {
 
         for &(invalid, _) in INVALID_CHAR {
             if path.contains(invalid) {
-                println!("ERROR: The path contains invalid character: {:?}", invalid);
-                return false;
+                println!("WARNING: The path contains invalid character: {:?}", invalid);
             }
         }
 
@@ -151,35 +150,23 @@ impl PathUtils {
         }
 
         if Self::is_soft_link(path_ref) {
-            println!("ERROR: The path is a soft link: {:?}", path_ref);
-            return false;
+            println!("WARNING: The path is a soft link: {:?}", path_ref);
         }
 
         if utils::is_root() {
             return true;
         }
 
-        if !Self::is_owner(path_ref) {
-            println!("ERROR: The path is not owned by current user: {:?}", path_ref);
-            return false;
-        }
-
         if is_input {
             if !Self::access(path, INPUT_DIR_CHECK_MODE) {
-                println!("ERROR: The path is not readable: {}", path);
-                return false;
+                println!("WARNING: The path is not readable: {}", path);
             }
         } else {
             if !Self::access(path, OUTPUT_DIR_CHECK_MODE) {
-                println!("ERROR: The path is not writable: {}", path);
-                return false;
+                println!("WARNING: The path is not writable: {}", path);
             }
         }
 
-        if Self::is_writable_by_others(path_ref) {
-            println!("ERROR: The path is writable by others: {:?}", path_ref);
-            return false;
-        }
         true
     }
 }

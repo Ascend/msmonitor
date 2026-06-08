@@ -19,13 +19,16 @@
 
 #include <string>
 
-namespace dynolog {
-struct PathUtils {
+namespace dynolog
+{
+struct PathUtils
+{
     static bool DirPathCheck(const std::string &path);
     static bool Access(const std::string &path, const int &mode);
     static bool Exist(const std::string &path);
     static bool IsSoftLink(const std::string &path);
     static bool IsFile(const std::string &path);
+    static bool IsDirectory(const std::string &path);
     static bool IsWritableByOthers(const std::string &path);
     static bool IsOwner(const std::string &path);
     static std::string GetAbsolutePath(const std::string &path);
@@ -33,5 +36,5 @@ struct PathUtils {
 bool IsRoot();
 bool CheckJsonDepth(const std::string &json_str);
 std::string GetCurrentUserHomePath();
-}
+}  // namespace dynolog
 #endif
