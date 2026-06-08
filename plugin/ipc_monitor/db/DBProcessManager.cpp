@@ -15,14 +15,19 @@
  */
 
 #include "db/DBProcessManager.h"
+
+#include "MsptiMonitor.h"
 #include "db/DBConstant.h"
 #include "singleton.h"
-#include "MsptiMonitor.h"
 
-namespace dynolog_npu {
-namespace ipc_monitor {
-namespace db {
-namespace {
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace db
+{
+namespace
+{
 constexpr uint64_t MSTX_CONNECTION_ID_OFFSET = 4000000000ULL;
 constexpr int32_t INVALID_DEVICE_ID = -1;
 const std::string MSTX_TASK_TYPE = "MsTx";
@@ -46,40 +51,25 @@ const std::vector<std::tuple<uint16_t, std::string>> HCCL_DATA_TYPE = {
     {msptiCommunicationDataType::MSPTI_ACTIVITY_COMMUNICATION_FP8E4M3, "FP8E4M3"},
     {msptiCommunicationDataType::MSPTI_ACTIVITY_COMMUNICATION_FP8E5M2, "FP8E5M2"},
     {msptiCommunicationDataType::MSPTI_ACTIVITY_COMMUNICATION_FP8E8M0, "FP8E8M0"},
-    {msptiCommunicationDataType::MSPTI_ACTIVITY_COMMUNICATION_INVALID_TYPE, "INVALID_TYPE"}
-};
+    {msptiCommunicationDataType::MSPTI_ACTIVITY_COMMUNICATION_INVALID_TYPE, "INVALID_TYPE"}};
 
 constexpr uint16_t MSTX_MARKER_TYPE = 0;
 constexpr uint16_t MSTX_RANGE_TYPE = 2;
 const std::vector<std::tuple<uint16_t, std::string>> MSTX_EVENT_TYPE = {
-    {0, "marker"},
-    {1, "push/pop"},
-    {2, "start/end"},
-    {3, "marker_ex"}
-};
+    {0, "marker"}, {1, "push/pop"}, {2, "start/end"}, {3, "marker_ex"}};
 
-const std::vector<std::tuple<std::string, std::string>> META_DATA = {
-    {"SCHEMA_VERSION_MICRO", "1"},
-    {"SCHEMA_VERSION_MINOR", "2"},
-    {"SCHEMA_VERSION_MAJOR", "0"},
-    {"SCHEMA_VERSION", "1.2.0"}
-};
+const std::vector<std::tuple<std::string, std::string>> META_DATA = {{"SCHEMA_VERSION_MICRO", "1"},
+                                                                     {"SCHEMA_VERSION_MINOR", "2"},
+                                                                     {"SCHEMA_VERSION_MAJOR", "0"},
+                                                                     {"SCHEMA_VERSION", "1.2.0"}};
 
 constexpr uint16_t API_LEVEL = 10000;
 constexpr uint16_t RUNTIME_API_LEVEL = 5000;
 constexpr uint16_t NODE_API_LEVEL = 10000;
 constexpr uint16_t ACL_API_LEVEL = 20000;
 const std::vector<std::tuple<uint16_t, std::string>> API_LEVEL_MAP = {
-    {5000, "runtime"},
-    {5500, "communication"},
-    {10000, "node"},
-    {15000, "model"},
-    {20000, "acl"},
-    {50001, "op"},
-    {50002, "queue"},
-    {50003, "trace"},
-    {50004, "mstx"}
-};
+    {5000, "runtime"}, {5500, "communication"}, {10000, "node"},  {15000, "model"}, {20000, "acl"},
+    {50001, "op"},     {50002, "queue"},        {50003, "trace"}, {50004, "mstx"}};
 
 uint64_t ConcatGlobalTid(uint32_t pid, uint32_t tid)
 {
@@ -92,10 +82,11 @@ std::string GetMsmonitorDbPath(const std::string &outputPath)
     auto identity = join({std::to_string(GetProcessId()), getCurrentTimestamp(), std::to_string(GetRankId())}, "_");
     return outputPath + "/msmonitor_" + identity + ".db";
 }
-} // namecpace
+}  // namespace
 
-class IdPool : public Singleton<IdPool> {
-public:
+class IdPool : public Singleton<IdPool>
+{
+   public:
     IdPool() = default;
     ~IdPool() = default;
     uint64_t GetUint64Id(const std::string &key);
@@ -103,7 +94,7 @@ public:
     void Clear();
     bool IsEmpty();
 
-private:
+   private:
     std::mutex uint64IdMapMutex_;
     uint64_t uint64Index_{0};
     std::unordered_map<std::string, uint64_t> uint64IdMap_;
@@ -113,7 +104,8 @@ uint64_t IdPool::GetUint64Id(const std::string &key)
 {
     std::lock_guard<std::mutex> lock(uint64IdMapMutex_);
     auto it = uint64IdMap_.find(key);
-    if (it != uint64IdMap_.end()) {
+    if (it != uint64IdMap_.end())
+    {
         return it->second;
     }
     uint64IdMap_.emplace(key, uint64Index_);
@@ -125,7 +117,8 @@ StringIdFormat IdPool::GetStringIdData()
     std::lock_guard<std::mutex> lock(uint64IdMapMutex_);
     StringIdFormat stringIdData;
     stringIdData.reserve(uint64IdMap_.size());
-    for (auto it : uint64IdMap_) {
+    for (auto it : uint64IdMap_)
+    {
         stringIdData.emplace_back(it.second, it.first);
     }
     return stringIdData;
@@ -146,9 +139,11 @@ bool IdPool::IsEmpty()
 
 void DBProcessManager::SetReportInterval(uint32_t interval)
 {
-    if (reportInterval_.load() != interval) {
+    if (reportInterval_.load() != interval)
+    {
         LOG(INFO) << "DBProcessManager SetReportInterval interval: " << interval;
-        if (IsRunning()) {
+        if (IsRunning())
+        {
             SaveData();
         }
         SetInterval(interval);
@@ -156,14 +151,12 @@ void DBProcessManager::SetReportInterval(uint32_t interval)
     }
 }
 
-void DBProcessManager::RunPreTask()
-{
-    sessionStartTime_ = getCurrentTimestamp64();
-}
+void DBProcessManager::RunPreTask() { sessionStartTime_ = getCurrentTimestamp64(); }
 
 void DBProcessManager::ExecuteTask()
 {
-    if (!SaveData()) {
+    if (!SaveData())
+    {
         LOG(ERROR) << "DBProcessManager SaveData failed";
     }
 }
@@ -171,12 +164,15 @@ void DBProcessManager::ExecuteTask()
 bool DBProcessManager::CheckAndInitDB()
 {
     std::lock_guard<std::mutex> lock(dbMutex_);
-    if (IdPool::GetInstance()->IsEmpty()) {
+    if (IdPool::GetInstance()->IsEmpty())
+    {
         return true;
     }
-    if (msMonitorDB_.database == nullptr || msMonitorDB_.dbRunner == nullptr) {
+    if (msMonitorDB_.database == nullptr || msMonitorDB_.dbRunner == nullptr)
+    {
         auto dbPath = GetMsmonitorDbPath(savePath_);
-        if (!PathUtils::IsFileExist(dbPath) && !PathUtils::CreateFile(dbPath)) {
+        if (!PathUtils::IsFileExist(dbPath) && !PathUtils::CreateFile(dbPath))
+        {
             LOG(ERROR) << "DBProcessManager create db failed";
             return false;
         }
@@ -191,7 +187,8 @@ bool DBProcessManager::CheckAndInitDB()
 
 bool DBProcessManager::SaveData()
 {
-    if (!CheckAndInitDB()) {
+    if (!CheckAndInitDB())
+    {
         LOG(ERROR) << "DBProcessManager init msmonitor db failed";
         return false;
     }
@@ -229,10 +226,10 @@ bool DBProcessManager::SaveConstantData()
     flag = InsertDataToDB(API_LEVEL_MAP, TABLE_API_TYPE, msMonitorDB_) && flag;
     flag = InsertDataToDB(META_DATA, TABLE_META_DATA, msMonitorDB_) && flag;
 
-    std::vector<std::tuple<std::string, std::string>> hostInfoData {{GetHostUid(), GetHostName()}};
+    std::vector<std::tuple<std::string, std::string>> hostInfoData{{GetHostUid(), GetHostName()}};
     flag = InsertDataToDB(hostInfoData, TABLE_HOST_INFO, msMonitorDB_) && flag;
 
-    std::vector<std::tuple<uint64_t, uint64_t>> sessionTimeInfoData {{sessionStartTime_, getCurrentTimestamp64()}};
+    std::vector<std::tuple<uint64_t, uint64_t>> sessionTimeInfoData{{sessionStartTime_, getCurrentTimestamp64()}};
     flag = InsertDataToDB(sessionTimeInfoData, TABLE_SESSION_TIME_INFO, msMonitorDB_) && flag;
 
     auto stringIdData = IdPool::GetInstance()->GetStringIdData();
@@ -245,13 +242,15 @@ bool DBProcessManager::SaveParallelGroupData()
     const std::string parallel_group_info_key = "parallel_group_info";
     auto clusterConfigData = MsptiMonitor::GetInstance()->GetClusterConfigData();
     auto iter = clusterConfigData.find(parallel_group_info_key);
-    if (iter == clusterConfigData.end()) {
+    if (iter == clusterConfigData.end())
+    {
         LOG(WARNING) << "DBProcessManager SaveParallelGroupData parallel_group_info is not found";
         return true;
     }
-    const std::string& parallel_group_info = iter->second;
-    if (!parallel_group_info.empty()) {
-        std::vector<std::tuple<std::string, std::string>> data {{parallel_group_info_key, parallel_group_info}};
+    const std::string &parallel_group_info = iter->second;
+    if (!parallel_group_info.empty())
+    {
+        std::vector<std::tuple<std::string, std::string>> data{{parallel_group_info_key, parallel_group_info}};
         return InsertDataToDB(data, TABLE_META_DATA, msMonitorDB_);
     }
     return true;
@@ -259,20 +258,26 @@ bool DBProcessManager::SaveParallelGroupData()
 
 bool DBProcessManager::SaveRankDeviceData()
 {
-    if (msMonitorDB_.dbRunner->CheckTableExists(TABLE_RANK_DEVICE_MAP)) {
+    if (msMonitorDB_.dbRunner->CheckTableExists(TABLE_RANK_DEVICE_MAP))
+    {
         return true;
     }
     auto rankId = GetRankId();
     std::vector<std::tuple<int32_t, int32_t>> rankDeviceData;
-    if (deviceSet_.empty()) {
+    if (deviceSet_.empty())
+    {
         rankDeviceData.emplace_back(rankId, INVALID_DEVICE_ID);
-    } else {
+    }
+    else
+    {
         rankDeviceData.reserve(deviceSet_.size());
-        for (auto deviceId : deviceSet_) {
+        for (auto deviceId : deviceSet_)
+        {
             rankDeviceData.emplace_back(rankId, static_cast<int32_t>(deviceId));
         }
     }
-    if (!InsertDataToDB(rankDeviceData, TABLE_RANK_DEVICE_MAP, msMonitorDB_)) {
+    if (!InsertDataToDB(rankDeviceData, TABLE_RANK_DEVICE_MAP, msMonitorDB_))
+    {
         LOG(ERROR) << "DBProcessManager insert rank device map data failed";
         return false;
     }
@@ -281,19 +286,25 @@ bool DBProcessManager::SaveRankDeviceData()
 
 bool DBProcessManager::SaveNpuInfoData()
 {
-    if (msMonitorDB_.dbRunner->CheckTableExists(TABLE_NPU_INFO)) {
+    if (msMonitorDB_.dbRunner->CheckTableExists(TABLE_NPU_INFO))
+    {
         return true;
     }
     std::vector<std::tuple<int32_t, std::string>> npuInfoData;
-    if (deviceSet_.empty()) {
+    if (deviceSet_.empty())
+    {
         npuInfoData.emplace_back(INVALID_DEVICE_ID, UNKNOWN);
-    } else {
+    }
+    else
+    {
         npuInfoData.reserve(deviceSet_.size());
-        for (auto deviceId : deviceSet_) {
+        for (auto deviceId : deviceSet_)
+        {
             npuInfoData.emplace_back(static_cast<int32_t>(deviceId), UNKNOWN);
         }
     }
-    if (!InsertDataToDB(npuInfoData, TABLE_NPU_INFO, msMonitorDB_)) {
+    if (!InsertDataToDB(npuInfoData, TABLE_NPU_INFO, msMonitorDB_))
+    {
         LOG(ERROR) << "DBProcessManager insert npu info data failed";
         return false;
     }
@@ -305,13 +316,17 @@ void DBProcessManager::RunPostTask()
     SaveData();
 
     std::lock_guard<std::mutex> lock(dataMutex_);
-    if (hasSavedData_) {
-        if (CheckAndInitDB()) {
+    if (hasSavedData_)
+    {
+        if (CheckAndInitDB())
+        {
             SaveConstantData();
             SaveParallelGroupData();
             SaveRankDeviceData();
             SaveNpuInfoData();
-        } else {
+        }
+        else
+        {
             LOG(ERROR) << "DBProcessManager init msmonitor db failed";
         }
     }
@@ -335,16 +350,16 @@ void DBProcessManager::RunPostTask()
 void DBProcessManager::ProcessApiData(msptiActivityApi *record, const uint16_t apiLevel)
 {
     uint64_t endTime = record->end;
-    if (endTime < sessionStartTime_) {
+    if (endTime < sessionStartTime_)
+    {
         return;
     }
-    uint64_t name = IdPool::GetInstance()->GetUint64Id(record->name);
+    uint64_t nameHash = IdPool::GetInstance()->GetUint64Id(SafeCstrToString(record->name));
     uint64_t globalTid = ConcatGlobalTid(record->pt.processId, record->pt.threadId);
     uint64_t connectionId = record->correlationId;
 
     std::lock_guard<std::mutex> lock(dataMutex_);
-    apiData_.emplace_back(static_cast<uint64_t>(record->start), endTime, apiLevel,
-        globalTid, connectionId, name);
+    apiData_.emplace_back(static_cast<uint64_t>(record->start), endTime, apiLevel, globalTid, connectionId, nameHash);
 }
 
 std::string DBProcessManager::ConstructCommOpName(const std::string &opName, const std::string &groupName)
@@ -352,15 +367,19 @@ std::string DBProcessManager::ConstructCommOpName(const std::string &opName, con
     uint64_t opCount = communicationGroupOpCount_[groupName]++;
     std::string groupId;
     auto it = communicationGroupNameMap_.find(groupName);
-    if (it == communicationGroupNameMap_.end()) {
+    if (it == communicationGroupNameMap_.end())
+    {
         static const size_t GROUP_ID_LEN = 3;
         auto groupHashId = std::to_string(CalcHashId(groupName));
-        if (groupHashId.size() >= GROUP_ID_LEN) {
-            groupHashId = groupHashId.substr(groupHashId.size()-GROUP_ID_LEN);
+        if (groupHashId.size() >= GROUP_ID_LEN)
+        {
+            groupHashId = groupHashId.substr(groupHashId.size() - GROUP_ID_LEN);
         }
         communicationGroupNameMap_.emplace(groupName, groupHashId);
         groupId = groupHashId;
-    } else {
+    }
+    else
+    {
         groupId = it->second;
     }
     return opName + "_" + groupId + "_" + std::to_string(opCount) + "_1";
@@ -369,55 +388,65 @@ std::string DBProcessManager::ConstructCommOpName(const std::string &opName, con
 void DBProcessManager::ProcessCommunicationData(msptiActivityCommunication *record)
 {
     uint64_t endTime = record->end;
-    if (endTime < sessionStartTime_) {
+    if (endTime < sessionStartTime_)
+    {
         return;
     }
     std::lock_guard<std::mutex> lock(dataMutex_);
-    uint64_t groupName = IdPool::GetInstance()->GetUint64Id(record->commName);
-    auto commOpName = ConstructCommOpName(record->name, record->commName);
+    std::string commName = SafeCstrToString(record->commName);
+    uint64_t groupName = IdPool::GetInstance()->GetUint64Id(commName);
+
+    std::string name = SafeCstrToString(record->name);
+    auto commOpName = ConstructCommOpName(name, commName);
     uint64_t opName = IdPool::GetInstance()->GetUint64Id(commOpName);
     uint32_t opId = communicationOpId_.fetch_add(1);
-    uint64_t algType = IdPool::GetInstance()->GetUint64Id(record->algType);
-    uint64_t opType = IdPool::GetInstance()->GetUint64Id(record->name);
+    uint64_t algType = IdPool::GetInstance()->GetUint64Id(SafeCstrToString(record->algType));
+    uint64_t opType = IdPool::GetInstance()->GetUint64Id(name);
     uint64_t connectionId = record->correlationId;
     uint32_t deviceId = record->ds.deviceId;
-    communicationOpData_.emplace_back(opName, static_cast<uint64_t>(record->start), endTime,
-        connectionId, groupName, opId, 0, 0, static_cast<uint16_t>(record->dataType),
-        algType, static_cast<uint64_t>(record->count), opType, deviceId);
+
+    communicationOpData_.emplace_back(opName, static_cast<uint64_t>(record->start), endTime, connectionId, groupName,
+                                      opId, 0, 0, static_cast<uint16_t>(record->dataType), algType,
+                                      static_cast<uint64_t>(record->count), opType, deviceId);
     deviceSet_.insert(deviceId);
 }
 
 void DBProcessManager::ProcessKernelData(msptiActivityKernel *record)
 {
     uint64_t endTime = record->end;
-    if (endTime < sessionStartTime_) {
+    if (endTime < sessionStartTime_)
+    {
         return;
     }
-    uint64_t opName = IdPool::GetInstance()->GetUint64Id(record->name);
-    uint64_t taskType = IdPool::GetInstance()->GetUint64Id(record->type);
+    uint64_t opName = IdPool::GetInstance()->GetUint64Id(SafeCstrToString(record->name));
+    uint64_t taskType = IdPool::GetInstance()->GetUint64Id(SafeCstrToString(record->type));
     uint64_t globalTaskId = globalTaskId_.fetch_add(1);
     uint64_t NAId = IdPool::GetInstance()->GetUint64Id(NA);
     uint64_t connectionId = record->correlationId;
     uint32_t deviceId = record->ds.deviceId;
 
     std::lock_guard<std::mutex> lock(dataMutex_);
-    computeTaskInfoData_.emplace_back(opName, globalTaskId, UINT32_MAX, UINT32_MAX, taskType,
-        NAId, NAId, NAId, NAId, NAId, NAId, NAId, NAId, NAId, NAId);
-    taskData_.emplace_back(static_cast<uint64_t>(record->start), endTime,
-        deviceId, connectionId, globalTaskId, GetProcessId(), taskType, UINT32_MAX,
-        static_cast<uint32_t>(record->ds.streamId), UINT32_MAX, UINT32_MAX);
+    computeTaskInfoData_.emplace_back(opName, globalTaskId, UINT32_MAX, UINT32_MAX, taskType, NAId, NAId, NAId, NAId,
+                                      NAId, NAId, NAId, NAId, NAId, NAId);
+    taskData_.emplace_back(static_cast<uint64_t>(record->start), endTime, deviceId, connectionId, globalTaskId,
+                           GetProcessId(), taskType, UINT32_MAX, static_cast<uint32_t>(record->ds.streamId), UINT32_MAX,
+                           UINT32_MAX);
     deviceSet_.insert(deviceId);
 }
 
 void DBProcessManager::ProcessMstxData(msptiActivityMarker *record)
 {
-    if (record->timestamp < sessionStartTime_) {
+    if (record->timestamp < sessionStartTime_)
+    {
         return;
     }
     std::lock_guard<std::mutex> lock(dataMutex_);
-    if (record->sourceKind == msptiActivitySourceKind::MSPTI_ACTIVITY_SOURCE_KIND_HOST) {
+    if (record->sourceKind == msptiActivitySourceKind::MSPTI_ACTIVITY_SOURCE_KIND_HOST)
+    {
         ProcessMstxHostData(record);
-    } else if (record->sourceKind == msptiActivitySourceKind::MSPTI_ACTIVITY_SOURCE_KIND_DEVICE) {
+    }
+    else if (record->sourceKind == msptiActivitySourceKind::MSPTI_ACTIVITY_SOURCE_KIND_DEVICE)
+    {
         ProcessMstxDeviceData(record);
     }
 }
@@ -426,22 +455,29 @@ void DBProcessManager::ProcessMstxHostData(msptiActivityMarker *record)
 {
     uint64_t connectionId = record->id + MSTX_CONNECTION_ID_OFFSET;
     uint64_t timestamp = static_cast<uint64_t>(record->timestamp);
-    uint64_t message = IdPool::GetInstance()->GetUint64Id(record->name);
-    uint64_t domain = IdPool::GetInstance()->GetUint64Id(record->domain);
+    uint64_t message = IdPool::GetInstance()->GetUint64Id(SafeCstrToString(record->name));
+    uint64_t domain = IdPool::GetInstance()->GetUint64Id(SafeCstrToString(record->domain));
     uint64_t globalTid = ConcatGlobalTid(record->objectId.pt.processId, record->objectId.pt.threadId);
     if (record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_INSTANTANEOUS ||
-        record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_INSTANTANEOUS_WITH_DEVICE) {
-        mstxData_.emplace_back(timestamp, timestamp, MSTX_MARKER_TYPE, UINT32_MAX, UINT32_MAX,
-            message, globalTid, globalTid, domain, connectionId);
-    } else if (record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_START ||
-        record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_START_WITH_DEVICE) {
+        record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_INSTANTANEOUS_WITH_DEVICE)
+    {
+        mstxData_.emplace_back(timestamp, timestamp, MSTX_MARKER_TYPE, UINT32_MAX, UINT32_MAX, message, globalTid,
+                               globalTid, domain, connectionId);
+    }
+    else if (record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_START ||
+             record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_START_WITH_DEVICE)
+    {
         mstxRangeHostDataMap_.emplace(connectionId, MstxHostData{connectionId, timestamp, globalTid, domain, message});
-    } else if (record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_END ||
-        record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_END_WITH_DEVICE) {
+    }
+    else if (record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_END ||
+             record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_END_WITH_DEVICE)
+    {
         auto it = mstxRangeHostDataMap_.find(connectionId);
-        if (it != mstxRangeHostDataMap_.end()) {
+        if (it != mstxRangeHostDataMap_.end())
+        {
             mstxData_.emplace_back(it->second.timestamp, timestamp, MSTX_RANGE_TYPE, UINT32_MAX, UINT32_MAX,
-                it->second.message, it->second.globalTid, globalTid, it->second.domain, connectionId);
+                                   it->second.message, it->second.globalTid, globalTid, it->second.domain,
+                                   connectionId);
             mstxRangeHostDataMap_.erase(it);
         }
     }
@@ -452,21 +488,26 @@ void DBProcessManager::ProcessMstxDeviceData(msptiActivityMarker *record)
     uint64_t connectionId = record->id + MSTX_CONNECTION_ID_OFFSET;
     uint64_t timestamp = static_cast<uint64_t>(record->timestamp);
     uint64_t taskType = IdPool::GetInstance()->GetUint64Id(MSTX_TASK_TYPE);
-    if (record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_INSTANTANEOUS_WITH_DEVICE) {
-        taskData_.emplace_back(timestamp, timestamp,
-            static_cast<uint32_t>(record->objectId.ds.deviceId), connectionId,
-            globalTaskId_.fetch_add(1), GetProcessId(), taskType, UINT32_MAX,
-            static_cast<uint32_t>(record->objectId.ds.streamId), UINT32_MAX, UINT32_MAX);
-    } else if (record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_START_WITH_DEVICE) {
+    if (record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_INSTANTANEOUS_WITH_DEVICE)
+    {
+        taskData_.emplace_back(timestamp, timestamp, static_cast<uint32_t>(record->objectId.ds.deviceId), connectionId,
+                               globalTaskId_.fetch_add(1), GetProcessId(), taskType, UINT32_MAX,
+                               static_cast<uint32_t>(record->objectId.ds.streamId), UINT32_MAX, UINT32_MAX);
+    }
+    else if (record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_START_WITH_DEVICE)
+    {
         mstxRangeDeviceDataMap_.emplace(connectionId,
-            MstxDeviceData{connectionId, timestamp, globalTaskId_.fetch_add(1)});
-    } else if (record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_END_WITH_DEVICE) {
+                                        MstxDeviceData{connectionId, timestamp, globalTaskId_.fetch_add(1)});
+    }
+    else if (record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_END_WITH_DEVICE)
+    {
         auto it = mstxRangeDeviceDataMap_.find(connectionId);
-        if (it != mstxRangeDeviceDataMap_.end()) {
+        if (it != mstxRangeDeviceDataMap_.end())
+        {
             uint32_t deviceId = static_cast<uint32_t>(record->objectId.ds.deviceId);
-            taskData_.emplace_back(it->second.timestamp, timestamp,
-                deviceId, connectionId, it->second.globalTaskId, GetProcessId(), taskType,
-                UINT32_MAX, static_cast<uint32_t>(record->objectId.ds.streamId), UINT32_MAX, UINT32_MAX);
+            taskData_.emplace_back(it->second.timestamp, timestamp, deviceId, connectionId, it->second.globalTaskId,
+                                   GetProcessId(), taskType, UINT32_MAX,
+                                   static_cast<uint32_t>(record->objectId.ds.streamId), UINT32_MAX, UINT32_MAX);
             mstxRangeDeviceDataMap_.erase(it);
             deviceSet_.insert(deviceId);
         }
@@ -475,31 +516,33 @@ void DBProcessManager::ProcessMstxDeviceData(msptiActivityMarker *record)
 
 ErrCode DBProcessManager::ConsumeMsptiData(msptiActivity *record)
 {
-    if (record == nullptr) {
+    if (record == nullptr)
+    {
         LOG(ERROR) << "DBProcessManager::ConsumeMsptiData record is null";
         return ErrCode::VALUE;
     }
-    switch (record->kind) {
+    switch (record->kind)
+    {
         case msptiActivityKind::MSPTI_ACTIVITY_KIND_API:
-            ProcessApiData(ReinterpretConvert<msptiActivityApi*>(record), API_LEVEL);
+            ProcessApiData(ReinterpretConvert<msptiActivityApi *>(record), API_LEVEL);
             break;
         case msptiActivityKind::MSPTI_ACTIVITY_KIND_COMMUNICATION:
-            ProcessCommunicationData(ReinterpretConvert<msptiActivityCommunication*>(record));
+            ProcessCommunicationData(ReinterpretConvert<msptiActivityCommunication *>(record));
             break;
         case msptiActivityKind::MSPTI_ACTIVITY_KIND_KERNEL:
-            ProcessKernelData(ReinterpretConvert<msptiActivityKernel*>(record));
+            ProcessKernelData(ReinterpretConvert<msptiActivityKernel *>(record));
             break;
         case msptiActivityKind::MSPTI_ACTIVITY_KIND_MARKER:
-            ProcessMstxData(ReinterpretConvert<msptiActivityMarker*>(record));
+            ProcessMstxData(ReinterpretConvert<msptiActivityMarker *>(record));
             break;
         case msptiActivityKind::MSPTI_ACTIVITY_KIND_ACL_API:
-            ProcessApiData(ReinterpretConvert<msptiActivityApi*>(record), ACL_API_LEVEL);
+            ProcessApiData(ReinterpretConvert<msptiActivityApi *>(record), ACL_API_LEVEL);
             break;
         case msptiActivityKind::MSPTI_ACTIVITY_KIND_NODE_API:
-            ProcessApiData(ReinterpretConvert<msptiActivityApi*>(record), NODE_API_LEVEL);
+            ProcessApiData(ReinterpretConvert<msptiActivityApi *>(record), NODE_API_LEVEL);
             break;
         case msptiActivityKind::MSPTI_ACTIVITY_KIND_RUNTIME_API:
-            ProcessApiData(ReinterpretConvert<msptiActivityApi*>(record), RUNTIME_API_LEVEL);
+            ProcessApiData(ReinterpretConvert<msptiActivityApi *>(record), RUNTIME_API_LEVEL);
             break;
         default:
             LOG(WARNING) << record->kind << " is not supported for DBProcessManager";
@@ -507,6 +550,6 @@ ErrCode DBProcessManager::ConsumeMsptiData(msptiActivity *record)
     }
     return ErrCode::SUC;
 }
-} // namespace db
-} // namespace ipc_monitor
-} // namespace dynolog_npu
+}  // namespace db
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "MsptiMonitor.h"
 
 #include <glog/logging.h>
@@ -274,19 +275,19 @@ bool MsptiMonitor::ShouldKeepRecord(msptiActivity *record)
         case msptiActivityKind::MSPTI_ACTIVITY_KIND_RUNTIME_API:
         {
             auto *data = ReinterpretConvert<msptiActivityApi *>(record);
-            opName = (data != nullptr) ? data->name : "";
+            opName = (data != nullptr) ? SafeCstrToString(data->name) : "";
             break;
         }
         case msptiActivityKind::MSPTI_ACTIVITY_KIND_COMMUNICATION:
         {
             auto *data = ReinterpretConvert<msptiActivityCommunication *>(record);
-            opName = (data != nullptr) ? data->name : "";
+            opName = (data != nullptr) ? SafeCstrToString(data->name) : "";
             break;
         }
         case msptiActivityKind::MSPTI_ACTIVITY_KIND_KERNEL:
         {
             auto *data = ReinterpretConvert<msptiActivityKernel *>(record);
-            opName = (data != nullptr) ? data->name : "";
+            opName = (data != nullptr) ? SafeCstrToString(data->name) : "";
             break;
         }
         case msptiActivityKind::MSPTI_ACTIVITY_KIND_MARKER:
@@ -299,7 +300,7 @@ bool MsptiMonitor::ShouldKeepRecord(msptiActivity *record)
             if (data->sourceKind == msptiActivitySourceKind::MSPTI_ACTIVITY_SOURCE_KIND_HOST &&
                 FLAGS_WITH_VALID_NAME.find(data->flag) != FLAGS_WITH_VALID_NAME.end())
             {
-                opName = data->name;
+                opName = SafeCstrToString(data->name);
                 break;
             }
             else
