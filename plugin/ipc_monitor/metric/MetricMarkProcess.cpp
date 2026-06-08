@@ -13,18 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "MetricMarkProcess.h"
 
-#include <nlohmann/json.hpp>
 #include <glog/logging.h>
+
+#include <nlohmann/json.hpp>
 #include <numeric>
 
 #include "utils.h"
 
-
-namespace dynolog_npu {
-namespace ipc_monitor {
-namespace metric {
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace metric
+{
 
 constexpr size_t COMPLETE_RANGE_DATA_SIZE = 4;
 
@@ -41,26 +45,36 @@ std::string MarkMetric::seriesToJson() const
 }
 
 bool MetricMarkProcess::TransMarkData2Range(const std::vector<std::shared_ptr<msptiActivityMarker>>& markDatas,
-    RangeMarkData& rangemarkData)
+                                            RangeMarkData& rangemarkData)
 {
-    if (markDatas.size() != COMPLETE_RANGE_DATA_SIZE) {
+    if (markDatas.size() != COMPLETE_RANGE_DATA_SIZE)
+    {
         return false;
     }
 
-    for (auto& activityMarker: markDatas) {
-        if (activityMarker->flag == MSPTI_ACTIVITY_FLAG_MARKER_START_WITH_DEVICE) {
-            if (activityMarker->sourceKind == MSPTI_ACTIVITY_SOURCE_KIND_DEVICE) {
+    for (auto& activityMarker : markDatas)
+    {
+        if (activityMarker->flag == MSPTI_ACTIVITY_FLAG_MARKER_START_WITH_DEVICE)
+        {
+            if (activityMarker->sourceKind == MSPTI_ACTIVITY_SOURCE_KIND_DEVICE)
+            {
                 rangemarkData.deviceId = activityMarker->objectId.ds.deviceId;
                 rangemarkData.deviceStart = activityMarker->timestamp;
-            } else {
+            }
+            else
+            {
                 rangemarkData.start = activityMarker->timestamp;
-                rangemarkData.name = activityMarker->name;
+                rangemarkData.name = SafeCstrToString(activityMarker->name);
             }
         }
-        if (activityMarker->flag == MSPTI_ACTIVITY_FLAG_MARKER_END_WITH_DEVICE) {
-            if (activityMarker->sourceKind == MSPTI_ACTIVITY_SOURCE_KIND_DEVICE) {
+        if (activityMarker->flag == MSPTI_ACTIVITY_FLAG_MARKER_END_WITH_DEVICE)
+        {
+            if (activityMarker->sourceKind == MSPTI_ACTIVITY_SOURCE_KIND_DEVICE)
+            {
                 rangemarkData.deviceEnd = activityMarker->timestamp;
-            } else {
+            }
+            else
+            {
                 rangemarkData.end = activityMarker->timestamp;
             }
         }
@@ -68,7 +82,8 @@ bool MetricMarkProcess::TransMarkData2Range(const std::vector<std::shared_ptr<ms
     auto markId = markDatas[0]->id;
     std::string domainName = "default";
     auto it = domainMsg.find(markId);
-    if (it != domainMsg.end()) {
+    if (it != domainMsg.end())
+    {
         domainName = *it->second;
     }
     rangemarkData.domain = domainName;
@@ -77,12 +92,14 @@ bool MetricMarkProcess::TransMarkData2Range(const std::vector<std::shared_ptr<ms
     return true;
 }
 
-void MetricMarkProcess::ConsumeMsptiData(msptiActivity *record)
+void MetricMarkProcess::ConsumeMsptiData(msptiActivity* record)
 {
     msptiActivityMarker* markerData = ReinterpretConvert<msptiActivityMarker*>(record);
     std::shared_ptr<msptiActivityMarker> tmp;
     MakeSharedPtr(tmp);
-    if (tmp == nullptr || memcpy_s(tmp.get(), sizeof(msptiActivityMarker), markerData, sizeof(msptiActivityMarker)) != EOK) {
+    if (tmp == nullptr ||
+        memcpy_s(tmp.get(), sizeof(msptiActivityMarker), markerData, sizeof(msptiActivityMarker)) != EOK)
+    {
         LOG(ERROR) << "memcpy_s failed " << IPC_ERROR(ErrCode::MEMORY);
         return;
     }
@@ -90,8 +107,9 @@ void MetricMarkProcess::ConsumeMsptiData(msptiActivity *record)
         std::unique_lock<std::mutex> lock(dataMutex);
         records.emplace_back(std::move(tmp));
         if (markerData->flag == MSPTI_ACTIVITY_FLAG_MARKER_START_WITH_DEVICE &&
-            markerData->sourceKind == MSPTI_ACTIVITY_SOURCE_KIND_HOST) {
-            std::string domainStr = markerData->domain;
+            markerData->sourceKind == MSPTI_ACTIVITY_SOURCE_KIND_HOST)
+        {
+            std::string domainStr = SafeCstrToString(markerData->domain);
             auto markId = markerData->id;
             domainMsg.emplace(markId, std::make_shared<std::string>(domainStr));
         }
@@ -106,15 +124,18 @@ std::vector<MarkMetric> MetricMarkProcess::AggregatedData()
         copyRecords = std::move(records);
         records.clear();
     }
-    for (auto& record: copyRecords) {
+    for (auto& record : copyRecords)
+    {
         id2Marker[record->id].emplace_back(std::move(record));
     }
     std::vector<RangeMarkData> rangeDatas;
-    for (auto pair = id2Marker.rbegin(); pair != id2Marker.rend(); ++pair) {
+    for (auto pair = id2Marker.rbegin(); pair != id2Marker.rend(); ++pair)
+    {
         auto markId = pair->first;
         auto markDatas = pair->second;
         RangeMarkData rangeMark{};
-        if (TransMarkData2Range(markDatas, rangeMark)) {
+        if (TransMarkData2Range(markDatas, rangeMark))
+        {
             rangeDatas.emplace_back(rangeMark);
         }
     }
@@ -122,7 +143,8 @@ std::vector<MarkMetric> MetricMarkProcess::AggregatedData()
     std::vector<MarkMetric> ans;
     MarkMetric hostMarkMetric{};
     MarkMetric devMarkMetric{};
-    for (const auto& data : rangeDatas) {
+    for (const auto& data : rangeDatas)
+    {
         hostMarkMetric.name = data.name;
         hostMarkMetric.domain = data.domain;
         hostMarkMetric.deviceId = -1;
@@ -143,7 +165,8 @@ std::vector<MarkMetric> MetricMarkProcess::AggregatedData()
 void MetricMarkProcess::SendProcessMessage()
 {
     auto afterAggregated = AggregatedData();
-    for (auto& metric: afterAggregated) {
+    for (auto& metric : afterAggregated)
+    {
         SendMessage(metric.seriesToJson());
     }
 }
@@ -154,6 +177,6 @@ void MetricMarkProcess::Clear()
     domainMsg.clear();
     id2Marker.clear();
 }
-}
-}
-}
+}  // namespace metric
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu

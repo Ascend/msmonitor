@@ -36,7 +36,7 @@ uint32_t GetRingBufferCapacity()
     constexpr uint32_t MIN_CAPACITY = 1024 * 8;
     constexpr uint32_t MAX_CAPACITY = 1024 * 1024 * 2;
     const char *capacityEnvVal = std::getenv("MSMONITOR_JSONL_BUFFER_CAPACITY");
-    std::string capacityStr = (capacityEnvVal != nullptr ? capacityEnvVal : "");
+    std::string capacityStr = SafeCstrToString(capacityEnvVal);
     uint32_t capacity = DEFAULT_CAPACITY;
     if (!capacityStr.empty())
     {
@@ -71,7 +71,7 @@ uint32_t GetDataDumpMaxInterval()
     constexpr uint32_t DEFAULT_INTERVAL = 30000;  // 30s
     constexpr uint32_t MIN_INTERVAL = 1000;       // 1s
     const char *intervalEnvVal = std::getenv("MSMONITOR_JSONL_MAX_DUMP_INTERVAL");
-    std::string intervalStr = (intervalEnvVal != nullptr ? intervalEnvVal : "");
+    std::string intervalStr = SafeCstrToString(intervalEnvVal);
     uint32_t interval = DEFAULT_INTERVAL;
     if (!intervalStr.empty())
     {
@@ -166,7 +166,7 @@ bool JsonlProcessManager::SaveParallelGroupData()
         return true;
     }
     nlohmann::json json = {{"kind", parallel_group_info_key}, {"value", iter->second}};
-    dataDumper_.Record(std::make_unique<nlohmann::json>(json));
+    dataDumper_.Record(std::make_unique<nlohmann::json>(std::move(json)));
     return true;
 }
 
@@ -179,7 +179,7 @@ bool JsonlProcessManager::SaveRankDeviceData()
     nlohmann::json json = {{"kind", "rank_device_map"},
                            {"rank", GetRankId()},
                            {"device", std::vector<uint32_t>(deviceSet_.begin(), deviceSet_.end())}};
-    dataDumper_.Record(std::make_unique<nlohmann::json>(json));
+    dataDumper_.Record(std::make_unique<nlohmann::json>(std::move(json)));
     return true;
 }
 
@@ -192,7 +192,7 @@ void JsonlProcessManager::ProcessApiData(msptiActivityApi *record, const std::st
     }
 
     nlohmann::json json = {{"kind", kind},
-                           {"name", std::string(record->name)},
+                           {"name", SafeCstrToString(record->name)},
                            {"startNs", static_cast<uint64_t>(record->start)},
                            {"endNs", endTime},
                            {"processId", static_cast<uint32_t>(record->pt.processId)},
@@ -213,15 +213,15 @@ void JsonlProcessManager::ProcessCommunicationData(msptiActivityCommunication *r
 
     uint32_t deviceId = record->ds.deviceId;
     nlohmann::json json = {{"kind", "Communication"},
-                           {"name", std::string(record->name)},
+                           {"name", SafeCstrToString(record->name)},
                            {"startNs", static_cast<uint64_t>(record->start)},
                            {"endNs", endTime},
                            {"deviceId", deviceId},
                            {"streamId", static_cast<uint32_t>(record->ds.streamId)},
                            {"dataType", GetCommunicationDataTypeName(record->dataType)},
                            {"count", static_cast<uint64_t>(record->count)},
-                           {"commName", std::string(record->commName)},
-                           {"algType", std::string(record->algType)},
+                           {"commName", SafeCstrToString(record->commName)},
+                           {"algType", SafeCstrToString(record->algType)},
                            {"correlationId", static_cast<uint64_t>(record->correlationId)}};
 
     std::lock_guard<std::mutex> lock(dataMutex_);
@@ -239,12 +239,12 @@ void JsonlProcessManager::ProcessKernelData(msptiActivityKernel *record)
 
     uint32_t deviceId = record->ds.deviceId;
     nlohmann::json json = {{"kind", "Kernel"},
-                           {"name", std::string(record->name)},
+                           {"name", SafeCstrToString(record->name)},
                            {"startNs", static_cast<uint64_t>(record->start)},
                            {"endNs", endTime},
                            {"deviceId", deviceId},
                            {"streamId", static_cast<uint32_t>(record->ds.streamId)},
-                           {"type", std::string(record->type)},
+                           {"type", SafeCstrToString(record->type)},
                            {"correlationId", static_cast<uint64_t>(record->correlationId)}};
 
     std::lock_guard<std::mutex> lock(dataMutex_);
@@ -273,8 +273,8 @@ void JsonlProcessManager::ProcessMstxHostData(msptiActivityMarker *record)
 {
     uint64_t connectionId = record->id;
     uint64_t timestamp = record->timestamp;
-    std::string message = record->name;
-    std::string domain = record->domain;
+    std::string message = SafeCstrToString(record->name);
+    std::string domain = SafeCstrToString(record->domain);
     if (record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_INSTANTANEOUS ||
         record->flag == msptiActivityFlag::MSPTI_ACTIVITY_FLAG_MARKER_INSTANTANEOUS_WITH_DEVICE)
     {
@@ -333,10 +333,10 @@ void JsonlProcessManager::ProcessMstxDeviceData(msptiActivityMarker *record)
         nlohmann::json json = {
             {"kind", "Marker"},
             {"sourceKind", "Device"},
-            {"name", it != mstxMarkerHostData_.end() ? it->second.message : std::string(record->name)},
+            {"name", it != mstxMarkerHostData_.end() ? it->second.message : SafeCstrToString(record->name)},
             {"startNs", timestamp},
             {"endNs", timestamp},
-            {"domain", it != mstxMarkerHostData_.end() ? it->second.domain : std::string(record->domain)},
+            {"domain", it != mstxMarkerHostData_.end() ? it->second.domain : SafeCstrToString(record->domain)},
             {"deviceId", deviceId},
             {"streamId", static_cast<uint32_t>(record->objectId.ds.streamId)},
             {"id", connectionId}};
@@ -359,10 +359,11 @@ void JsonlProcessManager::ProcessMstxDeviceData(msptiActivityMarker *record)
             nlohmann::json json = {
                 {"kind", "Marker"},
                 {"sourceKind", "Device"},
-                {"name", hostIt != mstxRangeHostData_.end() ? hostIt->second.message : std::string(record->name)},
+                {"name", hostIt != mstxRangeHostData_.end() ? hostIt->second.message : SafeCstrToString(record->name)},
                 {"startNs", it->second.timestamp},
                 {"endNs", timestamp},
-                {"domain", hostIt != mstxRangeHostData_.end() ? hostIt->second.domain : std::string(record->domain)},
+                {"domain",
+                 hostIt != mstxRangeHostData_.end() ? hostIt->second.domain : SafeCstrToString(record->domain)},
                 {"deviceId", deviceId},
                 {"streamId", static_cast<uint32_t>(record->objectId.ds.streamId)},
                 {"id", connectionId}};
