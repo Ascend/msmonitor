@@ -1,30 +1,30 @@
 # dynolog使用说明
 
-## 简介
+## ℹ️ 简介
 
 dynolog负责接收dyno CLI的RPC请求，触发nputrace和npu-monitor功能。
 
-## dynolog功能介绍
+## ⚙️ 功能介绍
 
 **参数说明**
 
 | 命令                  | 参数类型   | 说明                                                    | 是否必选 |
 |---------------------|--------|-------------------------------------------------------|:----:|
-| --enable-ipc-monitor | action | 是否启用IPC监测功能，用于与dyno进行通信，设置参数开启，默认不开启                  |  N   |
-| --port              |  i32   | dynolog daemon进程监听的端口号，默认值1778                        |  N   |
-| --certs-dir         | String | 用于指定dyno与dynolog RPC通信时TLS证书的路径，当值为`NO_CERTS`时不使用证书校验 |  Y   |
-| --metric_log_dir    | String | 用于指定metric数据的落盘路径                                     |  N   |
-| --use_JSON          | action | 是否使用JSON格式记录metric数据到日志中，默认不启用                        |  N   |
-| --help              | action | 显示帮助信息，其中包含的dynolog原生参数在此不再赘述 |  N   |
+| --enable-ipc-monitor | action | 是否启用IPC（Inter-Process Communication，进程间通信）监测功能，用于与dyno进行通信，设置参数开启，默认不开启。                  |  N   |
+| --port              |  i32   | dynolog daemon进程监听的端口号，默认值1778。                      |  N   |
+| --certs-dir         | String | 用于指定dyno与dynolog RPC通信时TLS证书的路径，当值为`NO_CERTS`时不使用证书校验，默认值`NO_CERTS`。 |  N   |
+| --metric_log_dir    | String | 用于指定metric数据的落盘路径。                                     |  N   |
+| --use_JSON          | action | 是否使用JSON格式记录metric数据到日志中，默认不启用。                        |  N   |
+| --help              | action | 显示帮助信息，其中包含的dynolog原生参数在此不再赘述。 |  N   |
 
 **使用示例**
 
-- dynolog daemon可以通过systemd或命令行任意一种方法启动
+dynolog daemon 可以通过 systemd 或 命令行 任意一种方法启动
 
 ```bash
 # 方法1：使用systemd拉起service
-# 修改配置文件/etc/dynolog.gflags, 使能ipc_monitor
-echo "--enable_ipc_monitor" | sudo tee -a /etc/dynolog.gflags
+# 修改配置文件/etc/dynolog.gflags, 使能ipc_monitor功能
+echo "--enable-ipc-monitor" | sudo tee -a /etc/dynolog.gflags
 sudo systemctl start dynolog
 ```
 

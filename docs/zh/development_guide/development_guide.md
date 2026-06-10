@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | gcc | 8.5.0 及以上 | 编译 `dynolog_npu` |
 | Rust | 1.81 及以上 | 编译 dynolog 相关依赖 |
-| protobuf | 3.12 及以上 | dynolog / tensorboard 相关依赖 |
+| protobuf | 3.12 及以上 | dynolog / TensorBoard 相关依赖 |
 | Python | 与目标 whl 安装环境匹配 | 编译和安装 `mindstudio_monitor` |
 | pybind11 | 最新稳定版 | 构建 `plugin` Python 扩展 |
 | CMake | 最新稳定版 | CMake 构建 |
@@ -44,7 +44,7 @@ source $HOME/.cargo/env
 
 ### 2.2 TLS 证书环境
 
-若开发和测试场景需要验证 dyno CLI 与 dynolog daemon 的 TLS 通信，需要额外准备客户端和服务端证书目录。目录规范可参见 [《安装指南》](../getting_started/install_guide.md)。
+若开发和测试场景需要验证 dyno CLI 与 dynolog daemon 的 TLS 通信，需要额外准备客户端和服务端证书目录。目录规范可参见 [《安装指南》](../install_guide/msmonitor_install_guide.md)。
 
 ## 3. 开发步骤
 
@@ -95,7 +95,7 @@ cd msmonitor
 
 ### 3.4 `plugin` 开发
 
-`plugin` 模块提供 `mindstudio_monitor` whl 包、IPCMonitor 和 MSPTI Monitor 公共能力。
+`plugin` 模块提供 `mindstudio_monitor` whl 包、IPCMonitor 和 msPTI Monitor 公共能力。
 
 开发时重点关注：
 
@@ -123,7 +123,7 @@ cd msmonitor
 
 1. 重点关注 dyno CLI 参数处理。
 2. 重点关注 dynolog daemon 的监测请求下发和后台采集逻辑。
-3. 若涉及 MSPTI 侧数据处理，需要联动 `plugin` 模块。
+3. 若涉及 msPTI 侧数据处理，需要联动 `plugin` 模块。
 4. 同步更新 `docs/zh/user_guide/npumonitor_instruct.md`。
 
 #### 3.5.2 开发 `nputrace`
@@ -256,15 +256,15 @@ bash scripts/run_st.sh
 
 | 改动类型 | 需同步更新的文档 |
 | --- | --- |
-| 安装、编译、升级、卸载 | `docs/zh/getting_started/install_guide.md` |
-| 快速体验流程 | `docs/zh/getting_started/quick_start.md` |
+| 安装、编译、升级、卸载 | `docs/zh/install_guide/msmonitor_install_guide.md` |
+| 快速体验流程 | `docs/zh/quick_start/quick_start.md` |
 | dynolog 服务端 | `docs/zh/user_guide/dynolog_instruct.md` |
 | dyno 客户端 | `docs/zh/user_guide/dyno_instruct.md` |
 | npu-monitor 功能 | `docs/zh/user_guide/npumonitor_instruct.md` |
 | nputrace 功能 | `docs/zh/user_guide/nputrace_instruct.md` |
 | Monitor API | `docs/zh/advanced_features/monitor_feature.md` |
 | API 参考 | `docs/zh/advanced_features/mindstudio_monitor_api_reference.md` |
-| 版本发布信息 | `docs/zh/release_notes.md` |
+| 版本发布信息 | `docs/zh/release_notes/release_notes.md` |
 
 ## 7. 提交流程建议
 

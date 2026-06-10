@@ -2,13 +2,20 @@
 
 msMonitor由三个文件组成，如下表所示。
 
-其中dyno和dynolog可以被打包为deb包或者rpm包。目前msMonitor支持在[PyTorch](https://gitcode.com/Ascend/pytorch)框架和[MindSpore](https://www.mindspore.cn/)框架上运行。 最新的软件包见《[版本配套说明](#版本配套说明)》。
+其中dyno和dynolog可以被打包为deb包或者rpm包。目前msMonitor支持在[PyTorch](https://gitcode.com/Ascend/pytorch)框架和[MindSpore](https://www.mindspore.cn/)框架上运行。
+
+> [!NOTE] Note
+> MindStudio 26.0.0 及之后的版本，请在[msMonitor Releases](https://gitcode.com/Ascend/msmonitor/releases)页面下载软件包，之前的软件包请参见《[版本配套说明](#版本配套说明)》。
 
 | 文件名                                                       | 用途                                                         |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | dyno                                                         | dyno客户端二进制文件                                         |
 | dynolog                                                      | dynolog服务端二进制文件                                      |
-| msmonitor_plugin-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl | MSPTI Monitor、IPC等公共能力工具包，{mindstudio_version}表示mindstudio版本号，{python_version}表示python版本号，{system_architecture}表示CPU架构系统 |
+| mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl | msPTI Monitor、IPC等公共能力工具包，{mindstudio_version}表示mindstudio版本号，{python_version}表示python版本号，{system_architecture}表示CPU架构系统 |
+
+**OS兼容性说明**
+
+- Linux系统，支持aarch64和x86 CPU架构。
 
 **版本配套说明**<a name="版本配套说明"></a>
 

@@ -6,10 +6,12 @@ npu-monitor工具的作用是轻量常驻后台，负责监测关键算子耗时
 
 ## 使用前准备
 
+安装msMonitor工具。详情请参见《[msMonitor工具安装指南](../install_guide/msmonitor_install_guide.md)》，推荐使用下载软件包安装。
+
 npu-monitor通过dyno CLI中的npu-monitor子命令开启：
 
 ```bash
-dyno --certs-dir <CERT_DIR> npu-monitor [SUBCOMMANDS]
+dyno --certs-dir <CERT_DIR> npu-monitor [options]
 ```
 
 **约束**
@@ -26,10 +28,10 @@ dyno --certs-dir <CERT_DIR> npu-monitor [SUBCOMMANDS]
 **命令格式**
 
 ```bash
-dyno npu-monitor [SUBCOMMANDS] --help
+dyno npu-monitor [options] --help
 ```
 
-npu-monitor的SUBCOMMANDS（子命令）选项如下。
+npu-monitor的 options 功能参数如下。
 
 **参数说明**
 
@@ -53,7 +55,7 @@ npu-monitor的SUBCOMMANDS（子命令）选项如下。
    ```bash
    # 命令行方式开启dynolog daemon
    dynolog --enable-ipc-monitor --certs-dir /home/ssl_certs
-   
+
    # 如需使用TensorBoard展示数据，传入参数--metric_log_dir用于指定TensorBoard文件落盘路径
    # 示例：
    dynolog --enable-ipc-monitor --certs-dir /home/ssl_certs --metric_log_dir /tmp/metric_log_dir
@@ -73,11 +75,11 @@ npu-monitor的SUBCOMMANDS（子命令）选项如下。
    export MSMONITOR_LOG_PATH=/tmp/msmonitor_log
    ```
 
-4. 设置LD_PRELOAD使能MSPTI。
+4. 设置LD_PRELOAD使能msPTI。
 
    ```bash
    export LD_PRELOAD=<CANN Toolkit安装路径>/cann/lib64/libmspti.so
-   # 示例：
+   # 默认路径示例：
    export LD_PRELOAD=/usr/local/Ascend/cann/lib64/libmspti.so
    ```
 
@@ -93,25 +95,25 @@ npu-monitor的SUBCOMMANDS（子命令）选项如下。
    ```bash
    # 示例1：开启性能监测，使用默认配置
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start
-   
+
    # 示例2：暂停性能监测
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-stop
-   
-   # 示例3：性能监测过程中修改配置
+
+   # 示例3：性能监测过程中动态修改采集参数
    # 上报周期30s，上报数据类型Marker和Kernel，保留类型为Kernel且算子名称中包含“Mul”关键词的数据
    dyno --certs-dir /home/ssl_certs npu-monitor --report-interval-s 30 --mspti-activity-kind Marker,Kernel --filter Kernel:Mul
-   
-   # 示例4：性能监测开启时修改配置
-   # 上报周期30s，上报数据类型Marker和Kernel，保留类型为Kernel且算子名称中包含“Mul”关键词的数据
-   dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel --filter Kernel:Mul
-   
-   # 示例5：性能监测开启时修改配置，开启数据采集落盘
+
+   # 示例4：性能监测开启时配置采集参数
+   # 上报周期25s，上报数据类型Marker和Kernel，保留类型为Kernel且算子名称中包含“Relu”关键词的数据
+   dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 25 --mspti-activity-kind Marker,Kernel --filter Kernel:Relu
+
+   # 示例5：性能监测开启时配置采集参数，开启数据采集落盘，落盘格式为默认值DB格式
    # 数据落盘路径为/tmp/msmonitor_db，落盘周期为30s，采集数据类型为Marker，Kernel，Communication
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel,Communication --log-file /tmp/msmonitor_db
-   
+
    # 示例6：以 Jsonl 格式落盘，并通过命令行参数设置 Jsonl 文件轮转配置
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel,Communication --log-file /tmp/msmonitor_jsonl --export-type Jsonl --json-rotate-log-lines 10000 --json-rotate-log-files 5
-   
+
    # 示例7：多机场景下性能监测开启时修改配置
    # 多机场景下向特定机器x.x.x.x发送参数信息，参数表示上报周期30s，上报数据类型Marker和Kernel
    dyno --certs-dir /home/ssl_certs --hostname x.x.x.x npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel

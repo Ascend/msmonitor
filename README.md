@@ -4,21 +4,22 @@
 <div align="center">
   <p><b>昇腾集群在线性能监测与动态采集工具</b></p>
 
-[![Ask DeepWiki](https://badgen.net/badge/Ask/DeepWiki/blue)](https://deepwiki.com/kali20gakki/msprof )
-[![Ask ZRead](https://badgen.net/badge/Ask/ZRead/orange)](https://zread.ai/kali20gakki/msprof)
-[![doc](https://badgen.net/badge/doc/readthedocs/green)](https://mindstudio-profiler-docs.readthedocs.io/zh-cn/latest/msmonitor/)
-[![License](https://badgen.net/badge/License/MulanPSL-2.0/blue)](https://raw.gitcode.com/Ascend/msinsight/files/master/License)
-[![Ascend](https://img.shields.io/badge/Hardware-Ascend-orange.svg)](https://www.hiascend.com/)
+ [![QuickStart](https://badgen.net/badge/快速入门/QuickStart/blue)](./docs/zh/quick_start/quick_start.md)
+ [![Ask DeepWiki](https://badgen.net/badge/AI问答/DeepWiki/blue)](https://deepwiki.com/mindstudio-docs/master)
+ [![Ask ZRead](https://badgen.net/badge/AI问答/ZRead/blue)](https://zread.ai/mindstudio-docs/master)
+ [![ReadTheDocs](https://badgen.net/badge/精确搜索/ReadTheDocs/blue)](https://mindstudio-docs-master.readthedocs.io)
+ [![Community](https://badgen.net/badge/昇腾社区/Community/blue)](https://www.hiascend.com/cn/developer/software/mindstudio)
+ [![Issues](https://badgen.net/badge/报告问题/Issues/blue)](https://gitcode.com/Ascend/msmonitor/issues)
 
 </div>
 
-## 📢 最新消息
+## ✨ 最新消息
 
-- [2025.12.30] msMonitor开源
+- [2025.12.30] MindStudio Monitor 项目全面开源
 
-## 📌 简介
+## ℹ️ 简介
 
-MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监测与动态采集工具，基于 [dynolog][dynolog] 和 [msPTI][mspti] 构建，支持 `npu-monitor` 、 `nputrace` 和  `Monitor API` 等能力。
+MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监测与动态采集工具，基于 [dynolog][dynolog]（Meta CPU-GPU监控系统） 和 [msPTI][mspti]（MindStudio Profiler Tools Interface，MindStudio 性能分析工具接口）构建，支持`npu-monitor`、`nputrace`和`Monitor API`等能力。
 
 支持框架 Profiler：[Ascend PyTorch Profiler][ascend-pytorch-profiler] |
 [MindSpore Profiler][mindspore-profiler]
@@ -31,30 +32,9 @@ MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监
 | --- | --- | --- |
 | `Dynolog daemon` | 服务端守护进程，负责接收 dyno 请求并触发监测与采集。 | [dynolog](./docs/zh/user_guide/dynolog_instruct.md) |
 | `Dyno CLI` | 客户端命令行入口，用于下发 `npu-monitor` 和 `nputrace` 命令。 | [dyno](./docs/zh/user_guide/dyno_instruct.md) |
-| `MSPTI Monitor` | 基于 msPTI 的采集模块，负责获取并上报性能数据。 | - |
+| `msPTI Monitor` | 基于 msPTI 的采集模块，负责获取并上报性能数据。 | - |
 
-## 🔍 目录结构
-
-关键目录如下，详细目录介绍请参见 《[项目目录](./docs/zh/dir_structure.md)》。
-
-```text
-├── docs                    # 项目文档目录
-│   └── zh                  # 中文文档目录
-├── dynolog_npu             # dynolog_npu 模块代码目录
-├── plugin                  # 插件模块代码目录
-├── scripts                 # 构建、测试等脚本目录
-│   ├── build.sh            # dynolog_npu 构建脚本
-│   ├── run_st.sh           # 系统测试脚本
-│   └── run_ut.sh           # 单元测试脚本
-├── test                    # 测试代码目录
-│   ├── st                  # 系统测试用例
-│   └── ut                  # 单元测试用例
-├── third_party             # 第三方依赖库
-├── CONTRIBUTING.md         # 贡献指南
-└── README.md               # 项目说明文档
-```
-
-## 📖 功能介绍
+## ⚙️ 功能介绍
 
 msMonitor 提供以下核心能力：
 
@@ -68,7 +48,12 @@ msMonitor 提供以下核心能力：
 >
 > 由于底层资源限制，`npu-monitor` 与 `nputrace` 不能同时开启。
 
-## 🛠️ 安装指南
+## 🚀 快速入门
+
+首次使用 msMonitor 时，推荐直接按下面这条主线完成从安装到采集的端到端体验。
+请参见 《[msMonitor 工具快速入门](./docs/zh/quick_start/quick_start.md)》。
+
+## 📦 安装指南
 
 msMonitor 工具安装指南包含如下内容：
 
@@ -76,115 +61,46 @@ msMonitor 工具安装指南包含如下内容：
 - 编译软件包安装：适合源码调试、二次开发与定制构建。
 - 升级、卸载与日志。
 
-具体请参见《[msMonitor 工具安装指南](./docs/zh/getting_started/install_guide.md)》。
+具体请参见《[msMonitor 工具安装指南](./docs/zh/install_guide/msmonitor_install_guide.md)》。
 
-## 🚀 快速入门
+## 📘 使用指南
 
-首次使用 msMonitor 时，推荐直接按下面这条主线完成从安装到采集的端到端体验。
-更完整的安装说明请参见 《[msMonitor 工具安装指南](./docs/zh/getting_started/install_guide.md)》。
+msMonitor 工具提供以下核心能力：**npu-monitor**、**nputrace**、**Monitor API**，详细使用说明请参见：<br>
+🔹 [npu-monitor instruct](./docs/zh/user_guide/npumonitor_instruct.md) <br>
+🔹 [nputrace instruct](./docs/zh/user_guide/nputrace_instruct.md) <br>
+🔹 [Monitor API](./docs/zh/advanced_features/monitor_feature.md) <br>
 
-1. 选择匹配版本并下载安装包。
+## 💡 典型案例
 
-   根据 [版本配套说明](#版本配套说明) 选择与当前 `CANN`、
-   `torch_npu`、`MindSpore` 和 CPU 架构匹配的软件包，并下载到 Linux 环境。
+msMonitor 在大模型训练&推理场景下的使用案例，请参见《[msMonitor使用案例](./docs/zh/best_practices/msmonitor_basic_cases.md)》。
 
-2. 校验并安装 msMonitor 软件包。
+## ❓ FAQ
 
-   ```bash
-   # 校验下载包
-   sha256sum x86_8.3.0.zip
+常见问题及解决方案，请参见《[msMonitor FAQ](./docs/zh/support/faq.md)》。
 
-   # 解压安装包
-   mkdir x86
-   unzip x86_8.3.0.zip -d x86
-   cd x86
+## 🌌 智能检索
 
-   # 安装 whl 包，需选择与当前 Python 版本匹配的文件
-   pip install \
-     mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl
+为提升文档查阅效率，我们提供多种高效检索方式：
 
-   # 安装 dynolog，按服务器系统选择其一
-   dpkg -i --force-overwrite dynolog*.deb
-   # rpm -ivh dynolog*.rpm --nodeps
-   ```
+🔹 [AI 问答（DeepWiki）](https://deepwiki.com/mindstudio-docs/master)：自然语言问答，快速把握项目架构与模块关系。<br>
+🔹 [AI 问答（ZRead）](https://zread.ai/mindstudio-docs/master)：中文问答体验更优，精准定位功能用法与细节。<br>
+🔹 [精确搜索（ReadTheDocs）](https://mindstudio-docs-master.readthedocs.io)：关键词全文检索，直达接口、参数与报错等信息。<br>
 
-3. 启动 `dynolog` daemon 进程。
+## 🛠️ 贡献指南
 
-   ```bash
-   dynolog --enable-ipc-monitor --certs-dir /home/ssl_certs
-   ```
-
-4. 配置环境变量并启动训练或推理任务。
-
-   ```bash
-   export MSMONITOR_USE_DAEMON=1
-   export LD_PRELOAD=<CANN安装路径>/ascend-toolkit/latest/lib64/libmspti.so
-
-   bash run_ai_task.sh
-   ```
-
-5. 先使用 `npu-monitor` 观察关键算子耗时。
-
-   ```bash
-   dyno --certs-dir /home/ssl_certs npu-monitor \
-     --npu-monitor-start --report-interval-s 30 \
-     --mspti-activity-kind Kernel
-   ```
-
-6. 发现耗时劣化后，关闭 `npu-monitor` 并触发 `nputrace`
-   采集详细数据。
-
-   ```bash
-   dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-stop
-   dyno --certs-dir /home/ssl_certs nputrace \
-     --start-step 10 --iterations 2 --activities CPU,NPU \
-     --analyse --data-simplification false \
-     --log-file /tmp/profile_data
-   ```
-
-7. 按需查看详细说明。
-
-   - `npu-monitor` 使用说明：
-     [`docs/zh/user_guide/npumonitor_instruct.md`](./docs/zh/user_guide/npumonitor_instruct.md)
-   - `nputrace` 使用说明：
-     [`docs/zh/user_guide/nputrace_instruct.md`](./docs/zh/user_guide/nputrace_instruct.md)
-   - `MindSpore` 适配说明：
-     [`docs/zh/user_guide/mindspore_adapter_instruct.md`](./docs/zh/user_guide/mindspore_adapter_instruct.md)
-
-## 版本配套说明
-
-msMonitor 由以下三个交付件组成：
-
-| 交付件 | 说明 |
-| --- | --- |
-| `dyno` | dyno 客户端二进制文件 |
-| `dynolog` | dynolog 服务端二进制文件 |
-| `mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl` | MSPTI Monitor、IPC 等公共能力工具包 |
-
-当前仓库维护的软件包版本如下，完整版本说明请参见《[版本说明](./docs/zh/release_notes.md)》。
-
-| 版本 | 架构 | 发布日期 | CANN | torch_npu | MindSpore | 下载 | 校验码 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `8.3.0` | `aarch64` | `2025-12-29` | `8.3.RC1+` | `v7.3.0+` | `2.7.2+` | [aarch64_8.3.0.zip][pkg-830-aarch64] | `2c675ae346dfc1c70f5e9c7103d6f8c7e53be00dca28ed5f9cc577ac59e4bc44` |
-| `8.3.0` | `x86` | `2025-12-29` | `8.3.RC1+` | `v7.3.0+` | `2.7.2+` | [x86_8.3.0.zip][pkg-830-x86] | `1a38cc141e67c50eb09ebdc757c1fd3ed54439f227459e71292b2d18bb78e7f0` |
-| `8.1.0` | `aarch64` | `2025-07-11` | `8.1.RC1+` | `v7.1.0+` | `2.7.0-rc1+` | [aarch64_8.1.0.zip][pkg-810-aarch64] | `ce136120c0288291cc0a7803b1efc8c8416c6105e9d54c17ccf2e2510869fada` |
-| `8.1.0` | `x86` | `2025-07-11` | `8.1.RC1+` | `v7.1.0+` | `2.7.0-rc1+` | [x86_8.1.0.zip][pkg-810-x86] | `097d11c7994793b6389b19259269ceb3b6b7ac5ed77da3949b3f09da2103b7f2` |
-
-## 📋 使用案例
-
-msMonitor 在大模型训练&推理场景下的使用案例，请参见《[msMonitor使用案例](./docs/zh/user_guide/msmonitor_use_case.md)》。
+欢迎参与项目贡献，请参见 [《贡献指南》](./docs/zh/contributing/contributing_guide.md)。
 
 ## 📝 相关说明
 
-- 《[安全声明](./docs/zh/legal/security_statement.md)》
-- 《[漏洞机制说明](./docs/zh/legal/mindstudio_vulnerability_handling_procedure.md)》
-- 《[公网地址声明](./docs/zh/legal/public_ip_address.md)》
-- 《[贡献指南](./CONTRIBUTING.md)》
-- 《[FAQ](./docs/zh/faq.md)》
-- 《[License](./LICENSE)》
-- 《[文档 License](./docs/LICENSE)》
+🔹 [《版本说明》](./docs/zh/release_notes/release_notes.md) <br>
+🔹 [《许可证声明》](./LICENSE) <br>
+🔹 [《文档 License》](./docs/LICENSE) <br>
+🔹 [《安全声明》](./docs/zh/legal/security_statement.md) <br>
+🔹 [《免责声明》](./docs/zh/legal/disclaimer.md) <br>
+🔹 [《漏洞机制说明》](./docs/zh/legal/mindstudio_vulnerability_handling_procedure.md) <br>
+🔹 [《公网地址声明》](./docs/zh/legal/public_ip_address.md) <br>
 
-## 联系我们
+## 🤝 建议与交流
 
 欢迎大家通过 [Issues](https://gitcode.com/Ascend/msmonitor/issues)
 反馈问题、需求和建议，我们会尽快响应。
@@ -192,15 +108,16 @@ msMonitor 在大模型训练&推理场景下的使用案例，请参见《[msMon
 
 诚邀参与[满意度问卷调查](https://rdccucd.wjx.cn/vm/PKPfKqO.aspx)抽取惊喜好礼😎。
 
-| 💬 技术交流群 | 📢 官方公众号 | 🤝 更多加入渠道 |
+| 💬 即时互动（微信群） | 📢 官方资讯（公众号） | 深度支持（助手/论坛） |
 | :---: | :---: | :--- |
-| <img src="https://raw.gitcode.com/Ascend/msinsight/raw/master/docs/zh/user_guide/figures/readme/officialGroupChat.jpg" width="120"><br><sub>*扫码直接加入技术交流群*</sub> | <img src="https://raw.gitcode.com/Ascend/msinsight/raw/master/docs/zh/user_guide/figures/readme/officialAccount.jpg" width="120"><br><sub>*扫码关注获取最新动态*</sub> |欢迎扫码关注技术交流群跟官方公众号。这里是 MindStudio 用户与开发者最快捷的交流阵地：<br> **快速提问：** 与社区小伙伴即时探讨技术问题<br>**掌握动态：** 第一时间获取版本发布与功能更新通知<br> **经验共享：** 与其他开发者交流最佳实践  <br>🛠️ **其他渠道**：<br>👉 昇腾助手：[![WeChat](https://img.shields.io/badge/WeChat-07C160?style=flat-square&logo=wechat&logoColor=white)](https://gitcode.com/Ascend/msit/blob/master/docs/zh/figures/readme/xiaozhushou.png)<br>👉 昇腾论坛：[![Website](https://img.shields.io/badge/Website-%231e37ff?style=flat-square&logo=RSS&logoColor=white)](https://www.hiascend.com/forum/) |
+| <img src="./docs/zh/figures/qr_code_wechat_work.png" width="120"><br><sub>*扫码直接加入技术交流群*</sub> | <img src="./docs/zh/figures/qr_code_wechat_official_account.png" width="120"><br><sub>*扫码关注获取最新动态*</sub> |欢迎扫码关注技术交流群跟官方公众号。这里是 MindStudio 用户与开发者最快捷的交流阵地：<br> **快速提问：** 与社区小伙伴即时探讨技术问题<br>**掌握动态：** 第一时间获取版本发布与功能更新通知<br> **经验共享：** 与广大开发者交流最佳实践与实战心得  <br>🛠️ **更多支持渠道**：<br>👉 昇腾助手：[![WeChat](https://img.shields.io/badge/WeChat-07C160?style=flat-square&logo=wechat&logoColor=white)](https://gitcode.com/Ascend/msit/blob/master/docs/zh/figures/readme/xiaozhushou.png)<br>👉 昇腾论坛：[![Website](https://img.shields.io/badge/Website-%231e37ff?style=flat-square&logo=RSS&logoColor=white)](https://www.hiascend.com/forum/) |
 
-## 🤝 致谢
+## 🙏 致谢
 
 msMonitor 由华为公司的下列部门联合贡献：
 
 - 昇腾计算 MindStudio 开发部
+- 2012 欧拉实验室
 
 感谢来自社区的每一个 Pull Request，欢迎贡献 msMonitor。
 
@@ -217,7 +134,3 @@ msMonitor 由华为公司的下列部门联合贡献：
 [mspti]: https://gitcode.com/Ascend/mspti/blob/master/docs/zh/getting_started/quick_start.md
 [ascend-pytorch-profiler]: https://gitcode.com/Ascend/pytorch/blob/v2.7.1/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md
 [mindspore-profiler]: https://gitcode.com/Ascend/docs/blob/master/MindStudio/master/mindspore_profiler_user_guide.md
-[pkg-830-aarch64]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.3.0/aarch64_8.3.0.zip
-[pkg-830-x86]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.3.0/x86_8.3.0.zip
-[pkg-810-aarch64]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.1.0/aarch64_8.1.0.zip
-[pkg-810-x86]: https://ptdbg.obs.cn-north-4.myhuaweicloud.com/profiler/msmonitor/8.1.0/x86_8.1.0.zip
