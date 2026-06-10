@@ -2,19 +2,19 @@
 
 ## mindstudio_monitor模块介绍
 
-提供IPC(Inter-Process Communication)通信接口以及独立控制 MSPTI Monitor 采集和获取性能数据的能力
+提供IPC（Inter-Process Communication，进程间通信）接口以及独立控制 msPTI Monitor 采集和获取性能数据的能力。
 
 1. IPC控制通道: profiler backend 向 dynolog daemon 获取 profiler 配置
-2. IPC数据通道: MSPTI Monitor 向 dynolog daemon 发送性能数据
+2. IPC数据通道: msPTI Monitor 向 dynolog daemon 发送性能数据
 3. 轻量化性能数据采集
 
-  * 控制 MSPTI Monitor 启停采集数据
-  * 在线获取 MSPTI Monitor 采集的性能数据
-  * 将 MSPTI Monitor 采集的性能数据以 Excel 格式导出到本地
+  * 控制 msPTI Monitor 启停采集数据
+  * 在线获取 msPTI Monitor 采集的性能数据
+  * 将 msPTI Monitor 采集的性能数据以 Excel 格式导出到本地
 
 ### PyDynamicMonitorProxy接口说明
 
-负责与 dynolog daemon 进行 IPC 通信，向其发送注册请求、Profiler 配置参数等，用户不需要直接调用该接口。
+负责与 dynolog daemon 进行进程间通信（IPC），向其发送注册请求、Profiler 配置参数等，用户不需要直接调用该接口。
 
 * `init_dyno` 向 dynolog daemon 发送注册请求
   * input: npu_id(int)
@@ -34,9 +34,11 @@
 
 ### Monitor特性接口说明
 
+Monitor API 使用示例请参见 [monitor_feature.md](./monitor_feature.md)。
+
 ### ActivityKind枚举类
 
-该枚举类定义 MSPTI Monitor 支持的数据采集类型，用于 monitor 模块的配置，每个枚举值对应 MSPTI Monitor 的一种数据采集类型
+该枚举类定义 msPTI Monitor 支持的数据采集类型，用于 monitor 模块的配置，每个枚举值对应 msPTI Monitor 的一种数据采集类型
 
   * ActivityKind.Marker: 采集 mstx 打点数据，返回 Marker 数据结构
   * ActivityKind.Kernel: 采集计算类算子的耗时数据，返回 Kernel 数据结构
@@ -63,7 +65,7 @@
 
 ### ActivityData数据结构
 
-定义 Monitor 采集的性能数据结构
+定义 Monitor 采集的性能数据结构。
 
 #### Marker结构体字段
 
@@ -112,4 +114,4 @@
 
 ## 安装方式
 
-mindstudio_monitor模块安装请参见《[msMonitor工具安装指南](../getting_started/install_guide.md)》。
+mindstudio_monitor模块安装请参见《[msMonitor工具安装指南](../install_guide/msmonitor_install_guide.md)》。

@@ -6,7 +6,7 @@ Monitor 是集成在MindStudio Monitor中的一套接口，用户可以通过调
 
 ## 使用前准备
 
-安装msMonitor工具。详情请参见《[msMonitor工具安装指南](../getting_started/install_guide.md)》，推荐使用下载软件包安装。
+安装msMonitor工具。详情请参见《[msMonitor工具安装指南](../install_guide/msmonitor_install_guide.md)》，推荐使用下载软件包安装。
 
 ## Monitor功能介绍
 
