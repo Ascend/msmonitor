@@ -17,40 +17,46 @@
 #ifndef IPC_MONITOR_ROTATE_LOGGER_H
 #define IPC_MONITOR_ROTATE_LOGGER_H
 
-#include <cstdio>
 #include <cstdint>
+#include <fstream>
 #include <string>
 #include <vector>
 
-namespace dynolog_npu {
-namespace ipc_monitor {
-namespace jsonl {
-
-class RotateLogger {
-public:
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace jsonl
+{
+class RotateLogger
+{
+   public:
     RotateLogger(const std::string& logDir, const uint32_t maxLines, const int32_t maxFiles)
-        : logDir_(logDir), maxLines_(maxLines), maxFiles_(maxFiles), initialized_(true) {}
+        : logDir_(logDir), maxLines_(maxLines), maxFiles_(maxFiles), initialized_(true)
+    {
+    }
     ~RotateLogger();
     void UnInit();
     void Log(std::string message);
     void Flush();
 
-private:
+   private:
     bool OpenNewFile();
     void Rotate();
     void ManageFiles();
 
-private:
+   private:
     std::string logDir_;
     uint32_t maxLines_{10000};
     int32_t maxFiles_{-1};
     bool initialized_{false};
     uint32_t curLines_{0};
-    std::FILE* logFile_{nullptr};
+    std::ofstream logFile_;
     uint64_t lastLogFileTime_{0};
     std::vector<std::string> logFiles_;
 };
-} // namespace jsonl
-} // namespace ipc_monitor
-} // namespace dynolog_npu
-#endif // MSMONITOR_ROTATE_LOGGER_H
+}  // namespace jsonl
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
+
+#endif  // IPC_MONITOR_ROTATE_LOGGER_H

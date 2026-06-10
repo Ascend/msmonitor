@@ -398,7 +398,7 @@ bool PathUtils::IsFileExist(const std::string &path)
     {
         return false;
     }
-    return access(path.c_str(), F_OK) == 0;
+    return std::filesystem::exists(path);
 }
 
 bool PathUtils::IsFileWritable(const std::string &path)
@@ -416,15 +416,7 @@ bool PathUtils::IsDir(const std::string &path)
     {
         return false;
     }
-    struct stat st
-    {
-    };
-    int ret = lstat(path.c_str(), &st);
-    if (ret != 0)
-    {
-        return false;
-    }
-    return S_ISDIR(st.st_mode);
+    return std::filesystem::exists(path) && std::filesystem::is_directory(path);
 }
 
 bool PathUtils::CreateDir(const std::string &path)
@@ -437,31 +429,14 @@ bool PathUtils::CreateDir(const std::string &path)
     {
         return IsDir(path);
     }
-    size_t pos = 0;
-    while ((pos = path.find_first_of('/', pos)) != std::string::npos)
+    std::error_code ec;
+    std::filesystem::create_directories(path, ec);
+    if (ec)
     {
-        std::string baseDir = path.substr(0, ++pos);
-        if (IsFileExist(baseDir))
-        {
-            if (IsDir(baseDir))
-            {
-                continue;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        if (mkdir(baseDir.c_str(), DATA_DIR_AUTHORITY) != 0)
-        {
-            if (errno != EEXIST)
-            {
-                return false;
-            }
-        }
+        LOG(ERROR) << "Failed to create dir: " << path << ", error: " << ec.message();
+        return false;
     }
-    auto ret = mkdir(path.c_str(), DATA_DIR_AUTHORITY);
-    return (ret == 0 || errno == EEXIST) ? true : false;
+    return true;
 }
 
 std::string PathUtils::RealPath(const std::string &path)
@@ -516,8 +491,13 @@ bool PathUtils::CreateFile(const std::string &path)
     {
         return false;
     }
-    int fd = creat(path.c_str(), DATA_FILE_AUTHORITY);
-    return (fd < 0 || close(fd) != 0) ? false : true;
+    std::ofstream ofs(path, std::ios::out | std::ios::trunc);
+    if (!ofs.is_open())
+    {
+        return false;
+    }
+    ofs.close();
+    return true;
 }
 
 bool PathUtils::IsSoftLink(const std::string &path)
@@ -526,14 +506,7 @@ bool PathUtils::IsSoftLink(const std::string &path)
     {
         return false;
     }
-    struct stat st
-    {
-    };
-    if (lstat(path.c_str(), &st) != 0)
-    {
-        return false;
-    }
-    return S_ISLNK(st.st_mode);
+    return std::filesystem::is_symlink(path);
 }
 
 bool PathUtils::DirPathCheck(const std::string &path)
@@ -545,17 +518,16 @@ bool PathUtils::DirPathCheck(const std::string &path)
     }
     if (IsSoftLink(path))
     {
-        fprintf(stderr, "[ERROR] Path %s is soft link.\n", path.c_str());
-        return false;
+        fprintf(stderr, "[WARNING] Path %s is soft link.\n", path.c_str());
     }
     if (!IsFileExist(path) && !CreateDir(path))
     {
         fprintf(stderr, "[ERROR] Path %s not exist and create failed.\n", path.c_str());
         return false;
     }
-    if (!IsDir(path) || !IsFileWritable(path))
+    if (!IsDir(path))
     {
-        fprintf(stderr, "[ERROR] %s is not a directory or is not writable.\n", path.c_str());
+        fprintf(stderr, "[ERROR] %s is not a directory.\n", path.c_str());
         return false;
     }
     return true;
@@ -720,6 +692,7 @@ std::string GetCurrentUserHomePath()
     }();
     return homePath;
 }
+
 void InitMsMonitorLog()
 {
     if (!google::IsGoogleLoggingInitialized())

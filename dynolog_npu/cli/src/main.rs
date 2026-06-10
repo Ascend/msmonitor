@@ -62,7 +62,7 @@ struct Opts {
     hostname: String,
     #[arg(long, default_value_t = DYNO_PORT)]
     port: u16,
-    #[arg(long, required = true)]
+    #[arg(long, default_value = NO_CERTS_MODE)]
     certs_dir: String,
     #[command(subcommand)]
     cmd: Command,
