@@ -4,7 +4,7 @@
 
 MindStudio Monitor (msMonitor) is a one-stop online monitoring tool to provide end-to-end performance monitoring and fault locating capabilities in cluster scenarios.
 
-Based on [dynolog](https://github.com/facebookincubator/dynolog), msMonitor provides the **nputrace** and **npu-monitor** functions for users through the dynamic collection capabilities of the AI frameworks [Ascend PyTorch Profiler](<>) and [MindSpore Profiler](<>) and [MSPTI](<>).
+Based on [dynolog](https://github.com/facebookincubator/dynolog), msMonitor provides the **nputrace** and **npu-monitor** functions for users through the dynamic collection capabilities of the AI frameworks [Ascend PyTorch Profiler](https://gitcode.com/Ascend/pytorch/blob/v2.7.1-26.0.0/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md) and [MindSpore Profiler](https://gitcode.com/Ascend/docs/blob/master/MindStudio/26.0.0/en/mindspore_profiler_user_guide.md) and [MSPTI](https://gitcode.com/Ascend/mspti/blob/26.0.0/docs/zh/quick_start.md)
 
 - **npu-monitor**: a lightweight, resident background tool that monitors the time consumption of key operators.
 - **nputrace**: obtains detailed profile data of the framework, CANN, and devices.
@@ -210,12 +210,12 @@ After the preceding command is executed, a JSON character string is printed, for
 
 ### npu-monitor
 
-The npu-monitor feature provides lightweight key metrics monitoring. The npu-monitor is developed based on [MSPTI](<>). Users can use the npu-monitor to view the execution time of compute and communication operators during model running.
+The npu-monitor feature provides lightweight key metrics monitoring. The npu-monitor is developed based on [MSPTI](https://gitcode.com/Ascend/mspti/blob/26.0.0/docs/zh/quick_start.md). Users can use the npu-monitor to view the execution time of compute and communication operators during model running.
 For details about how to use the npu-monitor, see [npu-monitor](./docs/en/npumonitor_instruct.md). For details about how to use the msMonitor in the MindSpore framework, see [Using msMonitor in MindSpore](./docs/en/mindspore_adapter_instruct.md).
 
 ### nputrace
 
-The nputrace feature provides users with the capability of dynamically triggering the AI frameworks [Ascend PyTorch Profiler](<>) and [MindSpore Profiler](<>) to collect and parse data. That is, after a model is started, the model running does not need to be interrupted, and the profiler can be triggered for multiple times to collect and parse data with different configurations. The collected profile data can be visualized using [MindStudio Insight](<>), as shown in the following figure.
+The nputrace feature provides users with the capability of dynamically triggering the AI frameworks [Ascend PyTorch Profiler](https://gitcode.com/Ascend/pytorch/blob/v2.7.1-26.0.0/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md) and [MindSpore Profiler](https://gitcode.com/Ascend/docs/blob/master/MindStudio/26.0.0/en/mindspore_profiler_user_guide.md) to collect and parse data. That is, after a model is started, the model running does not need to be interrupted, and the profiler can be triggered for multiple times to collect and parse data with different configurations. The collected profile data can be visualized using [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/26.0.0/docs/en/user_guide/overview.md), as shown in the following figure.
 For details, see [nputrace](./docs/en/nputrace_instruct.md). For details about how to use msMonitor in the MindSpore framework, see [Using msMonitor in MindSpore](./docs/en/mindspore_adapter_instruct.md).
 ![MindStudio Insight timeline visualization](./docs/en/figures/mindstudio_insight.png)
 

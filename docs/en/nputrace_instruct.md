@@ -103,4 +103,4 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
 
 ## Output File Description
 
-For details about the output data format and deliverables of nputrace, see [MindSpore and PyTorch framework profile data file reference](<>).
+For details about the output data format and deliverables of nputrace, see [MindSpore and PyTorch framework profile data file reference](https://www.hiascend.com/document/detail/en/mindstudio/830/TITools/Profiling/atlasprofiling_16_0035.html).

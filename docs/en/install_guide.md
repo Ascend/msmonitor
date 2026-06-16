@@ -8,7 +8,7 @@ This document describes how to install msMonitor. Currently, installation via so
 
 You are advised to install msMonitor by installing the software package. The procedure is as follows:
 
-1. Select the software package based on [Version Mapping](../../README.md#Version Mapping) and download it to the Linux installation environment.
+1. Select the software package based on [Version Mapping](https://gitcode.com/Ascend/msmonitor/releases) and download it to the Linux installation environment.
 
 2. Verify the package integrity.
 
@@ -33,7 +33,7 @@ You are advised to install msMonitor by installing the software package. The pro
    mkdir x86
    unzip x86_8.3.0.zip -d x86
 
-   # Go to the directory of the depressed installation package.
+   # Go to the directory of the decompressed installation package.
    cd x86
 
    # Install the .whl package that matches the Python version in the current environment.
@@ -110,14 +110,14 @@ The following table lists the dependencies required for compiling dynolog. Ensur
 
 4. (Optional) Install OpenSSL (RPC TLS authentication) and generate a certificate key.
 
-   > [!NOTE]NOTE
+   > [!NOTE]
    >
    > Skip this step if you do not need to use the TLS certificate key for encryption.
 
    ```bash
    # debian
    sudo apt-get install -y openssl
-
+   
    # centos
    sudo yum install -y openssl
    ```
@@ -251,7 +251,7 @@ pip uninstall mindstudio_monitor
 
 ## Upgrade
 
-msMonitor cannot be directly upgraded. You need to [uninstall](#uninstallation) msMonitor and then [install](#installation-description) a later version.
+msMonitor cannot be directly upgraded. You need to [uninstall](#uninstallation) msMonitor and then [install](#msmonitor-installation-guide) a later version.
 
 ## Logs
 
