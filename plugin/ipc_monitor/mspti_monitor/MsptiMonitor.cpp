@@ -149,6 +149,7 @@ void MsptiMonitor::Uninit()
     }
     savePath_.clear();
     exportType_.clear();
+    duration_.store(0);
     {
         std::lock_guard<std::mutex> lock(filterMtx_);
         filterItems_.clear();
@@ -386,6 +387,7 @@ void MsptiMonitor::Run()
         }
         savePath_.clear();
         exportType_.clear();
+        duration_.store(0);
         {
             std::lock_guard<std::mutex> lock(filterMtx_);
             filterItems_.clear();
