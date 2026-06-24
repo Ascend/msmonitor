@@ -90,7 +90,7 @@ msMonitor 在大模型训练&推理场景下的使用案例，请参见《[msMon
 
 欢迎参与项目贡献，请参见 [《贡献指南》](./docs/zh/contributing/contributing_guide.md)。
 
-## 📝 相关说明
+## ⚖️ 相关说明
 
 🔹 [《版本说明》](./docs/zh/release_notes/release_notes.md) <br>
 🔹 [《许可证声明》](./LICENSE) <br>
@@ -120,15 +120,6 @@ msMonitor 由华为公司的下列部门联合贡献：
 - 2012 欧拉实验室
 
 感谢来自社区的每一个 Pull Request，欢迎贡献 msMonitor。
-
-## 关于 MindStudio 团队
-
-华为 MindStudio 全流程开发工具链团队致力于提供端到端的昇腾 AI
-应用开发解决方案，帮助开发者高效完成训练开发、推理开发和性能调优。
-更多信息可访问：
-
-- [昇腾社区 MindStudio 专区](https://www.hiascend.com/developer/software/mindstudio)
-- [昇腾论坛](https://www.hiascend.com/forum/)
 
 [dynolog]: https://github.com/facebookincubator/dynolog
 [mspti]: https://gitcode.com/Ascend/mspti/blob/master/docs/zh/getting_started/quick_start.md

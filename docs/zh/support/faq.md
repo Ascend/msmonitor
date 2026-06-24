@@ -32,15 +32,15 @@
      - 确认 `--mspti-activity-kind` 参数为允许值之一：`Marker, Kernel, API, Hccl, Memory, MemSet, MemCpy, Communication, AclAPI, NodeAPI, RuntimeAPI`。
 
   6. **PyTorch 优化器不兼容**
-     - 训练场景必须使用 PyTorch 原生优化器或其继承类。自定义优化器需在训练迭代末尾手动调用 `torch_npu.dynamic_profiler.step()`。
+     - 训练场景必须使用 PyTorch 原生优化器或其继承类。自定义优化器需在训练迭代末尾手动调用 `torch_npu.profiler.dynamic_profile.step()`。
 
 - **Q：npu-monitor 和 nputrace 能否同时使用？**
 - A：不能。npu-monitor 和 nputrace 共享底层 Profiling 资源，存在资源冲突，必须停止一个后再启动另一个。
 
 - **Q：msMonitor 是否支持 vLLM 推理场景？**
 - A：支持，但有限制：
-  - vLLM 0.11.0+ 版本，msMonitor 会自动在模型的 forward 方法中调用 `torch_npu.dynamic_profiler.step()`。
-  - 旧版本 vLLM，需用户手动调用 `torch_npu.dynamic_profiler.step()`。
+  - vLLM 0.11.0+ 版本，msMonitor 会自动在模型的 forward 方法中调用 `torch_npu.profiler.dynamic_profile.step()`。
+  - 旧版本 vLLM，需用户手动调用 `torch_npu.profiler.dynamic_profile.step()`。
   - vLLM 推理模型以 daemon 守护进程方式运行，`nputrace`场景不支持在线解析，采集完成后需手动调用 `torch_npu.profiler.profiler.analyse()` 进行解析。
 
 ## 二、参数配置
