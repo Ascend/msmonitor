@@ -15,6 +15,9 @@ option(USE_TENSORBOARD "Enable logging to tensorboard, this requires
 protobuf to be installed on the system"
 ON)
 
+# The image-provided protobuf is built with the old libstdc++ ABI.
+add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
+
 if(USE_PROMETHEUS)
   find_package(prometheus-cpp CONFIG REQUIRED)
 endif()

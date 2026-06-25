@@ -69,7 +69,7 @@ if [[ ! -w "${path}" ]]; then
 fi
 
 extension=$(echo "${url}" | awk -F'[./]' '{print $NF}')
-if [[ "${extension}" == "gz" || "${extension}" == "zip" ]]; then
+if [[ "${extension}" == "gz" || "${extension}" == "zip" || "${extension}" == "bz2" ]]; then
     fullname="${path}/$(basename "${url}")"
     if [[ -e ${fullname} ]]; then
         echo "Source ${fullname} is exists, will not download again."
@@ -96,6 +96,8 @@ if [[ "${extension}" == "gz" || "${extension}" == "zip" ]]; then
         tar -zxvf ${fullname} -C ./ -n > /dev/null
     elif [[ "${extension}" == "zip" ]]; then
         unzip -n ${fullname} -d ./ > /dev/null
+    elif [[ "${extension}" == "bz2" ]]; then
+        tar -jxvf ${fullname} -C ./ -n > /dev/null
     fi
 elif [[ "${extension}" == "git" ]]; then
     repository="$(basename ${url} .git)"
@@ -103,9 +105,9 @@ elif [[ "${extension}" == "git" ]]; then
         echo "Source ${repository} is exists, will not clone again."
     else
         if [[ -z "${tag}" ]]; then
-            git clone ${url}
+            git clone --depth=1 --single-branch ${url}
         else
-            git clone ${url} -b "${tag}"
+            git clone --depth=1 --single-branch ${url} -b "${tag}"
         fi
         if [ $? -eq 0 ]; then
             echo "Download successful: ${url}"
