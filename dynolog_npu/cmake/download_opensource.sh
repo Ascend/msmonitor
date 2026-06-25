@@ -103,9 +103,9 @@ elif [[ "${extension}" == "git" ]]; then
         echo "Source ${repository} is exists, will not clone again."
     else
         if [[ -z "${tag}" ]]; then
-            git clone ${url}
+            git clone --depth=1 --single-branch ${url}
         else
-            git clone ${url} -b "${tag}"
+            git clone --depth=1 --single-branch ${url} -b "${tag}"
         fi
         if [ $? -eq 0 ]; then
             echo "Download successful: ${url}"

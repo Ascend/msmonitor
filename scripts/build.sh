@@ -4,6 +4,8 @@ export BUILD_PROMETHEUS=0
 export BUILD_TENSORBOARD=1
 export USE_TENSORBOARD="OFF"
 
+DEPS_PREFIX="${DEPS_PREFIX:-/opt/gcc11-glibc2.17-deps}"
+
 # 设置 CARGO_HOME
 export CARGO_HOME="$HOME/.cargo"
 
@@ -71,35 +73,6 @@ check_rust_version() {
     return 0
 }
 
-update_and_checkout_submodule() {
-    DYNLOG_COMMIT_ID="a9b6aeddcd6363252f5388cb0dd942981a09a24b"
-
-    git submodule update --init
-    if [ $? -ne 0 ]; then
-        echo "ERROR: update git submodule failed"
-        return 1
-    fi
-
-    cd ./third_party/dynolog
-    git checkout ${DYNLOG_COMMIT_ID}
-
-    if [ "${BUILD_TENSORBOARD}" -ne 0 ]; then
-        if [ ! -d "./third_party/tensorboard_logger" ]; then
-            git submodule add https://github.com/RustingSword/tensorboard_logger.git ./third_party/tensorboard_logger
-        fi
-        USE_TENSORBOARD="ON"
-    fi
-    git submodule update --init --recursive
-
-    if [ $? -ne 0 ]; then
-        echo "ERROR: switch to dynolog specified commit failed"
-        cd ..
-        return 1
-    fi
-    echo "Check pass: switch to dynolog specified commit ${DYNLOG_COMMIT_ID}"
-    cd ../../
-    return 0
-}
 
 PACKAGE_TYPE=""
 while getopts "t:" opt; do
@@ -124,8 +97,11 @@ check_gcc_version
 check_rust_version
 
 echo "------------------ Update and checkout submodule -------------------"
-update_and_checkout_submodule
+if [ ! -f "third_party/dynolog/CMakeLists.txt" ]; then
+    git submodule update --init third_party/dynolog
+fi
 
+echo "------------------ Prepare Ascend cmake modules --------------------"
 cp -r dynolog_npu/cmake third_party/dynolog
 
 echo "------------------ Generate patch for Ascend -----------------------"
@@ -136,9 +112,17 @@ bash scripts/apply_dyno_patches.sh
 
 echo "------------------ Build dynolog patch for Ascend-------------------"
 cd third_party/dynolog
+mkdir -p third_party/openssl
+mkdir -p third_party/openssl_build_dependency/lib64
+ln -sf /opt/gcc11-glibc2.17-deps/lib64/libssl.a    third_party/openssl_build_dependency/lib64/
+ln -sf /opt/gcc11-glibc2.17-deps/lib64/libcrypto.a third_party/openssl_build_dependency/lib64/
 rm -rf build
+CMAKE_EXTRA="-DCMAKE_PREFIX_PATH=${DEPS_PREFIX}"
+export CMAKE_PREFIX_PATH="${DEPS_PREFIX}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"
+export CPLUS_INCLUDE_PATH="${PWD}/build/third_party/gflags/include${CPLUS_INCLUDE_PATH:+:${CPLUS_INCLUDE_PATH}}"
+
 if [ -z "$PACKAGE_TYPE" ]; then
-    bash scripts/build.sh
+    bash scripts/build.sh ${CMAKE_EXTRA}
     echo "Build dynolog success without packaging"
 elif [ "$PACKAGE_TYPE" = "deb" ]; then
     ARCHITECTURE=$(uname -m)
@@ -148,12 +132,27 @@ elif [ "$PACKAGE_TYPE" = "deb" ]; then
         echo "dpkg Architecture set to arm64"
     fi
     export ARCH=$ARCHITECTURE
+    export OPENSSL_DIR=/opt/gcc11-glibc2.17-deps
+    # 预编译依赖：用空 main 编译所有 crate，产出 .rlib 复用
+    ( cd cli && rm -rf src.real 2>/dev/null && cp -r src src.real && \
+      mkdir -p src && printf "fn main() {}" > src/main.rs && \
+      cargo build --release --target-dir ../build && \
+      rm -rf src && mv src.real src && \
+      find src -type f -exec touch {} + )
     bash scripts/debian/make_deb.sh
     unset ARCH
     mv dynolog*.deb ../../
     echo "Build dynolog deb package success"
 elif [ "$PACKAGE_TYPE" = "rpm" ]; then
     export ARCH=$(uname -m)
+    sed -i 's|__VERSION__/\$VERSION/|__VERSION__/$VERSION/; s/^BuildRequires: systemd.*\\n//|' scripts/rpm/make_rpm.sh
+    export OPENSSL_DIR=/opt/gcc11-glibc2.17-deps
+    # 预编译依赖：用空 main 编译所有 crate，产出 .rlib 复用
+    ( cd cli && rm -rf src.real 2>/dev/null && cp -r src src.real && \
+      mkdir -p src && printf "fn main() {}" > src/main.rs && \
+      cargo build --release --target-dir ../build && \
+      rm -rf src && mv src.real src && \
+      find src -type f -exec touch {} + )
     bash scripts/rpm/make_rpm.sh
     unset ARCH
     mv dynolog*.rpm ../../
