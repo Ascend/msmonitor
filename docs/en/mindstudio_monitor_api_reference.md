@@ -16,7 +16,7 @@ Provides inter-process communication (IPC) interfaces and the capability of inde
 
 Communicates with the dynolog daemon through IPC, and sends registration requests and profiler configuration parameters to the dynolog daemon. You do not need to directly call this API.
 
-* `init_dyno` sends registration requests the dynolog daemon.
+* `init_dyno` sends registration requests to the dynolog daemon.
   * Input: npu_id(int)
   * Return: None
 * `poll_dyno` obtains profiler control parameters from the dynolog daemon.
