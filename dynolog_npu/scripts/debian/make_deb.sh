@@ -32,4 +32,4 @@ cp -p scripts/dynolog.conf "$DEBDIR/etc/logrotate.d"
 perl -p -e "s/__VERSION__/$VERSION/" scripts/debian/control > "$DEBDIR/DEBIAN/control"
 
 tree "$DEBDIR"
-fakeroot sh -c "chown -R root:root \"$DEBDIR\" && dpkg-deb --build \"$DEBDIR\""
+dpkg-deb --root-owner-group --build "$DEBDIR"
