@@ -1,72 +1,26 @@
-# msMonitor Installation Guide
+# msMonitor Tool Installation Guide
 
-## Installation Description
+<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-06-25T02:21:37.101Z pushedAt=2026-06-25T03:31:07.456Z -->
 
-This document describes how to install msMonitor. Currently, installation via software package and compilation from source are supported.
+## 1. Installation Notes
 
-## Installation via Software Package
+This tool supports three installation methods: [Online Installation](#21-online-installation), [Offline Installation](#22-offline-installation), and [Source Installation](#23-source-installation). Please select the most suitable option based on your actual environment.
 
-You are advised to install msMonitor by installing the software package. The procedure is as follows:
+## 2. Installation Methods
 
-1. Select the software package based on [Version Mapping](https://gitcode.com/Ascend/msmonitor/releases) and download it to the Linux installation environment.
+### 2.1 Online Installation
 
-2. Verify the package integrity.
+If your device has internet access, you can automatically download and install the tool with a single command. Visit the Ascend Community MindStudio [download](https://www.hiascend.com/en/developer/software/mindstudio/download) page, select the corresponding CANN version, and choose **Online** installation method. The system will guide you through the subsequent steps.
 
-   Go to the directory containing the .zip package and run the following command:
+### 2.2 Offline Installation
 
-   ```bash
-   sha256sum {name}.zip
-   ```
+For devices in environments without external network access, such as enterprise intranets, first download the complete offline installation package on a machine with internet access, then transfer it to the target device for installation. Visit the Ascend Community MindStudio [download](https://www.hiascend.com/en/developer/software/mindstudio/download) page, select the corresponding CANN version, and choose **Offline** installation method to obtain the corresponding installation package and operation guide.
 
-   *{name}* indicates the name of the .zip package.
+### 2.3 Source Installation
 
-   If the command output displays a checksum that matches the corresponding .zip package version, the correct tool installation package has been downloaded. The following is an example:
+#### 2.3.1 Installing Dependencies
 
-   ```bash
-   2c675ae346dfc1c70f5e9c7103d6f8c7e53be00dca28ed5f9cc577ac59e4bc44 aarch64_8.3.0.zip
-   ```
-
-3. Install the msmonitor_plugin .whl package.
-
-   ```bash
-   # Decompress the package.
-   mkdir x86
-   unzip x86_8.3.0.zip -d x86
-
-   # Go to the directory of the decompressed installation package.
-   cd x86
-
-   # Install the .whl package that matches the Python version in the current environment.
-   pip install mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl
-   ```
-
-   If the installation is successful, the following information is displayed:
-
-   ```ColdFusion
-   Successfully installed mindstudio_monitor-<version> pybind11-<version>
-   ```
-
-4. Install dynolog.
-
-   Select an installation method based on the server OS.
-
-   - Method 1: Use the .deb software package (applicable to Debian/Ubuntu).
-
-     ```bash
-     dpkg -i --force-overwrite dynolog*.deb
-     ```
-
-   - Method 2: Use the .rpm software package (applicable to Red Hat/Fedora/openSUSE).
-
-     ```bash
-     rpm -ivh dynolog*.rpm --nodeps
-     ```
-
-## Compilation and Installation
-
-### Installing Dependencies
-
-The following table lists the dependencies required for compiling dynolog. Ensure that the dependencies have been installed. You need to ensure the security of third-party dependencies that you manually install. Do not install versions with security vulnerabilities.
+The compilation dependencies for dynolog are as follows. Ensure that the following dependencies are installed. Users are responsible for ensuring the security of any third-party dependencies installed manually and should avoid installing versions with known security vulnerabilities.
 
 | Language | Toolchain        |
 | -------- | ---------------- |
@@ -81,21 +35,21 @@ The following table lists the dependencies required for compiling dynolog. Ensur
    source $HOME/.cargo/env
    ```
 
-   After the installation is complete, run the `rustc --version` command to check the version number and ensure that the installation is successful.
+   After installation, run the `rustc --version` command to check the version number and confirm that the installation was successful.
 
 2. Install Ninja.
 
    ```bash
    # debian
    sudo apt-get install -y cmake ninja-build
-
+   
    # centos
    sudo yum install -y cmake ninja
    ```
 
-   After the installation is complete, run the `ninja --version` command to check the version number and ensure that the installation is successful.
+   After installation, run the `ninja --version` command to check the version number and confirm that the installation is successful.
 
-3. Install Protobuf (third-party dependency of tensorboard_logger, which is used to connect to TensorBoard for display).
+3. Install protobuf (a third-party dependency of tensorboard_logger, used for interfacing with tensorboard for display).
 
    ```bash
    # debian
@@ -108,11 +62,11 @@ The following table lists the dependencies required for compiling dynolog. Ensur
    pip install protobuf
    ```
 
-4. (Optional) Install OpenSSL (RPC TLS authentication) and generate a certificate key.
+4. (Optional) Install openssl (RPC TLS authentication) and generate a certificate key.
 
    > [!NOTE]
    >
-   > Skip this step if you do not need to use the TLS certificate key for encryption.
+   > If you do not need to use TLS certificate key encryption, this step can be skipped.
 
    ```bash
    # debian
@@ -122,99 +76,99 @@ The following table lists the dependencies required for compiling dynolog. Ensur
    sudo yum install -y openssl
    ```
 
-   The RPC communication between the dyno CLI and dynolog daemon is encrypted using the TLS certificate key. When starting the dyno and dynolog binaries, you can specify the path for storing the certificate key. The path must meet the following structure and name requirements.
+   The RPC communication between the dyno CLI and the dynolog daemon is encrypted using a TLS certificate key. When starting the dyno and dynolog binaries, you can specify the directory where the certificate key is stored. The directory must meet the following structure and naming requirements.
 
-   You should use a key generation and storage mechanism that meets your requirements and ensure the security and confidentiality of the key. Currently, only the RSA-SHA256 and RSA-SHA512 certificate signing algorithms are supported.
+   Users should use key generation and storage mechanisms that meet their own requirements, and ensure key security and confidentiality. Currently, only RSA-SHA256 and RSA-SHA512 certificate signature algorithms are supported.
 
    Server certificate directory structure:
 
    ```ColdFusion
-   server_certs
-   ├── ca.crt (root certificate, which is used to verify the validity of other certificates. This certificate is mandatory.)
-   ├── server.crt (server certificate, which is used to prove the server identity to the client. This certificate is mandatory.)
-   ├── server.key (server private key file, which is used together with server.crt. This file supports encryption and is mandatory.)
-   └── ca.crl (certificate revocation list, which contains information about revoked certificates. This certificate is optional.)
+   ssl_certs
+   ├── ca.crt (Root CA certificate for validating peer certificates. Required)
+   ├── server.crt (Server certificate to authenticate the server to clients. Required)
+   ├── server.key (Private key paired with server.crt. May be encrypted. Required)
+   └── ca.crl (Certificate revocation list (CRL) containing revoked certificates. Optional)
    ```
 
    Client certificate directory structure:
 
    ```ColdFusion
-   client_certs
-   ├── ca.crt (root certificate, which is used to verify the validity of other certificates. This certificate is mandatory.)
-   ├── client.crt (client certificate, which is used to prove the client identity to the server. This certificate is mandatory.)
-   ├── client.key (client private key file, which is used together with client.crt. This file supports encryption and is mandatory.)
-   └── ca.crl (certificate revocation list, which contains information about revoked certificates. This certificate is optional.)
+   ssl_certs
+   ├── ca.crt (Root CA certificate for validating peer certificates. Required)
+   ├── client.crt (Client certificate to authenticate the client to server. Required)
+   ├── client.key (Private key paired with client.crt. May be encrypted. Required)
+   └── ca.crl (Certificate revocation list (CRL) containing revoked certificates. Optional)
    ```
 
-### Downloading the Source Code
+#### 2.3.2 Downloading the Source Code
 
-Download the source code and go to the source code directory.
+Download the source code and enter the source code directory.
 
 ```bash
-git clone https://gitcode.com/Ascend/msmonitor.git
+git clone https://gitcode.com/Ascend/msmonitor.git -b 26.0.0
 cd msmonitor
 ```
 
-### Compiling and Installing dynolog
+#### 2.3.3 Compiling and Installing dynolog
 
 1. Compile dynolog.
 
-   By default, the dyno and dynolog binary files are generated after compilation. `-t` can be used to pack the binary files into a .deb or .rpm package.
+   By default, the compilation generates the dyno and dynolog binary files. The `-t` option can be used to package the binary files into a `.deb` or `.rpm` package.
 
    ```bash
-   # Compile the .deb package. Currently, the AMD64 and AArch64 platforms are supported. The default platform is AMD64. To compile the AArch64 platform, change **Architecture** in the **third_party/dynolog/scripts/debian/control** file to **arm64**.
+   # # Compile the .deb package. Currently supports amd64 and aarch64 platforms, defaulting to amd64. To compile for the aarch64 platform, change Architecture to arm64 in the third_party/dynolog/scripts/debian/control file
    bash scripts/build.sh -t deb
 
-   # Compile the .rpm package. Currently, only the AMD64 platform is supported.
+   # # Compile the .rpm package. Currently only supports the amd64 platform
    bash scripts/build.sh -t rpm
 
-   # Compile the dyno and dynolog binary executable files.
+   # Compile dyno and dynolog binary executable files
    bash scripts/build.sh
    ```
 
 2. Install dynolog.
 
-   Select an installation method based on the server OS.
+   The following installation methods are available. Choose one based on your server operating system:
 
-   - Method 1: Use the .deb software package (applicable to Debian/Ubuntu).
+   - Method 1: Install using the `.deb` package (applicable to Debian/Ubuntu and similar systems).
 
      ```bash
      dpkg -i --force-overwrite dynolog*.deb
      ```
 
-   - Method 2: Use the .rpm software package (applicable to Red Hat/Fedora/openSUSE).
+   - Method 2: Install using the `.rpm` package (applicable to RedHat/Fedora/openSUSE and similar systems).
 
      ```bash
      rpm -ivh dynolog*.rpm --nodeps
      ```
 
-### Compiling and Installing mindstudio_monitor
+#### 2.3.4 Compiling and Installing mindstudio_monitor
 
-The mindstudio_monitor .whl package provides common capabilities such as IPCMonitor and MsptiMonitor. Before using the nputrace and npu-monitor functions, you must install the .whl package.
+The mindstudio_monitor `.whl` package provides common capabilities such as IPCMonitor and MsptiMonitor. This `.whl` package must be installed before using the nputrace and npu-monitor features.
 
-#### Installation Using Shell Scripts
+##### 2.3.4.1 One-Click Installation via Shell Script
 
 ```bash
 chmod +x plugin/build.sh
 ./plugin/build.sh
 ```
 
-If the installation is successful, the following information is displayed:
+The following information is printed upon successful installation:
 
 ```ColdFusion
 Successfully installed mindstudio_monitor-<version> pybind11-<version>
 ```
 
-#### Manual Installation
+##### 2.3.4.2 Manual Installation
 
-1. Install the dependencies.
+1. Install dependencies.
 
    ```bash
    pip install wheel
    pip install pybind11
    ```
 
-2. Compile the mindstudio_monitor .whl package.
+2. Compile the mindstudio_monitor `.whl` package.
 
    ```bash
    cd ./plugin
@@ -222,43 +176,75 @@ Successfully installed mindstudio_monitor-<version> pybind11-<version>
    python3 setup.py bdist_wheel
    ```
 
-   After the compilation is complete, the mindstudio_monitor .whl package is generated in the **msmonitor/plugin/dist** directory.
+   After compilation, the mindstudio_monitor `.whl` package is generated in the `msmonitor/plugin/dist` directory.
 
-3. Install the mindstudio_monitor .whl package.
+3. Install the mindstudio_monitor `.whl` package.
 
    ```bash
    cd ./plugin/dist
    pip install mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl
    ```
 
-   If the installation is successful, the following information is displayed:
+   If the installation is successful, the following information is printed:
 
    ```ColdFusion
    Successfully installed mindstudio_monitor-<version> pybind11-<version> xlsxwriter-<version>
    ```
 
-## Uninstallation
+## 3. Installation Verification
 
-**Uninstalling dynolog**
-
-You can run the `which` command to search for the locations of the dyno and dynolog binary executable files and manually delete the two files.
-
-**Uninstalling mindstudio_monitor**
+After the installation is complete, run the following commands to verify whether the tools are installed successfully:
 
 ```bash
-pip uninstall mindstudio_monitor
+dyno --help
+dynolog --help
 ```
 
-## Upgrade
+If the output does not report an error and the help information is displayed, the installation is successful.
 
-msMonitor cannot be directly upgraded. You need to [uninstall](#uninstallation) msMonitor and then [install](#msmonitor-installation-guide) a later version.
+If `dyno --help` or `dynolog --help` indicates that the command does not exist, confirm that the current terminal is using the Python environment where `msMonitor` is installed.
 
-## Logs
+## 4. Uninstallation
 
-You can configure the `MSMONITOR_LOG_PATH` environment variable to specify a custom log file path. The default path is `msmonitor_log` in the current directory.
+You can perform uninstallation  by following these steps:
+
+1. Download the script.
+
+   ```bash
+   curl -O https://inst.obs.cn-north-4.myhuaweicloud.com/26.0.0/ms_install.py
+   ```
+
+   > [!NOTE]
+   >
+   > - An internet connection is required for downloading. If the environment does not allow internet access or is offline, download the script in an environment with internet access first and then copy it to the target device.
+   > - If the command does not respond or errors such as connection failure or SSL certificate errors occur, see [FAQs](https://www.hiascend.com/developer/blog/details/02176213671719317003).
+
+2. Perform the uninstallation.
+
+   ```bash
+   python ms_install.py uninstall {tools_name}
+   ```
+
+   Where `{tools_name}` is configured as the name of the tool to be uninstalled. You can query it by running the `python ms_install.py help` command. The tool name is displayed under the `Available Tools` field in the printed information.
+
+If the uninstallation is successful, the following information is printed:
+
+   ```ColdFusion
+   Successfully uninstalled 1 tool ({tools_name})
+   ```
+
+## 5. Upgrade
+
+Upgrading means "uninstalling first and then installing". Run the install command directly. The tool will automatically remove any older version and guide you through a clean reinstallation.
+
+You can run the `dyno --version` command to view the version information of the current environment, and then select the version to upgrade to. When upgrading, pay attention to the version compatibility. See [Release Notes](https://gitcode.com/Ascend/release-management/blob/master/MindStudio/26.0.0/release_notes_en.md).
+
+## 6. Logs
+
+Users can configure the `MSMONITOR_LOG_PATH` environment variable to specify a custom log file path. The default path is `msmonitor_log` in the current directory.
 
 ```bash
 export MSMONITOR_LOG_PATH=/tmp/msmonitor_log
 ```
 
- `/tmp/msmonitor_log` is the custom log file path.
+`/tmp/msmonitor_log` is the custom log file path.

@@ -124,7 +124,7 @@ If the change involves`npu-monitor`\:
 1. Pay special attention to the processing of the dyno CLI parameter.
 2. Pay special attention to the monitoring request delivery and background collection logic of the dynolog daemon.
 3. If data processing on the MSPTI side is involved, linkage is required.`plugin`Module.
-4. Synchronous update`docs/zh/user_guide/npumonitor_instruct.md`.
+4. Synchronous update`docs/en/npumonitor_instruct.md`.
 
 #### 3.5.2 Development`nputrace`
 
@@ -133,7 +133,7 @@ If the change involves`nputrace`\:
 1. Pay special attention to the dyno request parameters and the daemon triggering logic.
 2. Check the association logic with the data collection on the profiler, CANN, and device sides.
 3. If logs, output paths, offline parsing, or display are involved, the E2E process needs to be verified.
-4. Synchronous update`docs/zh/user_guide/nputrace_instruct.md`.
+4. Synchronous update`docs/en/nputrace_instruct.md`.
 
 #### 3.5.3 Developing Monitor APIs
 
@@ -141,7 +141,7 @@ If the modification involves Python APIs or public capabilities:
 
 1. Prioritized attention`plugin/IPCMonitor`,`plugin/ipc_monitor`.
 2. If the extended module is exposed, check it accordingly.`bindings.cpp`And to the`setup.py`.
-3. Synchronous update`docs/zh/advanced_features/monitor_feature.md`And to the`docs/zh/advanced_features/mindstudio_monitor_api_reference.md`.
+3. Synchronous update`docs/en/monitor_feature.md`And to the`docs/en/mindstudio_monitor_api_reference.md`.
 
 ## 4. Build and Install
 
@@ -256,15 +256,15 @@ After the function development is complete, if the modification affects user beh
 
 | Change type                                            | Documents to be updated synchronously                           |
 | ------------------------------------------------------ | --------------------------------------------------------------- |
-| Installation, compilation, upgrade, and uninstallation | `docs/zh/getting_started/install_guide.md`                      |
-| Quick experience process                               | `docs/zh/getting_started/quick_start.md`                        |
-| Dynolog server                                         | `docs/zh/user_guide/dynolog_instruct.md`                        |
-| dyno client                                            | `docs/zh/user_guide/dyno_instruct.md`                           |
-| NPU-monitor function                                   | `docs/zh/user_guide/npumonitor_instruct.md`                     |
-| nputrace function                                      | `docs/zh/user_guide/nputrace_instruct.md`                       |
-| Monitor API                                            | `docs/zh/advanced_features/monitor_feature.md`                  |
-| API Reference                                          | `docs/zh/advanced_features/mindstudio_monitor_api_reference.md` |
-| Version Release Information                            | `docs/zh/release_notes.md`                                      |
+| Installation, compilation, upgrade, and uninstallation | `docs/en/install_guide.md`                      |
+| Quick experience process                               | `docs/en/quick_start.md`                        |
+| Dynolog server                                         | `docs/en/dynolog_instruct.md`                        |
+| dyno client                                            | `docs/en/dyno_instruct.md`                           |
+| NPU-monitor function                                   | `docs/en/npumonitor_instruct.md`                     |
+| nputrace function                                      | `docs/en/nputrace_instruct.md`                       |
+| Monitor API                                            | `docs/en/monitor_feature.md`                  |
+| API Reference                                          | `docs/en/mindstudio_monitor_api_reference.md` |
+| Version Release Information                            | `https://gitcode.com/Ascend/msmonitor/releases`                                      |
 
 ## 7. Submit Process Suggestions
 
