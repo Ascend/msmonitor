@@ -56,7 +56,7 @@ class BuildManager:
             help='Build action: omit for full build, "local" to skip dependency download, "test" to run unit tests',
         )
         ap.add_argument(
-            '-v', '--version', type=str, default='1.0.0', help='Build version for run/exe/dmg packages (default: 1.0.0)'
+            '-v', '--version', type=str, default='26.0.0', help='Build version for run/exe/dmg packages (default: 26.0.0)'
         )
         ap.add_argument(
             '-e',
