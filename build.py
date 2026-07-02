@@ -100,8 +100,10 @@ class BuildManager:
         plugin_dir = self.project_root / "plugin"
         # 同一 workspace 内会用多个 Python 版本依次构建，dist 残留旧版本 whl
         shutil.rmtree(plugin_dir / "dist", ignore_errors=True)
+        whl_env = os.environ.copy()
+        whl_env["WHL_VERSION"] = self.args.version
         self._execute_command(["pip", "install", "protobuf", "setuptools"], cwd=plugin_dir)
-        self._execute_command(["bash", "build.sh"], cwd=plugin_dir)
+        self._execute_command(["bash", "build.sh"], cwd=plugin_dir, env=whl_env)
         self._archive_artifacts(plugin_dir / "dist", "*.whl")
 
     def _build_dynalog(self):
