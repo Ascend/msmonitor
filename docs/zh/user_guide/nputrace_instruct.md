@@ -53,7 +53,7 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
 | --rank-list           | 可选 | 指定需要采集的rank列表，String类型。多个rank使用逗号分隔，例如：--rank-list 0,1,2,3。未配置时采集所有rank的数据。 |     Y     |      N      |
 | --data-simplification | 可选 | 数据精简模式，取值为：<br/>&#8226; true：表示开启数据精简，开启后将在导出性能数据后删除多余数据，仅保留profiler_*.json文件、ASCEND_PROFILER_OUTPUT目录、PROF_XXX目录下的原始性能数据、FRAMEWORK目录和logs目录，以节省存储空间。<br/>&#8226; false：表示关闭数据精简。<br/>默认值为true。              |     Y     |      Y      |
 | --activities          | 可选 | 控制CPU、NPU事件采集范围，取值为：<br/>&#8226; CPU：框架侧数据采集的开关。<br/>&#8226; NPU：CANN软件栈及NPU数据采集的开关。<br/>默认情况下CPU、NPU事件采集同时开启，即配置为--activities CPU,NPU。                                     |     Y     |      Y      |
-| --profiler-level      | 可选 | 控制Profiler的采集等级，取值为：<br/>&#8226; Level_none：不采集所有Level层级控制的数据，即关闭--profiler_level。<br/>&#8226; Level0：采集上层应用数据、底层NPU数据以及NPU上执行的算子信息。<br/>&#8226; Level1：效果为在Level0的基础上，多采集CANN层AscendCL数据和NPU上执行的AI Core性能指标信息、开启--aic-metrics PipeUtilization、生成通信算子的communication.json和communication_matrix.json以及api_statistic.csv文件。<br/>&#8226; Level2：效果为在Level1的基础上多采集CANN层Runtime数据以及AI CPU（data_preprocess.csv文件）数据。<br/>&#8226; 默认值为Level0。 |     Y     |      Y      |
+| --profiler-level      | 可选 | 控制Profiler的采集等级，取值为：<br/>&#8226; Level_none：不采集所有Level层级控制的数据，即关闭--profiler-level。<br/>&#8226; Level0：采集上层应用数据、底层NPU数据以及NPU上执行的算子信息。<br/>&#8226; Level1：效果为在Level0的基础上，多采集CANN层AscendCL数据和NPU上执行的AI Core性能指标信息、开启--aic-metrics PipeUtilization、生成通信算子的communication.json和communication_matrix.json以及api_statistic.csv文件。<br/>&#8226; Level2：效果为在Level1的基础上多采集CANN层Runtime数据以及AI CPU（data_preprocess.csv文件）数据。<br/>&#8226; 默认值为Level0。 |     Y     |      Y      |
 | --aic-metrics         | 可选 | AI Core的性能指标采集项，取值为：<br/>&#8226; AiCoreNone：关闭AI Core的性能指标采集。<br/>&#8226; PipeUtilization：计算单元和搬运单元耗时占比。<br/>&#8226; ArithmeticUtilization：各种计算类指标占比统计。<br/>&#8226; Memory：外部内存读写类指令占比。<br/>&#8226; MemoryL0：内部L0内存读写类指令占比。<br/>&#8226; ResourceConflictRatio：流水线队列类指令占比。<br/>&#8226; MemoryUB：内部UB内存读写类指令占比。<br/>&#8226; L2Cache：读写cache命中次数和缺失后重新分配次数。<br/>&#8226; MemoryAccess：算子在核上访存的带宽数据量。<br/>当--profiler-level设置为Level_none或Level0，默认值为AiCoreNone，当--profiler-level设置为Level1或Level2，默认值为PipeUtilization。 |     Y     |      Y      |
 | --export-type         | 可选 | profiler解析导出数据的类型，取值为：<br/>&#8226; Text：表示解析为.json和.csv格式的timeline和summary文件以及汇总所有性能数据的.db格式文件。<br/>&#8226; Db：表示仅解析为汇总所有性能数据的.db格式文件，使用MindStudio Insight工具展示。<br/>默认值为Text。 |     Y     |      Y      |
 | --gc-detect-threshold | 可选 | GC检测阈值，Option\<f32\>类型，单位ms，只采集超过阈值的GC事件。默认不设置时不开启GC检测。                                                                                                                                                                                                                           |     Y     |      N      |
@@ -88,20 +88,20 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
    ```bash
    # 示例1：从第10个step开始采集，采集2个step，采集框架、CANN和device数据，同时采集完后自动解析以及解析完成不做数据精简，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
-
+   
    # 示例2：从下一个step开始采集，采集2个step，采集框架、CANN和device数据，同时采集完后自动解析以及解析完成不做数据精简，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step -1 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
-
+   
    # 示例3：从第10个step开始采集，采集2个step，只采集CANN和device数据，同时采集完后自动解析以及解析完成后开启数据精简，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities NPU --analyse --data-simplification true --log-file /tmp/profile_data
-
+   
    # 示例4：从第10个step开始采集，采集2个step，只采集CANN和device数据，只采集不解析，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities NPU --log-file /tmp/profile_data
-
+   
    # 示例5：多机场景下向特定机器x.x.x.x发送参数信息，参数表示从第10个step开始采集，采集2个step，只采集CANN和device数据，只采集不解析，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs --hostname x.x.x.x nputrace --start-step 10 --iterations 2 --activities NPU --log-file /tmp/profile_data
    ```
 
 ## 输出结果文件说明
 
-nputrace落盘的数据格式和交付件介绍请参见[MindSpore&PyTorch框架性能数据文件参考](https://www.hiascend.com/document/detail/zh/mindstudio/830/T&ITools/Profiling/atlasprofiling_16_0204.html)。
+nputrace落盘的数据格式和交付件包含PyTorch和MindSpore框架数据，详细介绍可参考Ascend PyTorch调优工具的[输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/v2.7.1/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。

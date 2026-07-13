@@ -1,10 +1,9 @@
-<!-- markdownlint-disable MD033 MD041 -->
 <h1 align="center">MindStudio Monitor</h1>
 
 <div align="center">
   <p><b>昇腾集群在线性能监测与动态采集工具</b></p>
 
- [![QuickStart](https://badgen.net/badge/快速入门/QuickStart/blue)](./docs/zh/quick_start/quick_start.md)
+ [![QuickStart](https://badgen.net/badge/快速入门/QuickStart/blue)](./docs/zh/quick_start/msmonitor_quick_start.md)
  [![Ask DeepWiki](https://badgen.net/badge/AI问答/DeepWiki/blue)](https://deepwiki.com/mindstudio-docs/master)
  [![Ask ZRead](https://badgen.net/badge/AI问答/ZRead/blue)](https://zread.ai/mindstudio-docs/master)
  [![ReadTheDocs](https://badgen.net/badge/精确搜索/ReadTheDocs/blue)](https://mindstudio-docs-master.readthedocs.io)
@@ -50,8 +49,7 @@ msMonitor 提供以下核心能力：
 
 ## 🚀 快速入门
 
-首次使用 msMonitor 时，推荐直接按下面这条主线完成从安装到采集的端到端体验。
-请参见 《[msMonitor 工具快速入门](./docs/zh/quick_start/quick_start.md)》。
+首次使用 msMonitor 时，推荐直接按下面这条主线完成从安装到采集的端到端体验，请参见 《[msMonitor 工具快速入门](./docs/zh/quick_start/msmonitor_quick_start.md)》。
 
 ## 📦 安装指南
 
@@ -88,40 +86,33 @@ msMonitor 在大模型训练&推理场景下的使用案例，请参见《[msMon
 
 ## 🛠️ 贡献指南
 
-欢迎参与项目贡献，请参见 [《贡献指南》](./docs/zh/contributing/contributing_guide.md)。
+欢迎参与项目贡献，请参见 《[贡献指南](./docs/zh/contributing/contributing_guide.md)》。
 
 ## ⚖️ 相关说明
 
-🔹 [《版本说明》](./docs/zh/release_notes/release_notes.md) <br>
-🔹 [《许可证声明》](./LICENSE) <br>
-🔹 [《文档 License》](./docs/LICENSE) <br>
-🔹 [《安全声明》](./docs/zh/legal/security_statement.md) <br>
-🔹 [《免责声明》](./docs/zh/legal/disclaimer.md) <br>
-🔹 [《漏洞机制说明》](./docs/zh/legal/mindstudio_vulnerability_handling_procedure.md) <br>
-🔹 [《公网地址声明》](./docs/zh/legal/public_ip_address.md) <br>
+🔹 《[版本说明](https://gitcode.com/Ascend/msmonitor/releases)》 <br>
+🔹 《[许可证声明](docs/zh/legal/license_notice.md)》 <br>
+🔹 《[安全声明](./docs/zh/legal/security_statement.md)》 <br>
+🔹 《[免责声明](./docs/zh/legal/disclaimer.md)》 <br>
 
 ## 🤝 建议与交流
 
-欢迎大家通过 [Issues](https://gitcode.com/Ascend/msmonitor/issues)
-反馈问题、需求和建议，我们会尽快响应。
-若希望加入社区交流，也可以通过以下入口进一步了解 MindStudio 团队。
+欢迎大家为社区做贡献。如果有任何疑问或建议，请提交 [Issues](https://gitcode.com/Ascend/msmonitor/issues)，我们会尽快回复。感谢您的支持。
 
 诚邀参与[满意度问卷调查](https://rdccucd.wjx.cn/vm/PKPfKqO.aspx)抽取惊喜好礼😎。
 
 | 💬 即时互动（微信群） | 📢 官方资讯（公众号） | 深度支持（助手/论坛） |
 | :---: | :---: | :--- |
-| <img src="./docs/zh/figures/qr_code_wechat_work.png" width="120"><br><sub>*扫码直接加入技术交流群*</sub> | <img src="./docs/zh/figures/qr_code_wechat_official_account.png" width="120"><br><sub>*扫码关注获取最新动态*</sub> |欢迎扫码关注技术交流群跟官方公众号。这里是 MindStudio 用户与开发者最快捷的交流阵地：<br> **快速提问：** 与社区小伙伴即时探讨技术问题<br>**掌握动态：** 第一时间获取版本发布与功能更新通知<br> **经验共享：** 与广大开发者交流最佳实践与实战心得  <br>🛠️ **更多支持渠道**：<br>👉 昇腾助手：[![WeChat](https://img.shields.io/badge/WeChat-07C160?style=flat-square&logo=wechat&logoColor=white)](https://gitcode.com/Ascend/msit/blob/master/docs/zh/figures/readme/xiaozhushou.png)<br>👉 昇腾论坛：[![Website](https://img.shields.io/badge/Website-%231e37ff?style=flat-square&logo=RSS&logoColor=white)](https://www.hiascend.com/forum/) |
+| <img src="./docs/zh/figures/qr_code_wechat_work.png" width="120"><br><sub>*扫码直接加入技术交流群*</sub> | <img src="./docs/zh/figures/qr_code_wechat_official_account.png" width="120"><br><sub>*扫码关注获取最新动态*</sub> |扫码入群并关注公众号，直达 MindStudio 用户与开发者最快捷的交流平台：<br> **快速提问：** 与社区小伙伴即时探讨技术问题<br>**掌握动态：** 第一时间获取版本发布与功能更新通知<br> **经验共享：** 与广大开发者交流最佳实践与实战心得  <br>🛠️ **更多支持渠道**：👉 昇腾助手：[![WeChat](https://img.shields.io/badge/WeChat-07C160?style=flat-square&logo=wechat&logoColor=white)](https://gitcode.com/Ascend/msit/blob/master/docs/zh/figures/readme/xiaozhushou.png)👉 昇腾论坛：[![Website](https://img.shields.io/badge/Website-%231e37ff?style=flat-square&logo=RSS&logoColor=white)](https://www.hiascend.com/forum/) |
 
 ## 🙏 致谢
 
-msMonitor 由华为公司的下列部门联合贡献：
-
-- 昇腾计算 MindStudio 开发部
-- 2012 欧拉实验室
-
-感谢来自社区的每一个 Pull Request，欢迎贡献 msMonitor。
+本工具由华为公司的下列部门联合贡献：<br>
+🔹 昇腾计算MindStudio开发部<br>
+🔹 2012 欧拉实验室<br>
+感谢来自社区的每一个 PR，欢迎贡献！
 
 [dynolog]: https://github.com/facebookincubator/dynolog
-[mspti]: https://gitcode.com/Ascend/mspti/blob/master/docs/zh/getting_started/quick_start.md
+[mspti]: https://gitcode.com/Ascend/mspti/blob/master/docs/zh/quick_start/mspti_quick_start.md
 [ascend-pytorch-profiler]: https://gitcode.com/Ascend/pytorch/blob/v2.7.1/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md
 [mindspore-profiler]: https://gitcode.com/Ascend/docs/blob/master/MindStudio/master/mindspore_profiler_user_guide.md
