@@ -12,8 +12,7 @@ use std::path::PathBuf;
 use std::io;
 use rpassword::prompt_password;
 
-use anyhow::Result;
-use anyhow::anyhow;
+use crate::error::{err, Result};
 use clap::Parser;
 use std::collections::HashSet;
 
@@ -27,6 +26,7 @@ use openssl::pkey::PKey;
 
 // Make all the command modules accessible to this file.
 mod commands;
+mod error;
 use commands::nputrace::NpuTraceConfig;
 use commands::nputrace::NpuTraceOptions;
 use commands::nputrace::NpuTraceTriggerConfig;
@@ -68,7 +68,7 @@ struct Opts {
     cmd: Command,
 }
 
-fn validate_string_max_len(s: &str) -> Result<String, String> {
+fn validate_string_max_len(s: &str) -> std::result::Result<String, String> {
     if s.len() > MAX_SIZE {
         return Err(format!("The input string is too long, max allowed: {}", MAX_SIZE));
     }
@@ -78,7 +78,7 @@ fn validate_string_max_len(s: &str) -> Result<String, String> {
 const ALLOWED_VALUES: &[&str] = &["Marker", "Kernel", "API", "Hccl", "Memory", "MemSet", "MemCpy", "Communication",
     "AclAPI", "NodeAPI", "RuntimeAPI"];
 
-fn parse_mspti_activity_kinds(src: &str)  -> Result<String, String>{
+fn parse_mspti_activity_kinds(src: &str)  -> std::result::Result<String, String>{
     validate_string_max_len(src)?;
     let allowed_values: HashSet<&str> = ALLOWED_VALUES.iter().cloned().collect();
 
@@ -95,7 +95,7 @@ fn parse_mspti_activity_kinds(src: &str)  -> Result<String, String>{
 
 const ALLOWED_HOST_SYSTEM_VALUES: &[&str] = &["cpu", "mem", "disk", "network", "osrt"];
 
-fn parse_host_sys(src: &str) -> Result<String, String>{
+fn parse_host_sys(src: &str) -> std::result::Result<String, String>{
     if src == "None" {
         return Ok(src.to_string());
     }
@@ -116,7 +116,7 @@ fn parse_host_sys(src: &str) -> Result<String, String>{
 
 const INSTANT_START_STEP: i64 = -1;   // nputrace子命令，表示从下个step开启采集任务
 
-fn parse_start_step(src: &str) -> Result<i64, String> {
+fn parse_start_step(src: &str) -> std::result::Result<i64, String> {
     let start_step = src.trim().parse::<i64>().map_err(|e| format!("{}", e))?;
     if start_step < INSTANT_START_STEP {
         return Err(format!("Must be non-negative integer or {}", INSTANT_START_STEP));
@@ -124,7 +124,7 @@ fn parse_start_step(src: &str) -> Result<i64, String> {
     Ok(start_step)
 }
 
-fn parse_iterations(src: &str) -> Result<i64, String> {
+fn parse_iterations(src: &str) -> std::result::Result<i64, String> {
     let iterations = src.trim().parse::<i64>().map_err(|e| format!("{}", e))?;
     if iterations <= 0 {
         return Err("Must be a positive integer".to_string());
@@ -132,7 +132,7 @@ fn parse_iterations(src: &str) -> Result<i64, String> {
     Ok(iterations)
 }
 
-fn parse_duration(src: &str) -> Result<f32, String> {
+fn parse_duration(src: &str) -> std::result::Result<f32, String> {
     let duration = src.trim().parse::<f32>().map_err(|e| format!("{}", e))?;
     if duration < 0.0 {
         return Err("Must be a positive number".to_string());
@@ -140,7 +140,7 @@ fn parse_duration(src: &str) -> Result<f32, String> {
     Ok(duration)
 }
 
-fn parse_i32_in_range(src: &str, min: i32, max: i32) -> Result<i32, String> {
+fn parse_i32_in_range(src: &str, min: i32, max: i32) -> std::result::Result<i32, String> {
     validate_string_max_len(src)?;
     let value = src.trim().parse::<i32>().map_err(|e| format!("{}", e))?;
     if value < min || value > max {
@@ -149,7 +149,7 @@ fn parse_i32_in_range(src: &str, min: i32, max: i32) -> Result<i32, String> {
     Ok(value)
 }
 
-fn parse_json_rotate_log_lines(src: &str) -> Result<String, String> {
+fn parse_json_rotate_log_lines(src: &str) -> std::result::Result<String, String> {
     if src.trim().is_empty() {
         return Ok(String::new());
     }
@@ -157,7 +157,7 @@ fn parse_json_rotate_log_lines(src: &str) -> Result<String, String> {
     Ok(src.trim().to_string())
 }
 
-fn parse_json_rotate_log_files(src: &str) -> Result<String, String> {
+fn parse_json_rotate_log_files(src: &str) -> std::result::Result<String, String> {
     if src.trim().is_empty() {
         return Ok(String::new());
     }
@@ -169,7 +169,7 @@ fn parse_json_rotate_log_files(src: &str) -> Result<String, String> {
     Err("Must be -1 or an integer greater than or equal to 2".to_string())
 }
 
-fn parse_comma_separated_integers(src: &str) -> Result<String, String> {
+fn parse_comma_separated_integers(src: &str) -> std::result::Result<String, String> {
     validate_string_max_len(src)?;
 
     let values: Vec<&str> = src.split(',').map(|s| s.trim()).collect();
@@ -727,7 +727,7 @@ fn main() -> Result<()> {
     } = Opts::parse();
 
     if certs_dir != NO_CERTS_MODE && !PathUtils::check_dir(&certs_dir, true, true) {
-        return Err(anyhow!("--certs_dir must be a valid directory!"));
+        return Err(err("--certs_dir must be a valid directory!"));
     }
     let client = create_dyno_client(&hostname, port, &certs_dir)
         .expect("Couldn't connect to the server...");
@@ -769,21 +769,21 @@ fn main() -> Result<()> {
         } => {
             if let Some(value) = &mstx_domain_include {
                 if let Err(err_msg) = validate_string_max_len(value) {
-                    return Err(anyhow!("--mstx-domain-include error: {}", err_msg));
+                    return Err(err(format!("--mstx-domain-include error: {}", err_msg)));
                 }
             }
             if let Some(value) = &mstx_domain_exclude {
                 if let Err(err_msg) = validate_string_max_len(value) {
-                    return Err(anyhow!("--mstx-domain-exclude error: {}", err_msg));
+                    return Err(err(format!("--mstx-domain-exclude error: {}", err_msg)));
                 }
             }
             if let Some(value) = &rank_list {
                 if let Err(err_msg) = parse_comma_separated_integers(value) {
-                    return Err(anyhow!("--rank-list error: {}", err_msg));
+                    return Err(err(format!("--rank-list error: {}", err_msg)));
                 }
             }
             if !PathUtils::check_dir(&log_file, false, false) {
-                return Err(anyhow!("--log-file must be a valid directory!"));
+                return Err(err("--log-file must be a valid directory!"));
             }
             let trigger_config = if iterations > 0 {
                 NpuTraceTriggerConfig::IterationBased {
@@ -841,7 +841,7 @@ fn main() -> Result<()> {
             filter,
         } => {
             if !log_file.is_empty() && !PathUtils::check_dir(&log_file, false, false) {
-                return Err(anyhow!("--log-file must be a valid directory!"));
+                return Err(err("--log-file must be a valid directory!"));
             }
             let npu_mon_config = NpuMonitorConfig {
                 npu_monitor_start,

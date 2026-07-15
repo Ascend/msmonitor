@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use anyhow::Result;
+use crate::error::Result;
 use serde_json::Value;
 use crate::DynoClient;
 use super::utils;

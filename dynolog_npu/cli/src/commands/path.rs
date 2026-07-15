@@ -10,8 +10,7 @@ use nix::sys::stat::{self, Mode};
 use libc::{R_OK, W_OK, X_OK};
 use std::env;
 use std::io;
-use std::path::{Path, PathBuf};
-use path_clean::PathClean;
+use std::path::{Component, Path, PathBuf};
 
 use super::utils;
 
@@ -106,7 +105,26 @@ impl PathUtils {
         } else {
             env::current_dir()?.join(path)
         };
-        Ok(abs.clean())
+        Ok(Self::lexical_clean(&abs))
+    }
+
+    fn lexical_clean(path: &Path) -> PathBuf {
+        let mut components: Vec<Component> = Vec::new();
+        for comp in path.components() {
+            match comp {
+                Component::CurDir => {}
+                Component::ParentDir => match components.last() {
+                    Some(Component::Normal(_)) => {
+                        components.pop();
+                    }
+                    Some(Component::ParentDir) | None => components.push(comp),
+                    Some(Component::RootDir) | Some(Component::Prefix(_)) => {},
+                    _ => {}
+                },
+                other => components.push(other),
+            }
+        }
+        components.iter().collect()
     }
 
     pub fn check_dir(path: &str, should_exist: bool, is_input: bool) -> bool {
