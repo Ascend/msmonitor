@@ -64,18 +64,19 @@ dyno --certs-dir NO_CERTS nputrace --start-step -1 --iterations 2 --activities C
 
 ![nputrace](../figures/nputrace_collect.png)
 
-采集结果，落盘的数据格式和交付件介绍请参见 [Ascend PyTorch Profiler 输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/v2.7.1/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)
+采集结果，落盘的数据格式和交付件介绍请参见 [Ascend PyTorch Profiler 输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/v2.7.1-26.1.0/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)
 
 ![nputrace_result](../figures/nputrace_result.png)
 
-使用 [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/zh/user_guide/overview.md) 工具进行性能数据的查看和分析
+使用 [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/26.1.0/docs/zh/user_guide/overview.md) 工具进行性能数据的查看和分析
 
 ![mindstudio insight](../figures/nputrace_insight.png)
 
 ### npu-monitor 子命令
 
-> [!NOTE] Note
-> npu-monitor 子命令底层依赖 [msPTI](https://gitcode.com/Ascend/mspti) 接口，实现轻量化数据采集，由于 msPTI 实现机制的变更，CANN 9.0.0 之前的版本，在拉起训练前，需要设置 LD_PRELOAD 环境变量，指向 msPTI 库的路径，示例如下，CANN 9.0.0 及之后版本无需设置。
+> [!NOTE]
+> 
+> npu-monitor 子命令底层依赖 [msPTI](https://gitcode.com/Ascend/mspti/tree/26.1.0) 接口，实现轻量化数据采集，由于 msPTI 实现机制的变更，CANN 9.0.0 之前的版本，在拉起训练前，需要设置 LD_PRELOAD 环境变量，指向 msPTI 库的路径，示例如下，CANN 9.0.0 及之后版本无需设置。
 
 ```bash
 # export LD_PRELOAD=<CANN Toolkit安装路径>/cann/lib64/libmspti.so
@@ -229,16 +230,16 @@ dyno --certs-dir NO_CERTS nputrace --start-step -1 --iterations 10 --with-module
 python -c "import torch_npu; torch_npu.profiler.profiler.analyse('/tmp/profile_data_vllm/81ca290a1462_2429_20260529070008441_ascend_pt')"
 ```
 
-解析完成后，生成的数据格式和交付件介绍请参见 [Ascend PyTorch Profiler 输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/v2.7.1/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
+解析完成后，生成的数据格式和交付件介绍请参见 [Ascend PyTorch Profiler 输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/v2.7.1-26.1.0/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
 
-使用 [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/zh/user_guide/overview.md) 工具进行性能数据的查看和分析。
+使用 [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/26.1.0/docs/zh/user_guide/overview.md) 工具进行性能数据的查看和分析。
 
 ![nputrace_vllm_insight](../figures/nputrace_vllm_insight.png)
 
 ### npu-monitor 子命令
 
 > [!NOTE] Note
-> npu-monitor 子命令底层依赖 [msPTI](https://gitcode.com/Ascend/mspti) 接口，实现轻量化数据采集，由于 msPTI 实现机制的变更，CANN 9.0.0 之前的版本，在拉起训练前，需要设置 LD_PRELOAD 环境变量，指向 msPTI 库的路径，示例如下，CANN 9.0.0 及之后版本无需设置。
+> npu-monitor 子命令底层依赖 [msPTI](https://gitcode.com/Ascend/mspti/tree/26.1.0) 接口，实现轻量化数据采集，由于 msPTI 实现机制的变更，CANN 9.0.0 之前的版本，在拉起训练前，需要设置 LD_PRELOAD 环境变量，指向 msPTI 库的路径，示例如下，CANN 9.0.0 及之后版本无需设置。
 
 ```bash
 # export LD_PRELOAD=<CANN Toolkit安装路径>/cann/lib64/libmspti.so
@@ -283,7 +284,7 @@ Communication 数据，包含通信算子在 Device 上的执行耗时、传输�
 
 ## 其他
 
-### Torch NPU 自定义打点
+### TorchNPU 自定义打点
 
 针对大集群场景传统 Profiling 数据量大、分析流程复杂的现象，通过使用 torch_npu.npu.mstx 自定义打点功能，自定义采集时间段或者关键函数的开始和结束时间点，识别关键函数或迭代等信息，对性能问题快速定界。
 
@@ -326,7 +327,7 @@ dyno --certs-dir NO_CERTS npu-monitor --npu-monitor-start --mspti-activity-kind 
 
 多卡模型场景下，通常需要结合并行策略通信域信息，才能正确分析通信性能问题。
 
-在 torch 调用 `new_group` 接口创建通信域时，可以通过 `pg_options` 参数传入用户自定义的信息，例如 group_name、hccl_buffer_size 等。在 torch npu中，`pg_options` 参数对应的对象是 `torch_npu._C_.distributed_c10d.ProcessGroupHccl.Options`，通过在该对象中设置 group_name，即可在 msMonitor 中查看该通信域的信息。
+在 torch 调用 `new_group` 接口创建通信域时，可以通过 `pg_options` 参数传入用户自定义的信息，例如 group_name、hccl_buffer_size 等。在 TorchNPU中，`pg_options` 参数对应的对象是 `torch_npu._C_.distributed_c10d.ProcessGroupHccl.Options`，通过在该对象中设置 group_name，即可在 msMonitor 中查看该通信域的信息。
 
 ![torch_new_group](../figures/torch_new_group.png)
 

@@ -1,20 +1,22 @@
 # dyno使用说明
 
-## ℹ️ 简介
+## 简介
 
 dyno负责发送dyno CLI的RPC请求，触发nputrace和npu-monitor功能。
 
-## 📘 使用指南
+## 使用指南
 
 dyno命令的使用方式如下：
 
 ```bash
-dyno [OPTIONS] --certs-dir <CERTS_DIR> <SUBCOMMAND> <SUBCOMMAND_ARGS>
+dyno [OPTIONS] <SUBCOMMAND> <SUBCOMMAND_ARGS>
 ```
 
-## ⚙️ 功能介绍
+`[OPTIONS]`为可选参数，具体介绍请参见[参数说明](#OPTIONS)；`<SUBCOMMAND>`为dyno的[常用子命令](#SUBCOMMAND)，`<SUBCOMMAND_ARGS>`为`<SUBCOMMAND>`的参数。
 
-**参数说明**
+## 功能介绍
+
+**参数说明**<a name="OPTIONS"></a>
 
 | 命令        | 参数类型 | 说明                                                         | 是否必选 |
 | ----------- | -------- | ------------------------------------------------------------ | :------: |
@@ -24,17 +26,17 @@ dyno [OPTIONS] --certs-dir <CERTS_DIR> <SUBCOMMAND> <SUBCOMMAND_ARGS>
 | --help      | action   | 用于获取dyno命令的使用帮助，查看所有可用选项和功能说明。     |    N     |
 | --version   | action   | 用于查询dyno CLI的版本信息。                                 |    N     |
 
-**常用子命令**
+**常用子命令**<a name="SUBCOMMAND"></a>
 
 | 命令        | 说明                                                         |
 | ----------- | ------------------------------------------------------------ |
-| status      | 查询nputrace或者npu-monitor命令的执行状态，详情请参见[status](#-status-状态查询)。                  |
+| status      | 查询nputrace或者npu-monitor命令的执行状态，详情请参见[status](#status状态查询)。 |
 | nputrace    | 发送nputrace相关消息到dynolog daemon，详情请参见[nputrace](./nputrace_instruct.md)。 |
 | npu-monitor | 发送npu-monitor相关消息到dynolog daemon，详情请参见[npu-monitor](./npumonitor_instruct.md)。 |
 | help        | 获取dyno命令的使用帮助，查看所有可用选项和功能说明。         |
 | version     | 查询dynolog daemon的版本信息。                               |
 
-## 🟢 status 状态查询
+## status状态查询
 
 执行下述命令查看当前采集运行状态：
 
