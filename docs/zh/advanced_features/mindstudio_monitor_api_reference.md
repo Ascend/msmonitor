@@ -22,7 +22,7 @@
 * `poll_dyno` 向 dynolog daemon 获取 Profiler 控制参数
   * input: None
   * return: str，返回控制参数
-* `enable_dyno_npu_monitor` 开启mspti监测
+* `enable_dyno_npu_monitor` 开启msPTI监测
   * input: cfg_map(Dict[str,str]) 参数配置
   * return: None
 * `finalize_dyno` 释放 msmonitor 中相关资源、线程
@@ -38,7 +38,7 @@ Monitor API 使用示例请参见 [monitor_feature.md](./monitor_feature.md)。
 
 ### ActivityKind枚举类
 
-该枚举类定义 msPTI Monitor 支持的数据采集类型，用于 monitor 模块的配置，每个枚举值对应 msPTI Monitor 的一种数据采集类型
+该枚举类定义 msPTI Monitor 支持的数据采集类型，用于 monitor 模块的配置，每个枚举值对应 msPTI Monitor 的一种数据采集类型。
 
   * ActivityKind.Marker: 采集 mstx 打点数据，返回 Marker 数据结构
   * ActivityKind.Kernel: 采集计算类算子的耗时数据，返回 Kernel 数据结构

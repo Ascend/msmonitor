@@ -95,25 +95,25 @@ npu-monitor的 options 功能参数如下。
    ```bash
    # 示例1：开启性能监测，使用默认配置
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start
-
+   
    # 示例2：暂停性能监测
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-stop
-
+   
    # 示例3：性能监测过程中动态修改采集参数
    # 上报周期30s，上报数据类型Marker和Kernel，保留类型为Kernel且算子名称中包含“Mul”关键词的数据
    dyno --certs-dir /home/ssl_certs npu-monitor --report-interval-s 30 --mspti-activity-kind Marker,Kernel --filter Kernel:Mul
-
+   
    # 示例4：性能监测开启时配置采集参数
    # 上报周期25s，上报数据类型Marker和Kernel，保留类型为Kernel且算子名称中包含“Relu”关键词的数据
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 25 --mspti-activity-kind Marker,Kernel --filter Kernel:Relu
-
+   
    # 示例5：性能监测开启时配置采集参数，开启数据采集落盘，落盘格式为默认值DB格式
    # 数据落盘路径为/tmp/msmonitor_db，落盘周期为30s，采集数据类型为Marker，Kernel，Communication
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel,Communication --log-file /tmp/msmonitor_db
-
+   
    # 示例6：以 Jsonl 格式落盘，并通过命令行参数设置 Jsonl 文件轮转配置
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel,Communication --log-file /tmp/msmonitor_jsonl --export-type Jsonl --json-rotate-log-lines 10000 --json-rotate-log-files 5
-
+   
    # 示例7：多机场景下性能监测开启时修改配置
    # 多机场景下向特定机器x.x.x.x发送参数信息，参数表示上报周期30s，上报数据类型Marker和Kernel
    dyno --certs-dir /home/ssl_certs --hostname x.x.x.x npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel
@@ -130,7 +130,7 @@ pip install tensorboard
 # 运行TensorBoard
 tensorboard --logdir=<metric_log_dir> # metric_log_dir为使用示例dynolog命令行中--metric_log_dir参数指定的路径
 
-# 从浏览器访问http://localhost:6006即可看到对应可视化图表, 其中localhost为服务器的ip地址，6006为TensorBoard默认端口
+# 从浏览器访问http://localhost:6006即可看到对应可视化图表，其中localhost为服务器的ip地址，6006为TensorBoard默认端口
 ```
 
 TensorBoard具体使用参数见<https://github.com/tensorflow/tensorboard>。

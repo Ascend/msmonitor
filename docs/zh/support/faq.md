@@ -125,7 +125,7 @@
 ## 四、兼容性
 
 - **Q：哪些昇腾产品支持 msMonitor？**
-- A：msMonitor 支持以下产品类型，昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》
+- A：msMonitor 支持以下产品类型，昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
 
   | 产品类型 | 是否支持 |
   |---------|:--------:|

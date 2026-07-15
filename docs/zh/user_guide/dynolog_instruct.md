@@ -1,16 +1,16 @@
 # dynolog使用说明
 
-## ℹ️ 简介
+## 简介
 
 dynolog负责接收dyno CLI的RPC请求，触发nputrace和npu-monitor功能。
 
-## ⚙️ 功能介绍
+## 功能介绍
 
 **参数说明**
 
 | 命令                  | 参数类型   | 说明                                                    | 是否必选 |
 |---------------------|--------|-------------------------------------------------------|:----:|
-| --enable-ipc-monitor | action | 是否启用IPC（Inter-Process Communication，进程间通信）监测功能，用于与dyno进行通信，设置参数开启，默认不开启。                  |  N   |
+| --enable-ipc-monitor | action | 是否启用IPC（Inter-Process Communication，进程间通信）监测功能，用于与dyno进行通信，配置该参数表示开启，默认不开启。            |  N   |
 | --port              |  i32   | dynolog daemon进程监听的端口号，默认值1778。                      |  N   |
 | --certs-dir         | String | 用于指定dyno与dynolog RPC通信时TLS证书的路径，当值为`NO_CERTS`时不使用证书校验，默认值`NO_CERTS`。 |  N   |
 | --metric_log_dir    | String | 用于指定metric数据的落盘路径。                                     |  N   |
@@ -19,7 +19,7 @@ dynolog负责接收dyno CLI的RPC请求，触发nputrace和npu-monitor功能。
 
 **使用示例**
 
-dynolog daemon 可以通过 systemd 或 命令行 任意一种方法启动
+dynolog daemon 可以通过 systemd 或 命令行 任意一种方法启动。
 
 ```bash
 # 方法1：使用systemd拉起service
