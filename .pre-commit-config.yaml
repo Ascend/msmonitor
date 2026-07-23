@@ -85,6 +85,19 @@ repos:
           - "-i"
         exclude: ^build/|tests/third_party/
 
+  # --------------- C++ 静态检查（本地 clang-tidy）------------------
+  - repo: local
+    hooks:
+      - id: clang-tidy
+        name: clang-tidy
+        entry: clang-tidy
+        language: system
+        pass_filenames: true
+        files: \.(c|h|cpp|hpp|cc|hh|cxx|hxx)$
+        args:
+          - "--config-file=.clang-tidy"
+        exclude: ^build/|tests/third_party/
+
   # -------------------------- Gitleaks 本地离线二进制扫描 --------------------------
   - repo: local
     hooks:
