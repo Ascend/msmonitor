@@ -38,9 +38,9 @@ cd ~
 git clone https://gitcode.com/Ascend/msmonitor.git
 ```
 
-> 可选：如果需要安装openssl（RPC TLS认证）& 生成证书密钥，请参考 [第5节](#5-安装opensslrpc-tls认证-生成证书密钥)。
+> 可选：如需安装openssl（RPC TLS认证）& 生成证书密钥，请参考 [第5节](#5-安装opensslrpc-tls认证生成证书密钥)。
 
-#### 2.3.2 编译并安装dynolog
+#### 2.3.2 编译并安装 dynolog
 
 保持在 `ctr_in.py` 打开的同一个交互式容器 Shell 中，在仓库根目录执行以下命令，自动完成依赖下载与构建：
 
@@ -133,8 +133,7 @@ python3 -c "import msmonitor; print('All is OK')"
 
 可通过`dyno --version`命令查看当前环境的版本信息，再选择需要升级的版本。升级版本时需要关注版本配套关系，请参见《[版本说明](https://gitcode.com/Ascend/release-management/blob/master/MindStudio/26.1.0/release_notes.md)》。
 
-
-## 5. 安装openssl（RPC TLS认证）& 生成证书密钥
+## 5. 安装openssl（RPC TLS认证）生成证书密钥
 
 dyno CLI与dynolog daemon之间的RPC通信使用TLS证书密钥加密，在启动dyno和dynolog二进制时可以指定证书密钥存放的路径，路径下需要满足如下结构和名称。
 
