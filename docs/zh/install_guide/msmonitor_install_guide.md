@@ -1,5 +1,7 @@
 # msMonitor工具安装指南
 
+<br>
+
 ## 1. 安装说明
 
 msMonitor工具仅支持在Linux系统下使用，兼容aarch64和x86 CPU架构，支持[在线安装](#21-在线安装)、[离线安装](#22-离线安装)、[源码安装](#23-源码安装)三种安装方式，请根据您的实际环境选择最合适的方案。
@@ -36,7 +38,7 @@ cd ~
 git clone https://gitcode.com/Ascend/msmonitor.git
 ```
 
-> 可选：如果需要安装openssl（RPC TLS认证）& 生成证书密钥，请参考 第6节。
+> 可选：如果需要安装openssl（RPC TLS认证）& 生成证书密钥，请参考 [第5节](#5-安装opensslrpc-tls认证-生成证书密钥)。
 
 #### 2.3.2 编译并安装dynolog
 
@@ -47,24 +49,19 @@ cd ~/msmonitor
 python3 build.py -e dynolog=true
 ```
 
-结果生成到 `~/msmonitor/artifacts/` 目录下。
+构建成功后，安装包将生成在 `artifacts/` 目录下。
 
-2. 安装dynolog。
+安装dynolog，根据系统选择对应方式：
 
-有以下安装方式可供选择，根据用户服务器系统自行选择：
+```bash
+cd ~/msmonitor/artifacts
+# Debian/Ubuntu 等系统
+dpkg -i --force-overwrite dynolog*.deb --ignore-depends
+# RedHat/Fedora/openSUSE 等系统
+rpm -ivh dynolog*.rpm --nodeps
+```
 
-   - 方式一：使用deb软件包安装（适用于Debian/Ubuntu等系统）。
-
-     ```bash
-     dpkg -i --force-overwrite dynolog*.deb --ignore-depends
-     ```
-
-   - 方式二：使用rpm软件包安装（适用于RedHat/Fedora/openSUSE等系统）。
-
-     ```bash
-     rpm -ivh dynolog*.rpm --nodeps
-     ```
-安装完成后，执行以下命令验证工具是否安装成功：
+验证 dynolog 安装是否成功：
 
 ```bash
 dyno --help
@@ -73,7 +70,7 @@ dynolog --help
 
 若输出不报错，且能显示帮助信息，则表明安装成功。
 
-#### 2.3.2 编译并安装mindstudio_monitor
+#### 2.3.3 编译并安装 mindstudio_monitor
 
 mindstudio_monitor whl包提供IPCMonitor、MsptiMonitor等公共能力，使用nputrace和npu-monitor功能前必须安装该whl包。
 
@@ -84,20 +81,24 @@ cd ~/msmonitor
 python3 build.py -e whl=true
 ```
 
-结果生成到 `~/msmonitor/artifacts/` 目录下。
+构建成功后，安装包将生成在 `artifacts/` 目录下。
 
 安装方法：
 
 ```bash
+cd ~/msmonitor/artifacts
 pip install mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl
 ```
-安装成功打印如下信息：
+
+验证安装是否成功：
 
 ```bash
-Successfully installed mindstudio_monitor-<version> pybind11-<version> xlsxwriter-<version>
+python3 -c "import msmonitor; print('All is OK')"
 ```
 
-## 4. 卸载
+若输出不报错，且能显示'All is OK'，则表明安装成功。
+
+## 3. 卸载
 
 可通过如下步骤卸载：
 
@@ -109,7 +110,7 @@ Successfully installed mindstudio_monitor-<version> pybind11-<version> xlsxwrite
 
    > [!NOTE]
    >
-   > - 需要联网环境才能下载，若环境不允许联网或离线，请先在可联网的环境下载该脚本后拷贝到目标设备。
+   > - 需要联网环境才能下载，若环境不允许联网或处于离线状态，请先在可联网的环境下载该脚本后拷贝到目标设备。
    > - 若执行命令无响应或出现连接失败、SSL证书错误等问题，请参见[FAQ](https://www.hiascend.com/developer/blog/details/02176213671719317003)。
 
 2. 执行卸载。
@@ -122,28 +123,18 @@ Successfully installed mindstudio_monitor-<version> pybind11-<version> xlsxwrite
 
    卸载成功打印如下信息：
 
-   ```bash
+   ```text
    Successfully uninstalled 1 tool ({tools_name})
    ```
 
-## 5. 升级
+## 4. 升级
 
 升级即“先卸后装”。直接执行安装命令，工具将自动卸载旧版本，并引导您完成覆盖安装。
 
 可通过`dyno --version`命令查看当前环境的版本信息，再选择需要升级的版本。升级版本时需要关注版本配套关系，请参见《[版本说明](https://gitcode.com/Ascend/release-management/blob/master/MindStudio/26.1.0/release_notes.md)》。
 
-## 6. 日志
 
-用户可以通过配置MSMONITOR_LOG_PATH环境变量，指定到自定义的日志文件路径，默认路径为当前目录下的msmonitor_log。
-
-```bash
-export MSMONITOR_LOG_PATH=/tmp/msmonitor_log
-```
-
- /tmp/msmonitor_log为自定义日志文件路径。
-
-
-## 6. 安装openssl（RPC TLS认证）& 生成证书密钥
+## 5. 安装openssl（RPC TLS认证）& 生成证书密钥
 
 dyno CLI与dynolog daemon之间的RPC通信使用TLS证书密钥加密，在启动dyno和dynolog二进制时可以指定证书密钥存放的路径，路径下需要满足如下结构和名称。
 
@@ -151,7 +142,7 @@ dyno CLI与dynolog daemon之间的RPC通信使用TLS证书密钥加密，在启�
 
 服务端证书目录结构：
 
-```bash
+```text
 ssl_certs
 ├── ca.crt (根证书，用于验证其他证书的合法性，必选)
 ├── server.crt (服务器端的证书，用于向客户端证明服务器身份，必选)
@@ -161,7 +152,7 @@ ssl_certs
 
 客户端证书目录结构：
 
-```bash
+```text
 ssl_certs
 ├── ca.crt (根证书，用于验证其他证书的合法性，必选)
 ├── client.crt (客户端证书，用于向服务器证明客户端身份，必选)
