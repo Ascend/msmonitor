@@ -1,4 +1,6 @@
-# msMonitor工具安装指南
+# msMonitor 安装指南
+
+<br>
 
 ## 1. 安装说明
 
@@ -16,190 +18,50 @@ msMonitor工具仅支持在Linux系统下使用，兼容aarch64和x86 CPU架构�
 
 ### 2.3 源码安装
 
-#### 2.3.1 安装依赖
+如需使用最新代码的功能，或对源码进行修改以增强功能，可下载本仓库代码，自行编译、打包工具并完成安装。
 
-dynolog的编译依赖如下，请确保已安装以下依赖，用户手动安装的第三方依赖由用户自行确保安全性，避免安装存在安全漏洞的版本。
+#### 2.3.1 环境准备
 
-| Language | Toolchain        |
-| -------- | ---------------- |
-| C++      | gcc >= 8.5.0     |
-| Rust     | Rust >= 1.81     |
-| protobuf | protobuf >= 3.12 |
+源码编译统一使用 MindStudio 标准构建环境。
 
-1. 安装rust
+- 日常开发或使用已发布镜像，请参考《[MindStudio工具开发环境安装指导](https://gitcode.com/Ascend/msot/blob/master/docs/zh/common/dev_env_setup.md)》。
+- 需要从基础操作系统复现环境、执行源码构建验证或单元测试验证时，必须参考《[MindStudio统一构建镜像制作指南](https://gitcode.com/Ascend/msot/blob/master/docs/zh/common/docker_image_build_guide.md)》，从openEuler基础镜像现场构建环境镜像。
 
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   source $HOME/.cargo/env
-   ```
+本文档后续的源码编译和单元测试命令，均在上述指定镜像容器或现场构建的环境镜像的容器中执行，CANN 软件包版本、GCC 版本和 Python 版本以统一镜像制作指南为准，本仓库不重复维护。
 
-   安装完成后通过rustc --version命令查看版本号并确认安装成功。
+镜像构建完成后，必须使用统一镜像制作指南第 7 章给出的 `ctr_in.py` 命令，在交互式终端中启动并进入容器。不得使用普通 `docker run` 创建容器，也不得使用 `docker exec <容器名> bash -c '<命令>'` 替代交互式环境；否则可能跳过 Python、GCC 和 CANN 环境初始化。
 
-2. 安装ninja
-
-   ```bash
-   # debian
-   sudo apt-get install -y cmake ninja-build
-
-   # centos
-   sudo yum install -y cmake ninja
-   ```
-
-   安装完成后通过ninja --version命令查看版本号并确认安装成功。
-
-3. 安装protobuf（tensorboard_logger第三方依赖，用于对接TensorBoard展示）
-
-   ```bash
-   # debian
-   sudo apt install -y protobuf-compiler libprotobuf-dev
-
-   # centos
-   sudo yum install -y protobuf protobuf-devel protobuf-compiler
-
-   # Python
-   pip install protobuf
-   ```
-
-4. （可选）安装openssl（RPC TLS认证）& 生成证书密钥
-
-   > [!NOTE]
-   >
-   > 如果不需要使用TLS证书密钥加密，该步骤可跳过。
-
-   ```bash
-   # debian
-   sudo apt-get install -y openssl
-   
-   # centos
-   sudo yum install -y openssl
-   ```
-
-   dyno CLI与dynolog daemon之间的RPC通信使用TLS证书密钥加密，在启动dyno和dynolog二进制时可以指定证书密钥存放的路径，路径下需要满足如下结构和名称。
-
-   用户应使用与自己需求相符的密钥生成和存储机制，并保证密钥安全性与机密性。当前仅支持RSA-SHA256和RSA-SHA512两种证书签名算法。
-
-   服务端证书目录结构：
-
-   ```bash
-   ssl_certs
-   ├── ca.crt (根证书，用于验证其他证书的合法性，必选)
-   ├── server.crt (服务器端的证书，用于向客户端证明服务器身份，必选)
-   ├── server.key (服务器端的私钥文件，与server.crt配对使用，支持加密，必选)
-   └── ca.crl (证书吊销列表，包含已被吊销的证书信息，可选)
-   ```
-
-   客户端证书目录结构：
-
-   ```bash
-   ssl_certs
-   ├── ca.crt (根证书，用于验证其他证书的合法性，必选)
-   ├── client.crt (客户端证书，用于向服务器证明客户端身份，必选)
-   ├── client.key (客户端的私钥文件，与client.crt配对使用，支持加密，必选)
-   └── ca.crl (证书吊销列表，包含已被吊销的证书信息，可选)
-   ```
-
-#### 2.3.2 下载源码
-
-下载源码并进入源码目录。
+进入 `ctr_in.py` 打开的交互式容器 Shell 后，执行如下命令克隆本仓库：
 
 ```bash
+cd ~
 git clone https://gitcode.com/Ascend/msmonitor.git
-cd msmonitor
 ```
 
-#### 2.3.3 编译并安装dynolog
+> 可选：如需安装openssl（RPC TLS认证）& 生成证书密钥，请参考 [第5节](#5-安装opensslrpc-tls认证生成证书密钥)。
 
-1. 编译dynolog。
+#### 2.3.2 编译并安装 dynolog
 
-   默认编译生成dyno和dynolog二进制文件，-t参数可以支持将二进制文件打包成deb包或rpm包。
-
-   ```bash
-   # 编译deb包, 当前支持amd64和aarch64平台, 默认为amd64, 编译aarch64平台需要修改third_party/dynolog/scripts/debian/control文件中的Architecture改为arm64
-   bash scripts/build.sh -t deb
-
-   # 编译rpm包, 当前只支持amd64平台
-   bash scripts/build.sh -t rpm
-
-   # 编译dyno和dynolog二进制可执行文件
-   bash scripts/build.sh
-   ```
-
-2. 安装dynolog。
-
-   有以下安装方式可供选择，根据用户服务器系统自行选择：
-
-   - 方式一：使用deb软件包安装（适用于Debian/Ubuntu等系统）。
-
-     ```bash
-     dpkg -i --force-overwrite dynolog*.deb --ignore-depends
-     ```
-
-   - 方式二：使用rpm软件包安装（适用于RedHat/Fedora/openSUSE等系统）。
-
-     ```bash
-     rpm -ivh dynolog*.rpm --nodeps
-     ```
-
-#### 2.3.4 编译并安装mindstudio_monitor
-
-mindstudio_monitor whl包提供IPCMonitor、MsptiMonitor等公共能力，使用nputrace和npu-monitor功能前必须安装该whl包。
-
-运行时依赖开源三方Python库：
-
-| 依赖 | 用途 |
-|------|------|
-| pybind11 | Python/C++ 扩展绑定 |
-| xlsxwriter | 将采集的性能数据导出为 Excel 文件（`monitor.save("xxx.xlsx")` 功能） |
-
-##### 2.3.4.1 shell脚本一键安装
+保持在 `ctr_in.py` 打开的同一个交互式容器 Shell 中，在仓库根目录执行以下命令，自动完成依赖下载与构建：
 
 ```bash
-chmod +x plugin/build.sh
-./plugin/build.sh
+cd ~/msmonitor
+python3 build.py -e dynolog=true
 ```
 
-安装成功打印如下信息：
+构建成功后，安装包将生成在 `artifacts/` 目录下。
+
+安装dynolog，根据系统选择对应方式：
 
 ```bash
-Successfully installed mindstudio_monitor-<version> pybind11-<version> xlsxwriter-<version>
+cd ~/msmonitor/artifacts
+# Debian/Ubuntu 等系统
+dpkg -i --force-overwrite dynolog*.deb --ignore-depends
+# RedHat/Fedora/openSUSE 等系统
+rpm -ivh dynolog*.rpm --nodeps
 ```
 
-##### 2.3.4.2 手动安装
-
-1. 安装依赖。
-
-   ```bash
-   pip install wheel
-   pip install pybind11
-   pip install xlsxwriter
-   ```
-
-2. 编译mindstudio_monitor whl包。
-
-   ```bash
-   cd ./plugin
-   bash ./stub/build_stub.sh
-   python3 setup.py bdist_wheel
-   ```
-
-   编译完成后在msmonitor/plugin/dist目录下生成mindstudio_monitor whl包。
-
-3. 安装mindstudio_monitor whl包。
-
-   ```bash
-   cd ./plugin/dist
-   pip install mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl
-   ```
-
-   安装成功打印如下信息：
-
-   ```bash
-   Successfully installed mindstudio_monitor-<version> pybind11-<version> xlsxwriter-<version>
-   ```
-
-## 3. 验证安装
-
-安装完成后，执行以下命令验证工具是否安装成功：
+验证 dynolog 安装是否成功：
 
 ```bash
 dyno --help
@@ -208,9 +70,35 @@ dynolog --help
 
 若输出不报错，且能显示帮助信息，则表明安装成功。
 
-若 `dyno --help` 或 `dynolog --help` 提示命令不存在，请确认当前终端使用的是安装 `msMonitor` 的 Python 环境。
+#### 2.3.3 编译并安装 mindstudio_monitor
 
-## 4. 卸载
+mindstudio_monitor whl包提供IPCMonitor、MsptiMonitor等公共能力，使用nputrace和npu-monitor功能前必须安装该whl包。
+
+保持在 `ctr_in.py` 打开的同一个交互式容器 Shell 中，在仓库根目录执行以下命令，自动完成依赖下载与构建：
+
+```bash
+cd ~/msmonitor
+python3 build.py -e whl=true
+```
+
+构建成功后，安装包将生成在 `artifacts/` 目录下。
+
+安装方法：
+
+```bash
+cd ~/msmonitor/artifacts
+pip install mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl
+```
+
+验证安装是否成功：
+
+```bash
+python3 -c "import msmonitor; print('All is OK')"
+```
+
+若输出不报错，且能显示'All is OK'，则表明安装成功。
+
+## 3. 卸载
 
 可通过如下步骤卸载：
 
@@ -222,7 +110,7 @@ dynolog --help
 
    > [!NOTE]
    >
-   > - 需要联网环境才能下载，若环境不允许联网或离线，请先在可联网的环境下载该脚本后拷贝到目标设备。
+   > - 需要联网环境才能下载，若环境不允许联网或处于离线状态，请先在可联网的环境下载该脚本后拷贝到目标设备。
    > - 若执行命令无响应或出现连接失败、SSL证书错误等问题，请参见[FAQ](https://www.hiascend.com/developer/blog/details/02176213671719317003)。
 
 2. 执行卸载。
@@ -235,22 +123,38 @@ dynolog --help
 
    卸载成功打印如下信息：
 
-   ```bash
+   ```text
    Successfully uninstalled 1 tool ({tools_name})
    ```
 
-## 5. 升级
+## 4. 升级
 
 升级即“先卸后装”。直接执行安装命令，工具将自动卸载旧版本，并引导您完成覆盖安装。
 
 可通过`dyno --version`命令查看当前环境的版本信息，再选择需要升级的版本。升级版本时需要关注版本配套关系，请参见《[版本说明](https://gitcode.com/Ascend/release-management/blob/master/MindStudio/26.1.0/release_notes.md)》。
 
-## 6. 日志
+## 5. 安装openssl（RPC TLS认证）生成证书密钥
 
-用户可以通过配置MSMONITOR_LOG_PATH环境变量，指定到自定义的日志文件路径，默认路径为当前目录下的msmonitor_log。
+dyno CLI与dynolog daemon之间的RPC通信使用TLS证书密钥加密，在启动dyno和dynolog二进制时可以指定证书密钥存放的路径，路径下需要满足如下结构和名称。
 
-```bash
-export MSMONITOR_LOG_PATH=/tmp/msmonitor_log
+用户应使用与自己需求相符的密钥生成和存储机制，并保证密钥安全性与机密性。当前仅支持RSA-SHA256和RSA-SHA512两种证书签名算法。
+
+服务端证书目录结构：
+
+```text
+ssl_certs
+├── ca.crt (根证书，用于验证其他证书的合法性，必选)
+├── server.crt (服务器端的证书，用于向客户端证明服务器身份，必选)
+├── server.key (服务器端的私钥文件，与server.crt配对使用，支持加密，必选)
+└── ca.crl (证书吊销列表，包含已被吊销的证书信息，可选)
 ```
 
- /tmp/msmonitor_log为自定义日志文件路径。
+客户端证书目录结构：
+
+```text
+ssl_certs
+├── ca.crt (根证书，用于验证其他证书的合法性，必选)
+├── client.crt (客户端证书，用于向服务器证明客户端身份，必选)
+├── client.key (客户端的私钥文件，与client.crt配对使用，支持加密，必选)
+└── ca.crl (证书吊销列表，包含已被吊销的证书信息，可选)
+```

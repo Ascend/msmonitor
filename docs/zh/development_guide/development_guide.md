@@ -1,54 +1,24 @@
-# 开发指南
+# msMonitor 开发指南
 
-## 1. MindStudio Monitor开发软件
+<br>
 
-| 软件名 | 用途 |
-| --- | --- |
-| CLion（推荐）/ VS Code | 编写和调试 `dynolog_npu` C++ 代码 |
-| PyCharm（推荐）/ VS Code | 编写和调试 `plugin` 下的 Python/CMake 代码 |
-| Git | 拉取、管理和提交代码 |
-| CMake / Ninja | 本地构建与调试 |
-| Python 虚拟环境工具（venv） | 隔离 Python 依赖 |
+本文档介绍 msMonitor 的开发环境搭建、编译构建及 UT 单元测试方法。
 
-## 2. 开发环境配置
+## 1. 编译环境准备
 
-| 软件名 | 版本要求 | 用途 |
-| --- | --- | --- |
-| gcc | 8.5.0 及以上 | 编译 `dynolog_npu` |
-| Rust | 1.81 及以上 | 编译 dynolog 相关依赖 |
-| protobuf | 3.12 及以上 | dynolog / TensorBoard 相关依赖 |
-| Python | 与目标 whl 安装环境匹配 | 编译和安装 `mindstudio_monitor` |
-| pybind11 | 最新稳定版 | 构建 `plugin` Python 扩展 |
-| CMake | 最新稳定版 | CMake 构建 |
-| Ninja | 最新稳定版 | 本地构建工具 |
+按照《[msMonitor工具安装指南 安装指南 — 编译环境准备](../install_guide/msmonitor_install_guide.md#231-环境准备)》章节完成编译和测试环境的搭建。
 
-### 2.1 依赖准备
+> **说明：** 环境镜像的构建方法及配套软件版本由 MindStudio 统一镜像制作指南维护，本仓库不重复定义。
 
-根据当前安装指南，编译环境建议至少准备以下依赖：
+## 2. TLS 证书环境配置
 
-```bash
-# Debian / Ubuntu
-sudo apt-get install -y cmake ninja-build
-sudo apt install -y protobuf-compiler libprotobuf-dev
-
-# Python
-pip install pybind11 wheel protobuf
-```
-
-Rust 建议使用官方 `rustup` 安装：
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source $HOME/.cargo/env
-```
-
-### 2.2 TLS 证书环境
-
-若开发和测试场景需要验证 dyno CLI 与 dynolog daemon 的 TLS 通信，需要额外准备客户端和服务端证书目录。目录规范可参见 [《安装指南》](../install_guide/msmonitor_install_guide.md)。
+若开发和测试场景需要验证 dyno CLI 与 dynolog daemon 的 TLS 通信，需要额外准备客户端和服务端证书目录。目录规范可参见 [《安装指南》](../install_guide/msmonitor_install_guide.md) 第 5 节。
 
 ## 3. 开发步骤
 
 ### 3.1 代码下载
+
+进入 `ctr_in.py` 打开的交互式容器 Shell 后，执行如下命令克隆本仓库：
 
 ```bash
 git clone https://gitcode.com/Ascend/msmonitor.git
