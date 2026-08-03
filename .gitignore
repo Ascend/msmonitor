@@ -155,3 +155,6 @@ operator_tuning_file*.cfg
 
 # Devcontainer generated
 .devcontainer/.host-gitconfig
+
+# Third-party fetched at build time
+third_party/dynolog/
