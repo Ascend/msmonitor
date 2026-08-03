@@ -1,3 +1,4 @@
 [submodule "third_party/dynolog"]
 	path = third_party/dynolog
 	url = https://github.com/facebookincubator/dynolog.git
+	ignore = all

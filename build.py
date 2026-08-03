@@ -123,6 +123,13 @@ class BuildManager:
             # -------------------- 单元测试 --------------------
             scripts_dir = self.project_root / "scripts"
             self._execute_command(["pip", "install", "pybind11"])
+
+            # only_down_deps 在依赖下载后、测试前检查
+            extra_options = self._get_extra_options()
+            if extra_options.get('only_down_deps') == 'true':
+                logging.info("only_down_deps=true, exiting after dependency download.")
+                return
+
             self._execute_command(["bash", "run_ut.sh", "all"], cwd=scripts_dir)
         else:
             # -------------------- 产品构建 --------------------
@@ -130,6 +137,13 @@ class BuildManager:
             extra_options = self._get_extra_options()
             for key, val in extra_options.items():
                 logging.info("--extra: %s = %s", key, val)
+
+            # only_down_deps 在依赖下载后、构建前检查
+            if extra_options.get('only_down_deps') == 'true':
+                if 'local' not in self.args.command:
+                    self._fetch_dynolog()
+                logging.info("only_down_deps=true, exiting after dependency download.")
+                return
 
             whl_only = extra_options.get('whl', '').lower() == 'true'
             dynolog_only = extra_options.get('dynolog', '').lower() == 'true'
