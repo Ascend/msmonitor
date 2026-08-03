@@ -158,3 +158,8 @@ operator_tuning_file*.cfg
 
 # Third-party fetched at build time
 third_party/dynolog/
+test/build_llt/
+
+# 屏蔽第三方压缩包与临时解压目录
+*.zip
+plugin/third_party/sqlite-amalgamation-3500300/
