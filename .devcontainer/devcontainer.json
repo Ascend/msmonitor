@@ -44,7 +44,7 @@
         },
         "terminal.integrated.defaultProfile.linux": "bash",
         "C_Cpp.intelliSenseEngine": "disabled",
-        "clangd.serverArgs": [
+        "clangd.arguments": [
           "--query-driver=*",
           "--header-insertion=iwyu",
           "--completion-style=detailed"
