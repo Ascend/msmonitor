@@ -29,7 +29,7 @@ msmonitor 已内置 [devcontainer](https://containers.dev/) 开发环境配置�
 2. VS Code 通过 Remote-SSH 连接服务器，打开仓库目录
 3. VS Code 自动检测到 `.devcontainer` 配置，点击左下角 **"Reopen in Container"**
 4. 容器启动后自动执行 `post-create.sh` 完成初始化（约 1 分钟）
-5. 按 `Ctrl+Shift+P` → `Tasks: Run Task` 选择构建任务
+5. `Ctrl+Shift+P` → `Tasks: Run Task` 选择构建任务
 
 **VS Code 内置任务：**
 
