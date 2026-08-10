@@ -23,7 +23,7 @@
      - 启动训练或推理服务前，执行 `export MSMONITOR_USE_DAEMON=1`。
 
   3. **遗留的共享内存文件未清理**
-     - msMonitor 底层依赖昇腾 [PyTorch 动态 Profiling](https://gitcode.com/Ascend/pytorch/blob/v2.7.1/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md#%E9%87%87%E9%9B%86%E5%B9%B6%E8%A7%A3%E6%9E%90%E6%80%A7%E8%83%BD%E6%95%B0%E6%8D%AEDynamic_profile) 机制实现能力。Python 3.8+ 环境中，会在 `/dev/shm` 目录生成命名格式为 `DynamicProfileNpuShm+时间戳` 的二进制共享内存文件。正常退出时自动清理；若通过 `pkill -9` 强制终止进程，残留文件会导致短时间（<1h）内采集异常。建议启动前检查 `/dev/shm` 目录，若存在历史残留文件，请手动删除。
+     - msMonitor 底层依赖昇腾 [PyTorch 动态 Profiling](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md#%E9%87%87%E9%9B%86%E5%B9%B6%E8%A7%A3%E6%9E%90%E6%80%A7%E8%83%BD%E6%95%B0%E6%8D%AEdynamic_profile) 机制实现能力。Python 3.8+ 环境中，会在 `/dev/shm` 目录生成命名格式为 `DynamicProfileNpuShm+时间戳` 的二进制共享内存文件。正常退出时自动清理；若通过 `pkill -9` 强制终止进程，残留文件会导致短时间（<1h）内采集异常。建议启动前检查 `/dev/shm` 目录，若存在历史残留文件，请手动删除。
 
   4. **npu-monitor filter 参数设置后无法采集到数据**
      - 检查 `--filter` 参数是否正确，可先去掉 filter 参数验证全量采集是否正常。
