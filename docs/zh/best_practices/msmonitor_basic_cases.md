@@ -64,7 +64,7 @@ dyno --certs-dir NO_CERTS nputrace --start-step -1 --iterations 2 --activities C
 
 ![nputrace](../figures/nputrace_collect.png)
 
-采集结果，落盘的数据格式和交付件介绍请参见 [Ascend PyTorch Profiler 输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/v2.7.1/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)
+采集结果，落盘的数据格式和交付件介绍请参见 [Ascend PyTorch Profiler 输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)
 
 ![nputrace_result](../figures/nputrace_result.png)
 
@@ -229,7 +229,7 @@ dyno --certs-dir NO_CERTS nputrace --start-step -1 --iterations 10 --with-module
 python -c "import torch_npu; torch_npu.profiler.profiler.analyse('/tmp/profile_data_vllm/81ca290a1462_2429_20260529070008441_ascend_pt')"
 ```
 
-解析完成后，生成的数据格式和交付件介绍请参见 [Ascend PyTorch Profiler 输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/v2.7.1/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
+解析完成后，生成的数据格式和交付件介绍请参见 [Ascend PyTorch Profiler 输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
 
 使用 [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/zh/user_guide/overview.md) 工具进行性能数据的查看和分析。
 

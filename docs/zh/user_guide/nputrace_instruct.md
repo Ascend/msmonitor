@@ -104,4 +104,4 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
 
 ## 输出结果文件说明
 
-nputrace落盘的数据格式和交付件包含PyTorch和MindSpore框架数据，详细介绍可参考Ascend PyTorch调优工具的[输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/v2.7.1/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
+nputrace落盘的数据格式和交付件包含PyTorch和MindSpore框架数据，详细介绍可参考Ascend PyTorch调优工具的[输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
