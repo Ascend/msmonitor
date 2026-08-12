@@ -8,7 +8,7 @@
 # You can use this software according to the terms and conditions of the Mulan PSL v2.
 # You may obtain a copy of Mulan PSL v2 at:
 #
-#           http://license.coscl.org.cn/MulanPSL2
+#          http://license.coscl.org.cn/MulanPSL2
 #
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 # EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -126,7 +126,7 @@ class BuildManager:
 
             # only_down_deps 在依赖下载后、测试前检查
             extra_options = self._get_extra_options()
-            if extra_options.get('only_down_deps') == 'true':
+            if extra_options.get('only_down_deps', '').lower() == 'true':
                 logging.info("only_down_deps=true, exiting after dependency download.")
                 return
 
@@ -139,7 +139,7 @@ class BuildManager:
                 logging.info("--extra: %s = %s", key, val)
 
             # only_down_deps 在依赖下载后、构建前检查
-            if extra_options.get('only_down_deps') == 'true':
+            if extra_options.get('only_down_deps', '').lower() == 'true':
                 if 'local' not in self.args.command:
                     self._fetch_dynolog()
                 logging.info("only_down_deps=true, exiting after dependency download.")

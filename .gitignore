@@ -161,5 +161,5 @@ third_party/dynolog/
 test/build_llt/
 
 # 屏蔽第三方压缩包与临时解压目录
-*.zip
+third_party/**/*.zip
 plugin/third_party/sqlite-amalgamation-3500300/

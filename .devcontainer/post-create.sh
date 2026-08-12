@@ -114,26 +114,27 @@ install_build_deps() {
         esac
         if [ -n "$GITLEAKS_ARCH" ]; then
             GITLEAKS_INSTALLED=false
+            TARBALL="gitleaks_${GITLEAKS_VER}_linux_${GITLEAKS_ARCH}.tar.gz"
             for MIRROR in \
-                "https://ghproxy.com/https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VER}/gitleaks_${GITLEAKS_VER}_linux_${GITLEAKS_ARCH}.tar.gz" \
-                "https://mirror.ghproxy.com/https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VER}/gitleaks_${GITLEAKS_VER}_linux_${GITLEAKS_ARCH}.tar.gz" \
-                "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VER}/gitleaks_${GITLEAKS_VER}_linux_${GITLEAKS_ARCH}.tar.gz"; do
+                "https://ghproxy.com/https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VER}/${TARBALL}" \
+                "https://mirror.ghproxy.com/https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VER}/${TARBALL}" \
+                "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VER}/${TARBALL}"; do
                 log "    Trying: ${MIRROR}"
                 CHECKSUMS_URL="${MIRROR%/*}/gitleaks_${GITLEAKS_VER}_checksums.txt"
                 curl -fsSL "${CHECKSUMS_URL}" -o /tmp/gitleaks_checksums.txt --connect-timeout 10 2>/dev/null || true
-                if curl -fsSL "${MIRROR}" -o /tmp/gitleaks.tar.gz --connect-timeout 10 2>/dev/null; then
+                if curl -fsSL "${MIRROR}" -o "/tmp/${TARBALL}" --connect-timeout 10 2>/dev/null; then
                     VERIFY_OK=true
                     if [ -f /tmp/gitleaks_checksums.txt ]; then
-                        if ! grep "gitleaks_${GITLEAKS_VER}_linux_${GITLEAKS_ARCH}.tar.gz" /tmp/gitleaks_checksums.txt | sha256sum -c --quiet 2>/dev/null; then
+                        if ! (cd /tmp && grep "${TARBALL}" /tmp/gitleaks_checksums.txt | sha256sum -c --quiet 2>/dev/null); then
                             warn "  gitleaks SHA256 mismatch, trying next mirror"
                             VERIFY_OK=false
                         fi
                     fi
                     if ${VERIFY_OK}; then
-                        sudo tar -xzf /tmp/gitleaks.tar.gz -C /usr/local/bin gitleaks 2>/dev/null && GITLEAKS_INSTALLED=true && break
+                        sudo tar -xzf "/tmp/${TARBALL}" -C /usr/local/bin gitleaks 2>/dev/null && GITLEAKS_INSTALLED=true && break
                     fi
                 fi
-                rm -f /tmp/gitleaks.tar.gz /tmp/gitleaks_checksums.txt
+                rm -f "/tmp/${TARBALL}" /tmp/gitleaks_checksums.txt
             done
             if ${GITLEAKS_INSTALLED}; then
                 sudo chmod +x /usr/local/bin/gitleaks
@@ -178,7 +179,7 @@ install_build_deps() {
 # ──────────────────────────────────────────────────────────────────────────────
 sync_git_identity() {
     log "Syncing Git identity..."
-    local gitconfig="$HOME/.devcontainer-host-gitconfig"
+    local gitconfig="/workspace/.devcontainer/.host-gitconfig"
     if [ -f "$gitconfig" ] && [ -s "$gitconfig" ]; then
         local name email
         name=$(git config --file "$gitconfig" --get user.name 2>/dev/null) || true

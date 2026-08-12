@@ -56,6 +56,16 @@ msmonitor 已内置 [devcontainer](https://containers.dev/) 开发环境配置�
 
 > **说明：** 环境镜像的构建方法及配套软件版本由 MindStudio 统一镜像制作指南维护，本仓库不重复定义。
 
+**手动环境额外需安装的工具：**
+
+手动环境不走 devcontainer 的 `post-create.sh` 自动初始化，需自行确保以下工具在 `PATH` 中可用：
+
+| 工具 | 安装方式 | 说明 |
+|------|---------|------|
+| gitleaks | 从 [GitHub Releases](https://github.com/gitleaks/gitleaks/releases) 下载二进制放入 `PATH`，或 `go install github.com/gitleaks/gitleaks/v8@latest` | pre-commit 密钥扫描所需，缺失时 `git commit` 会报 `gitleaks: command not found` |
+| pre-commit | `pip install pre-commit && pre-commit install` | 提交前自动检查，需在仓库根目录执行 `pre-commit install` 安装 hook |
+| clangd | `dnf install clang-tools-extra` 或 `apt-get install clangd` | C++ 代码跳转和补全（可选） |
+
 ## 2. TLS 证书环境配置
 
 若开发和测试场景需要验证 dyno CLI 与 dynolog daemon 的 TLS 通信，需要额外准备客户端和服务端证书目录。目录规范可参见 [《安装指南》](../install_guide/msmonitor_install_guide.md) 第 5 节。

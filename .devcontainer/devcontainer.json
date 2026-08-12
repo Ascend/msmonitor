@@ -5,6 +5,7 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
   "remoteUser": "mindstudio",
   "updateRemoteUserUID": true,
+  "initializeCommand": "git config --global --list > ${localWorkspaceFolder}/.devcontainer/.host-gitconfig",
   "runArgs": [
     "--network=host",
     "--privileged",
@@ -47,9 +48,9 @@
         "clangd.arguments": [
           "--query-driver=*",
           "--header-insertion=iwyu",
-          "--completion-style=detailed"
-        ],
-        "clangd.pathToCompdb": "plugin/build"
+          "--completion-style=detailed",
+          "--compile-commands-dir=plugin/build"
+        ]
       }
     }
   }
