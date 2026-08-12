@@ -138,9 +138,28 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# vscode settings and analysis output
-.vscode/
+# vscode settings (tracked: launch.json, tasks.json)
+.vscode/settings.json
 att_advisor*.html
 *.xlsx
 operator_tuning_file*.cfg
 .ipynb_checkpoints/
+
+# Build artifacts
+/artifacts/
+*.rpm
+*.deb
+
+# Cache directories
+.ruff_cache/
+
+# Devcontainer generated
+.devcontainer/.host-gitconfig
+
+# Third-party fetched at build time
+third_party/dynolog/
+test/build_llt/
+
+# 屏蔽第三方压缩包与临时解压目录
+third_party/**/*.zip
+plugin/third_party/sqlite-amalgamation-3500300/
