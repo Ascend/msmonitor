@@ -1,5 +1,7 @@
 # MindStudio Monitor
 
+English | [简体中文](./README.md)
+
 ## Overview
 
 MindStudio Monitor (msMonitor) is a one-stop online monitoring tool to provide end-to-end performance monitoring and fault locating capabilities in cluster scenarios.

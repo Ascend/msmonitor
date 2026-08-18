@@ -14,6 +14,8 @@
 </div>
 <!-- markdownlint-enable MD033 MD041 -->
 
+简体中文 | [English](./README_EN.md)
+
 ## 📢 最新消息
 
 - [2025.12.30] msMonitor开源
