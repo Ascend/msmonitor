@@ -23,7 +23,8 @@
    dynolog --certs-dir NO_CERTS --enable-ipc-monitor --metric_log_dir /tmp/metric_log_dir    # dynolog daemon的日志路径为：/var/log/dynolog.log
    ```
 
-   > [!NOTE] Note
+   > [!NOTE]
+   > 
    > `--certs-dir NO_CERTS` 表示不使用证书验证，仅用于测试环境，后文同理。在生产环境中，建议使用证书验证，以确保数据传输的安全性。详情请参见 [dynolog_instruct](../user_guide/dynolog_instruct.md)。
 
 2. 配置msMonitor环境变量。

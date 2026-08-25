@@ -1,4 +1,4 @@
-# Monitor
+# Monitor Features
 
 ## Overview
 
@@ -6,7 +6,7 @@ Monitor is a set of APIs integrated in MindStudio Monitor. You can call these AP
 
 ## Preparations
 
-Install msMonitor. For details, see [msMonitor Installation Guide](./install_guide.md). You are advised to download the software package for installation.
+Install msMonitor. For details, see [msMonitor Installation Guide](../install_guide/msmonitor_install_guide.md). You are advised to download the software package for installation.
 
 ## Monitor Functions
 
@@ -16,7 +16,7 @@ Provides easy-to-use APIs to collect profile data of compute operators, communic
 
 **API Description**
 
-For details, see [Monitor Feature APIs](mindstudio_monitor_api_reference.md#monitor-feature-apis) for mindstudio_monitor.
+For details, see [Monitor Feature APIs](./mindstudio_monitor_api_reference.md#monitor-feature-apis) for mindstudio_monitor.
 
 **Example**
 
@@ -83,7 +83,7 @@ For details, see [Monitor Feature APIs](mindstudio_monitor_api_reference.md#moni
    monitor.save("monitor_result.xlsx")
    ```
 
-3. (Optional) Obtain profile data online. For details about the returned data structure, see [ActivityData Data Structure](mindstudio_monitor_api_reference.md#activitydata-data-structure).
+3. (Optional) Obtain profile data online. For details about the returned data structure, see [ActivityData Data Structure](./mindstudio_monitor_api_reference.md#activitydata-data-structure).
 
    ```python
    # Obtain and print profile data.
@@ -106,7 +106,7 @@ The output Excel file contains multiple sheets. Each sheet corresponds to a data
 
 See the following figure.
 
-![Monitor data flushing](./figures/monitor_feature_result.png)
+![Monitor data flushing](../figures/monitor_feature_result.png)
 
 The fields on each sheet are described as follows:
 

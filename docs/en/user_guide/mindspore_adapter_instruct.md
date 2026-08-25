@@ -1,41 +1,43 @@
-# MindSpore框架下msMonitor的使用方法
+# Using msMonitor with the MindSpore Framework
 
-## 简介
+<!-- md-trans-meta sourceCommit=76329dd28bc91c4378603d72fe34ab47b750c710 translatedAt=2026-08-12T08:30:55.025Z pushedAt=2026-08-12T08:32:50.337Z -->
 
-在MindSpore框架下使用msMonitor组件，用于监测MindSpore模型的训练过程中的性能指标，支持动态profiling自定义for循环方式和callback方式。
+## Introduction
 
-## 功能介绍
+The msMonitor component is used with the MindSpore framework to monitor performance metrics during the training of MindSpore models. It supports dynamic profiling in both custom for loop mode and callback mode.
 
-### 1. 动态profiling自定义for循环方式
+## Feature Introduction
 
-1. 启动dynolog daemon进程，详细介绍请参见[dynolog](./dynolog_instruct.md)。
+### 1. Dynamic Profiling Custom Loop Mode
+
+1. Start the dynolog daemon process. For details, see [dynolog](./dynolog_instruct.md).
 
     ```bash
-    # 命令行方式开启dynolog daemon
+    # Start the dynolog daemon via command line
     dynolog --enable-ipc-monitor --certs-dir /home/ssl_certs
     ```
 
-2. 使能dynolog环境变量
+2. Enable the dynolog environment variable.
 
     ```bash
     export MSMONITOR_USE_DAEMON=1
     ```
 
-3. （可选）配置msMonitor日志路径，默认路径为当前目录下的msmonitor_log。
+3. (Optional) Configure the msMonitor log path. The default path is msmonitor_log in the current directory.
 
     ```bash
     export MSMONITOR_LOG_PATH=<LOG PATH>
-    # 示例：
+    # Example:
     export MSMONITOR_LOG_PATH=/tmp/msmonitor_log
     ```
 
     > [!NOTE]
     > 
-    > 前3步以及第5步操作请参见 [npu-monitor](./npumonitor_instruct.md) 或 [nputrace](./nputrace_instruct.md) 使用示例。
+    > For steps 1 through 3 and step 5, see the usage examples in [npu-monitor](./npumonitor_instruct.md) or [nputrace](./nputrace_instruct.md).
 
-4. 拉起训练任务，在训练任务中实例化 `DynamicProfilerMonitor` 对象，且在每一次训练后，调用 `step()` 方法。
+4. Start the training task, instantiate the `DynamicProfilerMonitor` object in the training task, and call the `step()` method after each training iteration.
 
-    示例代码如下：
+    The sample code is as follows:
 
     ```python
     import numpy as np
@@ -51,12 +53,11 @@
 
         def construct(self, x):
             return self.fc(x)
-
+    
 
     def generator_net():
-        for _ in range(2):
+        for_ in range(2):
             yield np.ones([2, 2]).astype(np.float32), np.ones([2]).astype(np.int32)
-
 
     def train(test_net):
         optimizer = nn.Momentum(test_net.trainable_params(), 1, 0.9)
@@ -64,34 +65,34 @@
         data = ds.GeneratorDataset(generator_net(), ["data", "label"])
         model = mindspore.train.Model(test_net, loss, optimizer)
         model.train(1, data)
-
+    
     if __name__ == '__main__':
         dp = DynamicProfilerMonitor()
         step_num = 100
-        # 定义模型
+        # Define the model.
         net = Net()
         for i in range(step_num):
-            # 模型训练
+            # Model training.
             train(net)
-            # 调用step方法实现nputrace或npu-monitor功能
+            # Call the step method to implement nputrace or npu-monitor functionality.
             dp.step()
     ```
 
-5. 通过 dyno CLI 使能 nputrace 或 npu-monitor
+5. Enable nputrace or npu-monitor through the dyno CLI.
 
     ```bash
-    # 使能 nputrace
+    # Enable nputrace
     dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities CPU,NPU --log-file /tmp/profile_data
 
-    # 使能 npu-monitor
+    # Enable npu-monitor
     dyno --certs-dir /home/ssl_certs npu-monitor --report-interval-s 30 --mspti-activity-kind Marker,Kernel
     ```
 
-### 2. 动态profiling callback方式
+### 2. Dynamic Profiling Callback Mode
 
-该使能方式与动态profiling自定义for循环方式一致，唯一区别是将`step()`方法适配在`step_begin`、`step_end`回调函数中。
+This enabling method is consistent with the dynamic profiling custom for loop mode, with the only difference being that the <code>step()</code> method is adapted into the <code>step_begin</code> and <code>step_end</code> callback functions.
 
-示例代码如下：
+The sample code is as follows:
 
 ```python
 import mindspore
@@ -114,7 +115,7 @@ class StopAtStep(mindspore.Callback):
         cb_params = run_context.original_args()
         step_num = cb_params.cur_step_num
         if self.start_step <= step_num < self.stop_step:
-            self.dp.step() # 调用step方法实现npu trace dump或npu monitor功能
+            self.dp.step() # Call the step method to implement NPU trace dump or NPU monitor function
         if step_num == self.stop_step:
             self.dp.stop()
 ```

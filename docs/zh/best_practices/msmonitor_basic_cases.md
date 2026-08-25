@@ -34,7 +34,8 @@ for step in steps:
 dynolog --certs-dir NO_CERTS --enable-ipc-monitor
 ```
 
-> [!NOTE] Note
+> [!NOTE]
+> 
 > `--certs-dir NO_CERTS` 表示不使用证书验证，仅用于测试环境，后文同理。在生产环境中，建议使用证书验证，以确保数据传输的安全性。详情请参见 [dynolog_instruct](../user_guide/dynolog_instruct.md)。
 
 ![dynolog daemon](../figures/dynolog_daemon.png)
@@ -238,7 +239,8 @@ python -c "import torch_npu; torch_npu.profiler.profiler.analyse('/tmp/profile_d
 
 ### npu-monitor 子命令
 
-> [!NOTE] Note
+> [!NOTE]
+> 
 > npu-monitor 子命令底层依赖 [msPTI](https://gitcode.com/Ascend/mspti/tree/26.1.0) 接口，实现轻量化数据采集，由于 msPTI 实现机制的变更，CANN 9.0.0 之前的版本，在拉起训练前，需要设置 LD_PRELOAD 环境变量，指向 msPTI 库的路径，示例如下，CANN 9.0.0 及之后版本无需设置。
 
 ```bash
