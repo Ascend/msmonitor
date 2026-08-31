@@ -140,6 +140,7 @@ class BuildManager:
 
             # only_down_deps 在依赖下载后、构建前检查
             if extra_options.get('only_down_deps', '').lower() == 'true':
+                self._execute_command(["pip", "install", "pybind11"])
                 if 'local' not in self.args.command:
                     self._fetch_dynolog()
                 logging.info("only_down_deps=true, exiting after dependency download.")

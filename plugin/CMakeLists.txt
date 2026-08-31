@@ -8,8 +8,24 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(pybind11 REQUIRED)
 find_package(Python REQUIRED COMPONENTS Interpreter Development)
+
+execute_process(
+    COMMAND ${Python_EXECUTABLE} -c "import pybind11; print(pybind11.get_cmake_dir())"
+    OUTPUT_VARIABLE PYBIND11_CMAKE_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE PYBIND11_GET_DIR_RESULT
+)
+
+if(NOT PYBIND11_GET_DIR_RESULT EQUAL 0)
+    message(FATAL_ERROR
+        "pybind11 is not installed for ${Python_EXECUTABLE}. "
+        "Install it with: ${Python_EXECUTABLE} -m pip install pybind11"
+    )
+endif()
+
+set(pybind11_DIR "${PYBIND11_CMAKE_DIR}")
+find_package(pybind11 REQUIRED)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 set(ENV{PROJECT_ROOT_PATH} "${CMAKE_SOURCE_DIR}")
