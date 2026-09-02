@@ -28,6 +28,7 @@ include_directories(
 
 file(GLOB_RECURSE IPC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/ipc_monitor/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ipc_monitor/dcmi/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ipc_monitor/metric/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ipc_monitor/mspti_monitor/*.cpp
 )
@@ -53,6 +54,7 @@ set_target_properties(IPCMonitor
 target_link_libraries(IPCMonitor PRIVATE
     pybind11::module
     pthread
+    dl
     ${glog_LIBRARIES}
     ${CMAKE_CURRENT_SOURCE_DIR}/stub/libmspti.so
 )

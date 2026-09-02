@@ -67,7 +67,7 @@ npu-monitor的 options 功能参数如下。
    export MSMONITOR_USE_DAEMON=1
    ```
 
-3. （可选）配置msMonitor日志路径，默认路径为当前目录下的msmonitor_log。
+3. （可选）配置msMonitor日志路径。显式设置 `MSMONITOR_LOG_PATH` 时直接作为 glog 日志目录（Python API 由 `start()` 自动指向会话目录的 `log/`）；未设置时默认在进程 cwd 下 `msmonitor_log_<设备ID>`（取不到设备时为msmonitor_log）。
 
    ```bash
    export MSMONITOR_LOG_PATH=<LOG PATH>
@@ -95,25 +95,25 @@ npu-monitor的 options 功能参数如下。
    ```bash
    # 示例1：开启性能监测，使用默认配置
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start
-   
+
    # 示例2：暂停性能监测
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-stop
-   
+
    # 示例3：性能监测过程中动态修改采集参数
    # 上报周期30s，上报数据类型Marker和Kernel，保留类型为Kernel且算子名称中包含“Mul”关键词的数据
    dyno --certs-dir /home/ssl_certs npu-monitor --report-interval-s 30 --mspti-activity-kind Marker,Kernel --filter Kernel:Mul
-   
+
    # 示例4：性能监测开启时配置采集参数
    # 上报周期25s，上报数据类型Marker和Kernel，保留类型为Kernel且算子名称中包含“Relu”关键词的数据
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 25 --mspti-activity-kind Marker,Kernel --filter Kernel:Relu
-   
+
    # 示例5：性能监测开启时配置采集参数，开启数据采集落盘，落盘格式为默认值DB格式
    # 数据落盘路径为/tmp/msmonitor_db，落盘周期为30s，采集数据类型为Marker，Kernel，Communication
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel,Communication --log-file /tmp/msmonitor_db
-   
+
    # 示例6：以 Jsonl 格式落盘，并通过命令行参数设置 Jsonl 文件轮转配置
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel,Communication --log-file /tmp/msmonitor_jsonl --export-type Jsonl --json-rotate-log-lines 10000 --json-rotate-log-files 5
-   
+
    # 示例7：多机场景下性能监测开启时修改配置
    # 多机场景下向特定机器x.x.x.x发送参数信息，参数表示上报周期30s，上报数据类型Marker和Kernel
    dyno --certs-dir /home/ssl_certs --hostname x.x.x.x npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel

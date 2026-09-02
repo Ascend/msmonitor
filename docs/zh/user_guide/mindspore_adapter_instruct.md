@@ -21,7 +21,7 @@
     export MSMONITOR_USE_DAEMON=1
     ```
 
-3. （可选）配置msMonitor日志路径，默认路径为当前目录下的msmonitor_log。
+3. （可选）配置msMonitor日志路径。显式设置 `MSMONITOR_LOG_PATH` 时直接作为 glog 日志目录（Python API 由 `start()` 自动指向会话目录的 `log/`）；未设置时默认在进程 cwd 下 `msmonitor_log_<设备ID>`（取不到设备时为msmonitor_log）。
 
     ```bash
     export MSMONITOR_LOG_PATH=<LOG PATH>
