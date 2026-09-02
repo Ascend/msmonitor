@@ -234,10 +234,6 @@ Provides easy-to-use APIs to collect profile data of compute operators, communic
 
 FAQs summarize the problems that may occur when you use msMonitor. For details, see [FAQs](./docs/en/faq.md).
 
-## How to Contribute
-
-For instructions on reporting issues, requesting features, and contributing code to msMonitor, see [Contributing to MindStudio Monitor](CONTRIBUTING.md).
-
 ## Contact Us
 
 [![img](https://img-transfer.gitcode.com/?p=https%3A%2F%2Fimg.shields.io%2Fbadge%2FWeChat-07C160%3Fstyle%3Dfor-the-badge%26logo%3Dwechat%26logoColor%3Dwhite&projectId=Ascend/msprof&pageUrl=https%3A%2F%2Fgitcode.com%2FAscend%2Fmsprof)](https://raw.gitcode.com/kali20gakki1/Imageshack/raw/main/CDC0BEE2-8F11-477D-BD55-77A15417D7D1_4_5005_c.jpeg)

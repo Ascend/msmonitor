@@ -55,7 +55,7 @@
 
 6. 提交Pull Request
 
-   参见[提交Pull Request流程](#提交Pull Request流程)。
+   参见[提交Pull Request流程](#提交pull-request流程)。
 
 ### 代码规范
 
