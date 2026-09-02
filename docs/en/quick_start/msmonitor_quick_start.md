@@ -23,7 +23,7 @@ Complete the msMonitor tool installation. For details, see *[msMonitor Installat
    dynolog --certs-dir NO_CERTS --enable-ipc-monitor
 
    # If you need to use TensorBoard to display data, pass the --metric_log_dir parameter to specify the TensorBoard file write path.
-   dynolog --certs-dir NO_CERTS --enable-ipc-monitor --metric_log_dir /tmp/metric_log_dir    # The log path of the dynolog daemon is: /var/log/dynolog.logar/log/dynolog.log
+   dynolog --certs-dir NO_CERTS --enable-ipc-monitor --metric_log_dir /tmp/metric_log_dir    # The log path of the dynolog daemon is: /var/log/dynolog.log
    ```
 
    > [!NOTE]
