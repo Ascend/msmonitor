@@ -15,73 +15,157 @@
  */
 
 #include "monitor/Monitor.h"
-#include <algorithm>
-#include <unordered_set>
-#include <unordered_map>
-#include "monitor/MonitorProcessManager.h"
-#include "MsptiMonitor.h"
 
-namespace dynolog_npu {
-namespace ipc_monitor {
-namespace monitor {
+#include <algorithm>
+#include <unordered_map>
+#include <unordered_set>
+
+#include "MsptiMonitor.h"
+#include "dcmi/DcmiCollector.h"
+#include "dcmi/DcmiMetricRegistry.h"
+#include "monitor/MonitorProcessManager.h"
+
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace monitor
+{
+
 constexpr uint32_t DEFAULT_CAPACITY = 1024;
+
 Monitor::Monitor()
 {
     // init log
     InitMsMonitorLog();
+    dcmiRing_.Init(DCMI_RING_CAPACITY);
 }
 
-void Monitor::Start(const std::vector<msptiActivityKind>& kinds)
+Monitor::~Monitor() { StopDcmi(); }
+
+void Monitor::Start(const std::vector<msptiActivityKind> &kinds, const std::set<DcmiLayer> &dcmiLayers,
+                    const std::set<DcmiMetricKind> &dcmiMetrics, uint32_t dcmiIntervalMs,
+                    const std::vector<uint32_t> &devices)
 {
-    const static std::unordered_set<msptiActivityKind> kSupportedKinds = {
-        msptiActivityKind::MSPTI_ACTIVITY_KIND_API,
-        msptiActivityKind::MSPTI_ACTIVITY_KIND_KERNEL,
-        msptiActivityKind::MSPTI_ACTIVITY_KIND_MARKER,
-        msptiActivityKind::MSPTI_ACTIVITY_KIND_COMMUNICATION,
-        msptiActivityKind::MSPTI_ACTIVITY_KIND_ACL_API,
-        msptiActivityKind::MSPTI_ACTIVITY_KIND_NODE_API,
-        msptiActivityKind::MSPTI_ACTIVITY_KIND_RUNTIME_API
-    };
+    const std::unordered_set<msptiActivityKind> kSupportedKinds = {
+        msptiActivityKind::MSPTI_ACTIVITY_KIND_API,        msptiActivityKind::MSPTI_ACTIVITY_KIND_KERNEL,
+        msptiActivityKind::MSPTI_ACTIVITY_KIND_MARKER,     msptiActivityKind::MSPTI_ACTIVITY_KIND_COMMUNICATION,
+        msptiActivityKind::MSPTI_ACTIVITY_KIND_ACL_API,    msptiActivityKind::MSPTI_ACTIVITY_KIND_NODE_API,
+        msptiActivityKind::MSPTI_ACTIVITY_KIND_RUNTIME_API};
 
     auto validKinds = kinds;
-    validKinds.erase(std::remove_if(validKinds.begin(), validKinds.end(),
-        [&kSupportedKinds](msptiActivityKind kind) { return kSupportedKinds.find(kind) == kSupportedKinds.end(); }),
-        validKinds.end());
+    validKinds.erase(std::remove_if(validKinds.begin(), validKinds.end(), [&kSupportedKinds](msptiActivityKind kind)
+                                    { return kSupportedKinds.find(kind) == kSupportedKinds.end(); }),
+                     validKinds.end());
 
-    if (validKinds.empty()) {
-        LOG(WARNING) << "Invalid MsptiActivityKind";
+    if (validKinds.empty() && dcmiLayers.empty() && dcmiMetrics.empty())
+    {
+        LOG(WARNING) << "Invalid MsptiActivityKind and no dcmi layer/metric";
         return;
     }
 
+    bool needMspti = !validKinds.empty();
     auto msptiMonitor = MsptiMonitor::GetInstance();
-    if (msptiMonitor->IsStarted()) {
+    if (needMspti && msptiMonitor->IsStarted())
+    {
         LOG(WARNING) << "MsptiMonitor already started";
         return;
     }
 
-    Clear();
-
-    std::shared_ptr<MonitorProcessManager> processManager{nullptr};
-    MakeSharedPtr(processManager);
-    msptiMonitor->SetDataProcessor(processManager);
-    msptiMonitor->Start();
-    kinds_ = std::unordered_set<msptiActivityKind>(validKinds.begin(), validKinds.end());
-
-    for (auto kind : kinds_) {
-        msptiMonitor->EnableActivity(kind);
+    // 会话语义：新会话（MsptiMonitor 未运行）启动前一律清空全部历史数据，
+    // 无论本次是否包含 mspti kinds —— 避免 DCMI-only 会话读到上次残留（P2 修复）。
+    if (!msptiMonitor->IsStarted())
+    {
+        Clear();
     }
 
-    LOG(INFO) << "monitor started";
+    if (needMspti)
+    {
+        std::shared_ptr<MonitorProcessManager> processManager{nullptr};
+        MakeSharedPtr(processManager);
+        msptiMonitor->SetDataProcessor(processManager);
+        msptiMonitor->Start();
+        kinds_ = std::unordered_set<msptiActivityKind>(validKinds.begin(), validKinds.end());
+        for (auto kind : kinds_)
+        {
+            msptiMonitor->EnableActivity(kind);
+        }
+    }
+
+    if (!dcmiLayers.empty() || !dcmiMetrics.empty())
+    {
+        StartDcmi(dcmiLayers, dcmiMetrics, dcmiIntervalMs, devices);
+    }
+
+    LOG(INFO) << "monitor started, mspti=" << (needMspti ? 1 : 0)
+              << " dcmi=" << ((!dcmiLayers.empty() || !dcmiMetrics.empty()) ? 1 : 0);
+}
+
+bool Monitor::StartDcmi(const std::set<DcmiLayer> &layers, const std::set<DcmiMetricKind> &metrics, uint32_t intervalMs,
+                        const std::vector<uint32_t> &devices)
+{
+    StopDcmi();
+    ClearDcmiData();
+
+    // 层 → kind 展开（Python 按硬件层配置的主入口）
+    auto *registry = dcmi::DcmiMetricRegistry::GetInstance();
+    std::set<DcmiMetricKind> enabled = metrics;
+    for (auto layer : layers)
+    {
+        auto kinds = registry->KindsForLayer(layer);
+        enabled.insert(kinds.begin(), kinds.end());
+    }
+    if (enabled.empty())
+    {
+        LOG(WARNING) << "StartDcmi: no enabled metric";
+        return false;
+    }
+
+    // ring 容量为内部固定策略（默认 100 万，覆盖最旧），不对外暴露
+    {
+        std::lock_guard<std::mutex> lock(dcmiMutex_);
+        dcmiRing_.Init(DCMI_RING_CAPACITY);
+        dcmiDropCount_ = 0;
+    }
+
+    auto collector = std::make_unique<dcmi::DcmiCollector>();
+    if (!collector->Start(enabled, intervalMs, devices))
+    {
+        // 保留失败 collector 供 DFX（LoadInfo/符号/使能原因在 GetDcmiStatus 中可查）
+        dcmiCollector_ = std::move(collector);
+        LOG(WARNING) << "StartDcmi: DcmiCollector start failed, DCMI metrics disabled";
+        return false;
+    }
+    dcmiCollector_ = std::move(collector);
+    return true;
+}
+
+void Monitor::StopDcmi()
+{
+    // 仅停止采集线程，保留 collector 对象：Stop 后 GetDcmiStatus 仍能读到
+    // 本次会话的加载状态、tick/超时/失败计数与各接口耗时（DFX 诊断关键）。
+    // 下次 StartDcmi 会先停旧线程再整体替换。
+    if (dcmiCollector_ != nullptr)
+    {
+        dcmiCollector_->Stop();
+    }
 }
 
 void Monitor::Stop()
 {
     auto msptiMonitor = MsptiMonitor::GetInstance();
-    if (!msptiMonitor->IsStarted()) {
-        LOG(WARNING) << "MsptiMonitor not started";
+    bool msptiRunning = msptiMonitor->IsStarted();
+    if (msptiRunning)
+    {
+        msptiMonitor->Stop();
+    }
+    bool dcmiRunning = dcmiCollector_ != nullptr && dcmiCollector_->IsRunning();
+    StopDcmi();
+    if (!msptiRunning && !dcmiRunning)
+    {
+        LOG(WARNING) << "monitor not started";
         return;
     }
-    msptiMonitor->Stop();
     LOG(INFO) << "monitor stopped";
 }
 
@@ -103,12 +187,23 @@ void Monitor::Clear()
     kernelData_.reserve(DEFAULT_CAPACITY);
     communicationData_.reserve(DEFAULT_CAPACITY);
     markerData_.reserve(DEFAULT_CAPACITY);
+    ClearDcmiData();
 }
+
+void Monitor::ClearDcmiData()
+{
+    std::lock_guard<std::mutex> lock(dcmiMutex_);
+    dcmiRing_.Clear();
+    dcmiDropCount_ = 0;
+}
+
+void Monitor::ClearDcmiDataForTest() { ClearDcmiData(); }
 
 void Monitor::ReportAPIData(API &&api, msptiActivityKind kind)
 {
     std::lock_guard<std::mutex> lock(apiMutex_);
-    switch (kind) {
+    switch (kind)
+    {
         case msptiActivityKind::MSPTI_ACTIVITY_KIND_API:
             apiData_.emplace_back(std::move(api));
             break;
@@ -144,6 +239,67 @@ void Monitor::ReportMarkerData(Marker &&marker)
     std::lock_guard<std::mutex> lock(markerMutex_);
     markerData_.emplace_back(std::move(marker));
 }
-} // namespace monitor
-} // namespace ipc_monitor
-} // namespace dynolog_npu
+
+void Monitor::ReportDcmiData(DcmiSample &&sample)
+{
+    std::lock_guard<std::mutex> lock(dcmiMutex_);
+    if (dcmiRing_.Push(std::move(sample)))
+    {
+        dcmiDropCount_++;
+    }
+}
+
+std::vector<DcmiSample> Monitor::GetDcmiData() const
+{
+    std::lock_guard<std::mutex> lock(dcmiMutex_);
+    return dcmiRing_.Snapshot();
+}
+
+DcmiStatusSnapshot Monitor::GetDcmiStatus() const
+{
+    DcmiStatusSnapshot snap;
+    snap.meta = GetDcmiMetricMeta();
+    {
+        std::lock_guard<std::mutex> lock(dcmiMutex_);
+        snap.ringSize = dcmiRing_.Size();
+        snap.ringCapacity = dcmiRing_.Capacity();
+        snap.ringDropCount = dcmiDropCount_;
+    }
+    if (dcmiCollector_ != nullptr)
+    {
+        snap.load = dcmiCollector_->LoadInfo();
+        const auto &kindStatus = dcmiCollector_->KindStatus();
+        snap.kinds.reserve(kindStatus.size());
+        for (const auto &entry : kindStatus)
+        {
+            snap.kinds.emplace_back(entry.first, entry.second);
+        }
+        std::sort(
+            snap.kinds.begin(), snap.kinds.end(),
+            [](const std::pair<DcmiMetricKind, DcmiKindStatus> &a, const std::pair<DcmiMetricKind, DcmiKindStatus> &b)
+            { return static_cast<int32_t>(a.first) < static_cast<int32_t>(b.first); });
+        auto st = dcmiCollector_->GetStatus();
+        snap.tickCount = st.tickCount;
+        snap.overrunCount = st.overrunCount;
+        snap.lastTickCollectUs = st.lastTickCollectUs;
+        snap.groupCallCounts = std::move(st.groupCallCounts);
+        snap.groupCollectNs = std::move(st.groupCollectNs);
+        snap.groupFailCounts = std::move(st.groupFailCounts);
+        snap.lastErrorCodes = std::move(st.lastErrorCodes);
+    }
+    else
+    {
+        snap.load.status = DcmiApiStatus::NOT_SUPPORT;
+        snap.load.error = "dcmi collector not started";
+    }
+    return snap;
+}
+
+std::vector<DcmiMetricMeta> Monitor::GetDcmiMetricMeta() const
+{
+    return dcmi::DcmiMetricRegistry::GetInstance()->AllMeta();
+}
+
+}  // namespace monitor
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu

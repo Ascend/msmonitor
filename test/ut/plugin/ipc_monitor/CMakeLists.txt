@@ -6,6 +6,11 @@ set(TEST_SOURCES
     test_RotateLogger.cpp
     test_TimerTask.cpp
     test_DBConnection.cpp
+    test_DcmiRingBuffer.cpp
+    test_DcmiApiLoader.cpp
+    test_DcmiMetricRegistry.cpp
+    test_DcmiCollector.cpp
+    test_DcmiMonitorSession.cpp
 )
 
 find_package(Python 3.9 REQUIRED COMPONENTS Interpreter Development)

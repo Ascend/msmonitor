@@ -10,7 +10,7 @@
 
   * 控制 msPTI Monitor 启停采集数据
   * 在线获取 msPTI Monitor 采集的性能数据
-  * 将 msPTI Monitor 采集的性能数据以 Excel 格式导出到本地
+  * 将 msPTI Monitor 采集的性能数据以 Excel 与 Chrome Trace JSON 格式导出到本地
 
 ### PyDynamicMonitorProxy接口说明
 
@@ -51,17 +51,34 @@ Monitor API 使用示例请参见 [monitor_feature.md](./monitor_feature.md)。
 ### Monitor接口
 
 * `start` 开启 monitor 数据采集
-  * input: kinds(List[ActivityKind]) 数据采集类型列表
+  * input:
+    * kinds(List[ActivityKind]) 数据采集类型列表（原有能力）
+    * dcmi_layers(List[DcmiLayer]，可选) DCMI 按硬件层配置，选择某层即采集该层全部可得指标，空则不采集 DCMI
+    * dcmi_interval_ms(int，可选，默认 10) DCMI 采样间隔，单位：ms
+    * save_path(str，可选，默认 None) 结果保存目录。为 None（默认）时不创建会话目录、不落盘日志，仅通过 `get_result()` 在线获取数据；指定时 start 即在其下创建 `msmonitor_<pid>_<时间戳>/` 会话目录，glog 从开始直接写入其 `log/`
   * return: None
+  * 说明：DCMI 采集设备无需指定，默认取当前进程已 set 的 device
 * `stop` 停止 monitor 数据采集
   * input: None
   * return: None
 * `get_result` 获取 monitor 采集的性能数据
   * input: None
-  * return: Dict[ActivityKind, List[ActivityData]]，返回性能数据
-* `save` 保存 monitor 采集的性能数据
-  * input: file_path(str) 保存文件路径
+  * return: Dict，key 为已开启的 `ActivityKind` 与 DCMI 样本列表（统一以 `DCMI` 作为 key）
+* `save` 保存 monitor 采集的性能数据与运行日志
+  * input: None（输出目录在 start(save_path) 时已确定）
   * return: None
+  * 说明：在 start 确定的会话目录 `<save_path>/msmonitor_<pid>_<时间戳>/` 内生成 `monitor_result.xlsx`（Excel，多 Sheet，含 DCMI Sheet）与 `monitor_result.json`（Chrome Trace JSON，可在 chrome://tracing / Perfetto 打开，kernel/comm 耗时条 + DCMI 曲线按硬件层分进程呈现，metadata 内嵌 DFX 状态）；glog 日志自 start 起直接写入其 `log/` 子目录，无移动/复制；各文件只包含实际采集到的数据
+
+### DcmiLayer枚举类
+
+定义 DCMI 采集的硬件层，作为 `start(dcmi_layers=...)` 的配置单位（与 Chrome Trace 分层呈现一一对应）。选择某层即采集该层全部可得指标：
+
+* `DcmiLayer.DEVICE`: 设备级指标：Power（功耗，W）、Temp（温度，℃）
+* `DcmiLayer.AICORE`: AICore 当前/额定频率（MHz）、AI Core/AI Cube/Vector Core/NPU 利用率（%）
+* `DcmiLayer.AICPU`: AICPU 最大运行频率（MHz）、当前频率（MHz）、利用率（%）
+* `DcmiLayer.HBM`: 片上内存频率（MHz）、总容量（MB）、已用内存（MB）、带宽利用率（%）、温度（℃）
+
+> 兼容性说明：不同代际芯片（A2 / A3 / A5）的 DCMI 接口表面一致；驱动不支持的类型（如部分芯片无 NPU 整体利用率）会自动禁用对应指标，原因在启动日志中打印，并写入 trace metadata。
 
 ### ActivityData数据结构
 
@@ -111,6 +128,15 @@ Monitor API 使用示例请参见 [monitor_feature.md](./monitor_feature.md)。
 * `pid` (int): 调用 API 的进程ID
 * `tid` (int): 调用 API 的线程ID
 * `correlationId` (int): API调用关联ID，用于和Kernel/Communication数据关联
+
+#### DcmiSample结构体字段
+
+DCMI 采样样本（`get_result()` 返回的 `DCMI` 列表元素）：
+
+* `kind` (int): 指标类型（内部枚举值，对应导出元数据中的指标名）
+* `timestampNs` (int): 采样时间戳，单位：ns
+* `deviceId` (int): 设备ID（扁平编号）
+* `value` (float): 采样值（单位随指标类型而定，如 Power 为 W、频率为 MHz、利用率为 %、内存为 MB）
 
 ## 安装方式
 

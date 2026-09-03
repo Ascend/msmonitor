@@ -13,5 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# 对外 API（__all__ 声明有意导出，规避 F401）
 from .dynamic_monitor_proxy import PyDynamicMonitorProxy
-from .monitor import Monitor, ActivityKind
+from .monitor import ActivityKind, DcmiLayer, Monitor
+
+__all__ = ["PyDynamicMonitorProxy", "ActivityKind", "DcmiLayer", "Monitor"]

@@ -171,7 +171,7 @@
   | 依赖 | 用途 |
   |------|------|
   | pybind11 | Python/C++ 扩展绑定 |
-  | xlsxwriter | 将采集的性能数据导出为 Excel 文件（`monitor.save("xxx.xlsx")` 功能） |
+  | xlsxwriter | 将采集的性能数据导出为 Excel 文件（`monitor.save()` 生成的 `monitor_result.xlsx`） |
 
   安装 whl 包时，pip 会自动安装以上依赖：
 

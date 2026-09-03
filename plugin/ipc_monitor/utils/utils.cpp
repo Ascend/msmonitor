@@ -41,6 +41,8 @@
 #include <sstream>
 #include <unordered_map>
 
+#include "dcmi/DcmiApiLoader.h"
+
 namespace dynolog_npu
 {
 namespace ipc_monitor
@@ -642,16 +644,25 @@ bool CreateMsmonitorLogPath(std::string &path)
 {
     const char *logPathEnvVal = getenv("MSMONITOR_LOG_PATH");
     std::string logPath;
-    if (logPathEnvVal != nullptr)
+    bool envSpecified = (logPathEnvVal != nullptr && logPathEnvVal[0] != '\0');
+    if (envSpecified)
     {
+        // 显式指定：直接作为日志目录（Python 侧指向会话目录的 log/，glog 从开始就写入最终位置）
         logPath = logPathEnvVal;
     }
-    if (logPath.empty())
+    else
     {
         char cwdPath[PATH_MAX] = {0};
         if (getcwd(cwdPath, PATH_MAX) != nullptr)
         {
             logPath = cwdPath;
+        }
+        if (!logPath.empty())
+        {
+            // 默认 cwd/msmonitor_log_<设备ID>（取不到设备时 msmonitor_log）
+            int32_t devId = -1;
+            logPath += dcmi::DcmiApiLoader::GetCurrentDevice(devId) ? "/msmonitor_log_" + std::to_string(devId)
+                                                                    : "/msmonitor_log";
         }
     }
     if (logPath.empty())
@@ -659,7 +670,6 @@ bool CreateMsmonitorLogPath(std::string &path)
         fprintf(stderr, "[ERROR] Failed to get msmonitor log path.\n");
         return false;
     }
-    logPath = logPath + "/msmonitor_log";
     std::string absPath = PathUtils::RelativeToAbsPath(logPath);
     if (PathUtils::DirPathCheck(absPath))
     {
@@ -702,6 +712,11 @@ void InitMsMonitorLog()
         {
             fprintf(stderr, "[INFO] [%d] msMonitor log will record to %s\n", GetProcessId(), logPath.c_str());
             logPath = logPath + "/msmonitor_";
+            // 空 basename = 不生成 MsMonitor.INFO 等符号链接（仅指向最新日志）
+            google::SetLogSymlink(google::GLOG_INFO, "");
+            google::SetLogSymlink(google::GLOG_WARNING, "");
+            google::SetLogSymlink(google::GLOG_ERROR, "");
+            google::SetLogSymlink(google::GLOG_FATAL, "");
             google::InitGoogleLogging("MsMonitor");
             google::SetStderrLogging(google::GLOG_ERROR);
             google::SetLogDestination(google::GLOG_INFO, logPath.c_str());

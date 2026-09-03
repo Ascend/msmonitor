@@ -138,8 +138,9 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# vscode settings (tracked: launch.json, tasks.json)
+# vscode settings (tracked: launch.json, tasks.json; c_cpp_properties.json 为本地 IDE 配置不入库)
 .vscode/settings.json
+.vscode/c_cpp_properties.json
 att_advisor*.html
 *.xlsx
 operator_tuning_file*.cfg
