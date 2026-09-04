@@ -1,23 +1,24 @@
 #!/bin/bash
+set -e
 
 TOP_DIR=$(dirname "$(dirname "$(realpath "$0")")")
 echo "TOP_DIR: $TOP_DIR"
 
-export LD_LIBRARY_PATH=${TOP_DIR}/plugin/stub:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${TOP_DIR}/plugin/stub:${LD_LIBRARY_PATH:-}
 
 cd ${TOP_DIR}
 mkdir -p ${TOP_DIR}/test/build_llt
 cd ${TOP_DIR}/test/build_llt
 
-if [[ -n "$1" && "$1" == "plugin" ]]; then
+if [[ -n "${1:-}" && "$1" == "plugin" ]]; then
     echo "Building plugin tests..."
-    cmake ../ -DPACKAGE=ut -DMODE=plugin
+    cmake ../ -DPACKAGE=ut -DMODE=plugin || { echo "ERROR: cmake configure failed"; exit 1; }
 else
     echo "Building all tests..."
-    cmake ../ -DPACKAGE=ut -DMODE=all
+    cmake ../ -DPACKAGE=ut -DMODE=all || { echo "ERROR: cmake configure failed"; exit 1; }
 fi
 
-make -j$(nproc)
+make -j$(nproc) || { echo "ERROR: UT 编译失败"; exit 1; }
 
 echo "执行所有测试文件..."
 TEST_DIR="./ut/plugin/ipc_monitor"

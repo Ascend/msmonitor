@@ -223,7 +223,7 @@ monitor::DcmiApiStatus DcmiApiLoader::EnumerateTopology()
         flatToCardChip_.clear();
         for (int i = 0; i < cnt; ++i)
         {
-            flatToCardChip_.emplace_back(devList[i], 0);  // v2 扁平：flatDevId == 设备号
+            flatToCardChip_.emplace_back(0, devList[i]);  // v2 扁平：flatDevId == 设备号
         }
         loadInfo_.error.clear();
         return monitor::DcmiApiStatus::OK;

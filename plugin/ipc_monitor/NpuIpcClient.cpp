@@ -14,12 +14,25 @@
  * limitations under the License.
  */
 #include "NpuIpcClient.h"
+
 #include <glog/logging.h>
 
-namespace dynolog_npu {
-namespace ipc_monitor {
+#include "utils.h"
+
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+std::string IpcClient::GetDynoIpcName(const std::string &suffix)
+{
+    auto hostUid = GetHostUid();
+    auto ipcName = (hostUid.empty() ? DYNO_IPC_NAME : DYNO_IPC_NAME + "_" + hostUid) + suffix;
+    return ipcName;
+}
+
 bool IpcClient::Init()
 {
+    ipcName_ = GetDynoIpcName();
     pids_ = GetPids();
     return true;
 }
@@ -32,12 +45,16 @@ bool IpcClient::RegisterInstance(int32_t npu)
         .jobId = JOB_ID,
     };
     std::unique_ptr<Message> message = Message::ConstructMessage<decltype(context)>(context, MSG_TYPE_CONTEXT);
-    try {
-        if (!SyncSendMessage(*message, DYNO_IPC_NAME)) {
+    try
+    {
+        if (!SyncSendMessage(*message, ipcName_))
+        {
             LOG(WARNING) << "Failed to send register ctxt for pid " << context.pid << " with dyno";
             return false;
         }
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
         LOG(WARNING) << "Error when SyncSendMessage: " << e.what();
         return false;
     }
@@ -45,15 +62,19 @@ bool IpcClient::RegisterInstance(int32_t npu)
     return true;
 }
 
-bool IpcClient::SendNpuStatus(const NpuStatus& status, const std::string& msgType) 
+bool IpcClient::SendNpuStatus(const NpuStatus &status, const std::string &msgType)
 {
     std::unique_ptr<Message> message = Message::ConstructMessage(status, msgType);
-    try {
-        if (!SyncSendMessage(*message, DYNO_IPC_NAME)) {
+    try
+    {
+        if (!SyncSendMessage(*message, ipcName_))
+        {
             LOG(WARNING) << "Failed to send msmonitor status for pid " << status.pid << " with dyno";
             return false;
         }
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
         LOG(WARNING) << "Error when SyncSendMessage: " << e.what();
         return false;
     }
@@ -64,26 +85,32 @@ std::string IpcClient::IpcClientNpuConfig()
 {
     auto size = pids_.size();
     auto *req = ReinterpretConvert<NpuRequest *>(malloc(sizeof(NpuRequest) + sizeof(int32_t) * size));
-    if (req == nullptr) {
+    if (req == nullptr)
+    {
         LOG(ERROR) << " Malloc for NpuRequest failed !";
         return "";
     }
     req->type = DYNO_IPC_TYPE;
     req->pidSize = size;
     req->jobId = JOB_ID;
-    for (size_t i = 0; i < size; i++) {
+    for (size_t i = 0; i < size; i++)
+    {
         req->pids[i] = pids_[i];
     }
     std::unique_ptr<Message> message;
-    try {
+    try
+    {
         message = Message::ConstructMessage<NpuRequest, int32_t>(*req, MSG_TYPE_REQUEST, size);
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
         LOG(ERROR) << "ConstructMessage failed: " << e.what();
         free(req);
         req = nullptr;
         throw;
     }
-    if (!message || !SyncSendMessage(*message, DYNO_IPC_NAME)) {
+    if (!message || !SyncSendMessage(*message, ipcName_))
+    {
         LOG(WARNING) << "Failed to send config to dyno server";
         free(req);
         req = nullptr;
@@ -92,7 +119,8 @@ std::string IpcClient::IpcClientNpuConfig()
     free(req);
     req = nullptr;
     message = PollRecvMessage(MAX_IPC_RETRIES, MAX_SLEEP_US);
-    if (!message) {
+    if (!message)
+    {
         LOG(WARNING) << "Failed to receive on-demand config";
         return "";
     }
@@ -103,7 +131,8 @@ std::string IpcClient::IpcClientNpuConfig()
 std::unique_ptr<Message> IpcClient::ReceiveMessage()
 {
     std::lock_guard<std::mutex> wguard(dequeLock_);
-    if (msgDynoDeque_.empty()) {
+    if (msgDynoDeque_.empty())
+    {
         return nullptr;
     }
     std::unique_ptr<Message> message = std::move(msgDynoDeque_.front());
@@ -113,21 +142,26 @@ std::unique_ptr<Message> IpcClient::ReceiveMessage()
 
 bool IpcClient::SyncSendMessage(const Message &message, const std::string &destName, int numRetry, int seepTimeUs)
 {
-    if (destName.empty()) {
+    if (destName.empty())
+    {
         LOG(WARNING) << "Can not send to empty socket name!";
         return false;
     }
     int i = 0;
-    std::vector<NpuPayLoad> npuPayLoad{ NpuPayLoad(sizeof(struct Metadata), (void *)&message.metadata),
-        NpuPayLoad(message.metadata.size, message.buf.get()) };
-    try {
+    std::vector<NpuPayLoad> npuPayLoad{NpuPayLoad(sizeof(struct Metadata), (void *)&message.metadata),
+                                       NpuPayLoad(message.metadata.size, message.buf.get())};
+    try
+    {
         auto ctxt = ep_.BuildSendNpuCtxt(destName, npuPayLoad, std::vector<int>());
-        while (!ep_.TrySendMessage(*ctxt) && i < numRetry) {
+        while (!ep_.TrySendMessage(*ctxt) && i < numRetry)
+        {
             i++;
             usleep(seepTimeUs);
             seepTimeUs *= 2;  // 2: double sleep time
         }
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
         LOG(ERROR) << "Error when SyncSendMessage: " << e.what();
         return false;
     }
@@ -136,43 +170,55 @@ bool IpcClient::SyncSendMessage(const Message &message, const std::string &destN
 
 bool IpcClient::Recv()
 {
-    try {
+    try
+    {
         Metadata recvMetadata;
-        std::vector<NpuPayLoad> PeekNpuPayLoad{ NpuPayLoad(sizeof(struct Metadata), &recvMetadata) };
+        std::vector<NpuPayLoad> PeekNpuPayLoad{NpuPayLoad(sizeof(struct Metadata), &recvMetadata)};
         auto peekCtxt = ep_.BuildNpuRcvCtxt(PeekNpuPayLoad);
         bool successFlag = false;
-        try {
+        try
+        {
             successFlag = ep_.TryPeekMessage(*peekCtxt);
-        } catch (std::exception &e) {
+        }
+        catch (std::exception &e)
+        {
             LOG(ERROR) << "Error when TryPeekMessage: " << e.what();
             return false;
         }
-        if (successFlag) {
+        if (successFlag)
+        {
             std::unique_ptr<Message> npuMessage = std::make_unique<Message>(Message());
             npuMessage->metadata = recvMetadata;
             npuMessage->buf = std::make_unique<unsigned char[]>(recvMetadata.size);
             auto srcName = ep_.GetName(*peekCtxt, false);
-            if (srcName == nullptr) {
+            if (srcName == nullptr)
+            {
                 LOG(ERROR) << "Failed to get source name from peek context";
                 return false;
             }
             npuMessage->src = std::string(srcName);
-            std::vector<NpuPayLoad> npuPayLoad{ NpuPayLoad(sizeof(struct Metadata), (void *)&npuMessage->metadata),
-                NpuPayLoad(recvMetadata.size, npuMessage->buf.get()) };
+            std::vector<NpuPayLoad> npuPayLoad{NpuPayLoad(sizeof(struct Metadata), (void *)&npuMessage->metadata),
+                                               NpuPayLoad(recvMetadata.size, npuMessage->buf.get())};
             auto recvCtxt = ep_.BuildNpuRcvCtxt(npuPayLoad);
-            try {
+            try
+            {
                 successFlag = ep_.TryRcvMessage(*recvCtxt);
-            } catch (std::exception &e) {
+            }
+            catch (std::exception &e)
+            {
                 LOG(ERROR) << "Error when TryRecvMsg: " << e.what();
                 return false;
             }
-            if (successFlag) {
+            if (successFlag)
+            {
                 std::lock_guard<std::mutex> wguard(dequeLock_);
                 msgDynoDeque_.push_back(std::move(npuMessage));
                 return true;
             }
         }
-    } catch (std::exception &e) {
+    }
+    catch (std::exception &e)
+    {
         LOG(ERROR) << "Error in Recv(): " << e.what();
         return false;
     }
@@ -181,13 +227,15 @@ bool IpcClient::Recv()
 
 std::unique_ptr<Message> IpcClient::PollRecvMessage(int maxRetry, int sleeTimeUs)
 {
-    for (int i = 0; i < maxRetry; i++) {
-        if (Recv()) {
+    for (int i = 0; i < maxRetry; i++)
+    {
+        if (Recv())
+        {
             return ReceiveMessage();
         }
         usleep(sleeTimeUs);
     }
     return nullptr;
 }
-} // namespace ipc_monitor
-} // namespace dynolog_npu
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu

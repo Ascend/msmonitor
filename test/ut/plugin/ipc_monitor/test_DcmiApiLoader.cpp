@@ -24,22 +24,27 @@ using dynolog_npu::ipc_monitor::monitor::DcmiApiStatus;
 
 namespace
 {
+// 假 v2 符号表：dcmiv2_get_device_list 返回 [0, kV2FakeDeviceCount) 扁平设备。
+// 注：DcmiApiFuncs 成员为原生函数指针（对接 dlopen/dlsym），带捕获 lambda
+// 无法隐式转为函数指针，故用静态函数 + 常量代替可变全局变量，保证测试隔离性。
+constexpr int kV2FakeDeviceCount = 8;
 
-// 假 v2 符号表：dcmiv2_get_device_list 返回 [0, deviceCount) 扁平设备
-DcmiApiFuncs MakeV2FakeFuncs(int deviceCount)
+int FakeV2GetDeviceList(int *devList, int *cnt, int listLen)
+{
+    const int n = kV2FakeDeviceCount < listLen ? kV2FakeDeviceCount : listLen;
+    for (int i = 0; i < n; ++i)
+    {
+        devList[i] = i;
+    }
+    *cnt = n;
+    return 0;  // DCMI_OK
+}
+
+DcmiApiFuncs MakeV2FakeFuncs()
 {
     DcmiApiFuncs funcs;
     funcs.dcmiv2_init = []() -> int { return 0; };
-    funcs.dcmiv2_get_device_list = [deviceCount](int *devList, int *cnt, int listLen) -> int
-    {
-        const int n = deviceCount < listLen ? deviceCount : listLen;
-        for (int i = 0; i < n; ++i)
-        {
-            devList[i] = i;
-        }
-        *cnt = n;
-        return 0;  // DCMI_OK
-    };
+    funcs.dcmiv2_get_device_list = &FakeV2GetDeviceList;
     return funcs;
 }
 
@@ -49,7 +54,7 @@ DcmiApiFuncs MakeV2FakeFuncs(int deviceCount)
 TEST(DcmiApiLoaderTest, V2EnumeratesFlatDevices)
 {
     DcmiApiLoader loader;
-    ASSERT_EQ(loader.InjectForTestV2(MakeV2FakeFuncs(8)), DcmiApiStatus::OK);
+    ASSERT_EQ(loader.InjectForTestV2(MakeV2FakeFuncs()), DcmiApiStatus::OK);
     EXPECT_TRUE(loader.IsV2());
     EXPECT_EQ(loader.LoadInfo().version, "V2");
     EXPECT_EQ(loader.LoadInfo().cardNum, 8);
@@ -71,7 +76,7 @@ TEST(DcmiApiLoaderTest, V2EnumeratesFlatDevices)
 // v2 枚举失败：InjectForTestV2 返回非 OK，保留 v2 模式标记便于诊断
 TEST(DcmiApiLoaderTest, V2EnumerateFailureReported)
 {
-    DcmiApiFuncs funcs = MakeV2FakeFuncs(8);
+    DcmiApiFuncs funcs = MakeV2FakeFuncs();
     funcs.dcmiv2_get_device_list = [](int *, int *cnt, int) -> int
     {
         *cnt = 0;
@@ -81,4 +86,10 @@ TEST(DcmiApiLoaderTest, V2EnumerateFailureReported)
     EXPECT_NE(loader.InjectForTestV2(funcs), DcmiApiStatus::OK);
     EXPECT_TRUE(loader.IsV2());
     EXPECT_FALSE(loader.LoadInfo().error.empty());
+}
+
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

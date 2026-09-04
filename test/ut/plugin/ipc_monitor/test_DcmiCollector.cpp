@@ -27,10 +27,10 @@
 using dynolog_npu::ipc_monitor::dcmi::DcmiApiFuncs;
 using dynolog_npu::ipc_monitor::dcmi::DcmiApiLoader;
 using dynolog_npu::ipc_monitor::dcmi::DcmiCollector;
-using dynolog_npu::ipc_monitor::dcmi::DcmiKindStatus;
 using dynolog_npu::ipc_monitor::dcmi::DcmiMetricBase;
 using dynolog_npu::ipc_monitor::dcmi::DcmiMetricRegistry;
 using dynolog_npu::ipc_monitor::dcmi::DcmiSampleSink;
+using dynolog_npu::ipc_monitor::monitor::DcmiKindStatus;
 using dynolog_npu::ipc_monitor::monitor::DcmiMetricKind;
 using dynolog_npu::ipc_monitor::monitor::DcmiSample;
 using dynolog_npu::ipc_monitor::monitor::Monitor;
