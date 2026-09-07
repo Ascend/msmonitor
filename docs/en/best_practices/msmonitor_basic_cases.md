@@ -333,8 +333,6 @@ In multi-rank model scenarios, parallel strategy communication group information
 
 When torch calls the `new_group` interface to create a communication group, user-defined information such as `group_name` and `hccl_buffer_size` can be passed through the `pg_options` parameter. In TorchNPU, the object corresponding to the `pg_options` parameter is `torch_npu._C_.distributed_c10d.ProcessGroupHccl.Options`. By setting `group_name` in this object, the communication group information can be viewed in msMonitor.
 
-![torch_new_group](../figures/torch_new_group.png)
-
 If users need to collect parallel strategy communication group information, the `group_name` parameter must be passed when torch calls `new_group`. The following uses Megatron/MindSpeed as an example:
 
 ```python
