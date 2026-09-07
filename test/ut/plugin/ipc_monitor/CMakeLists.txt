@@ -11,6 +11,8 @@ set(TEST_SOURCES
     test_DcmiMetricRegistry.cpp
     test_DcmiCollector.cpp
     test_DcmiMonitorSession.cpp
+    test_NpuIpcClient.cpp
+    test_MetricProcessBase.cpp
 )
 
 find_package(Python 3.9 REQUIRED COMPONENTS Interpreter Development)

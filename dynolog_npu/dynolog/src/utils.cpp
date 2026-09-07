@@ -17,16 +17,24 @@
 #include "dynolog/src/utils.h"
 
 #include <glog/logging.h>
+#include <ifaddrs.h>
+#include <libgen.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <netpacket/packet.h>
 #include <pwd.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <climits>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <nlohmann/json.hpp>
+#include <sstream>
 #include <unordered_map>
+#include <vector>
 
 namespace dynolog
 {
@@ -254,5 +262,93 @@ std::string GetCurrentUserHomePath()
         return std::string(pw->pw_dir);
     }();
     return home_path;
+}
+
+std::string Join(const std::vector<std::string> &strs, const std::string &delimiter)
+{
+    std::stringstream ss;
+    for (size_t i = 0, len = strs.size(); i < len; ++i)
+    {
+        ss << strs[i] << (i == len - 1 ? "" : delimiter);
+    }
+    return ss.str();
+}
+
+uint64_t CalcHashId(const std::string &data)
+{
+    static const uint32_t UINT32_BITS = 32;
+    uint32_t prime[2] = {29, 131};
+    uint32_t hash[2] = {0};
+    for (char d : data)
+    {
+        hash[0] = hash[0] * prime[0] + static_cast<uint32_t>(d);
+        hash[1] = hash[1] * prime[1] + static_cast<uint32_t>(d);
+    }
+    return (static_cast<uint64_t>(hash[0]) << UINT32_BITS) | hash[1];
+}
+
+template <typename T>
+std::string IntToHexStr(T number)
+{
+    std::stringstream strStream;
+    strStream << std::hex << number;
+    return strStream.str();
+}
+
+std::string GetHostUid()
+{
+    static const uint8_t SECOND_LEAST_BIT = 1 << 1;
+    struct ifaddrs *ifaddr = nullptr;
+    if (getifaddrs(&ifaddr) == -1)
+    {
+        if (ifaddr != nullptr)
+        {
+            freeifaddrs(ifaddr);
+        }
+        return "";
+    }
+    std::vector<std::string> universalMacAddrs;
+    std::vector<std::string> localMacAddrs;
+    for (struct ifaddrs *ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
+    {
+        if (ifa->ifa_addr == nullptr || ifa->ifa_addr->sa_family != AF_PACKET)
+        {
+            continue;
+        }
+        if ((ifa->ifa_flags & IFF_LOOPBACK) != 0)
+        {
+            continue;
+        }
+        struct sockaddr_ll *lladdr = reinterpret_cast<struct sockaddr_ll *>(ifa->ifa_addr);
+        uint32_t len = static_cast<uint32_t>(lladdr->sll_halen);
+        if (len > 0)
+        {
+            std::string addr;
+            for (uint32_t i = 0; i < len; ++i)
+            {
+                std::string hexAddr = IntToHexStr(static_cast<uint16_t>(lladdr->sll_addr[i]));
+                addr += (hexAddr.length() > 1) ? hexAddr : ("0" + hexAddr);
+            }
+            if ((lladdr->sll_addr[0] & SECOND_LEAST_BIT) == 0)
+            {
+                universalMacAddrs.emplace_back(addr);
+            }
+            else
+            {
+                localMacAddrs.emplace_back(addr);
+            }
+        }
+    }
+    if (ifaddr != nullptr)
+    {
+        freeifaddrs(ifaddr);
+    }
+    if (universalMacAddrs.empty() && localMacAddrs.empty())
+    {
+        return "";
+    }
+    auto &macAddrs = universalMacAddrs.empty() ? localMacAddrs : universalMacAddrs;
+    std::sort(macAddrs.begin(), macAddrs.end());
+    return std::to_string(CalcHashId(Join(macAddrs, "-")));
 }
 }  // namespace dynolog

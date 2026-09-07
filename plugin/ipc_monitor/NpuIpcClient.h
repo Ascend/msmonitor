@@ -19,13 +19,17 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <unordered_map>
-#include "NpuIpcEndPoint.h"
-#include "utils.h"
-#include "securec.h"
 
-namespace dynolog_npu {
-namespace ipc_monitor {
+#include "NpuIpcEndPoint.h"
+#include "securec.h"
+#include "utils.h"
+
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
 
 constexpr int TYPE_SIZE = 32;
 constexpr int JOB_ID = 0;
@@ -45,20 +49,23 @@ const std::string CURRENT_STEP = "current_step";
 const std::string START_STEP = "start_step";
 const std::string STOP_STEP = "stop_step";
 
-struct NpuRequest {
+struct NpuRequest
+{
     int type;
     int pidSize;
     int64_t jobId;
     int32_t pids[0];
 };
 
-struct NpuContext {
+struct NpuContext
+{
     int32_t npu;
     pid_t pid;
     int64_t jobId;
 };
 
-struct NpuStatus {
+struct NpuStatus
+{
     int32_t status = -1;
     int32_t currentStep = -1;
     int32_t startStep = -1;
@@ -67,30 +74,37 @@ struct NpuStatus {
     int64_t jobId = JOB_ID;
 };
 
-struct Metadata {
+struct Metadata
+{
     size_t size = 0;
     char type[TYPE_SIZE] = "";
 };
 
-struct Message {
+struct Message
+{
     Metadata metadata;
     std::unique_ptr<unsigned char[]> buf;
     std::string src;
-    template <class T> static std::unique_ptr<Message> ConstructMessage(const T &data, const std::string &type)
+    template <class T>
+    static std::unique_ptr<Message> ConstructMessage(const T &data, const std::string &type)
     {
         std::unique_ptr<Message> ipcNpuMessage = std::make_unique<Message>(Message());
-        if (type.size() + 1 > sizeof(ipcNpuMessage->metadata.type)) {
+        if (type.size() + 1 > sizeof(ipcNpuMessage->metadata.type))
+        {
             throw std::runtime_error("Type string is too long to fit in metadata.type" + IPC_ERROR(ErrCode::PARAM));
         }
-        if (memcpy_s(ipcNpuMessage->metadata.type, sizeof(ipcNpuMessage->metadata.type),
-                     type.c_str(), type.size() + 1) != EOK) {
+        if (memcpy_s(ipcNpuMessage->metadata.type, sizeof(ipcNpuMessage->metadata.type), type.c_str(),
+                     type.size() + 1) != EOK)
+        {
             throw std::runtime_error("memcpy_s failed" + IPC_ERROR(ErrCode::MEMORY));
         }
 #if __cplusplus >= 201703L
-        if constexpr (std::is_same<std::string, T>::value == true) {
+        if constexpr (std::is_same<std::string, T>::value == true)
+        {
             ipcNpuMessage->metadata.size = data.size();
             ipcNpuMessage->buf = std::make_unique<unsigned char[]>(ipcNpuMessage->metadata.size);
-            if (memcpy_s(ipcNpuMessage->buf.get(), ipcNpuMessage->metadata.size, data.c_str(), data.size()) != EOK) {
+            if (memcpy_s(ipcNpuMessage->buf.get(), ipcNpuMessage->metadata.size, data.c_str(), data.size()) != EOK)
+            {
                 throw std::runtime_error("memcpy_s failed" + IPC_ERROR(ErrCode::MEMORY));
             }
             return ipcNpuMessage;
@@ -99,7 +113,8 @@ struct Message {
         static_assert(std::is_trivially_copyable<T>::value);
         ipcNpuMessage->metadata.size = sizeof(data);
         ipcNpuMessage->buf = std::make_unique<unsigned char[]>(ipcNpuMessage->metadata.size);
-        if (memcpy_s(ipcNpuMessage->buf.get(), ipcNpuMessage->metadata.size, &data, sizeof(data)) != EOK) {
+        if (memcpy_s(ipcNpuMessage->buf.get(), ipcNpuMessage->metadata.size, &data, sizeof(data)) != EOK)
+        {
             throw std::runtime_error("memcpy_s failed" + IPC_ERROR(ErrCode::MEMORY));
         }
         return ipcNpuMessage;
@@ -109,19 +124,22 @@ struct Message {
     static std::unique_ptr<Message> ConstructMessage(const T &data, const std::string &type, int n)
     {
         std::unique_ptr<Message> ipcNpuMessage = std::make_unique<Message>(Message());
-        if (type.size() + 1 > sizeof(ipcNpuMessage->metadata.type)) {
+        if (type.size() + 1 > sizeof(ipcNpuMessage->metadata.type))
+        {
             throw std::runtime_error("Type string is too long to fit in metadata.type" + IPC_ERROR(ErrCode::PARAM));
         }
-        if (memcpy_s(ipcNpuMessage->metadata.type, sizeof(ipcNpuMessage->metadata.type),
-                     type.c_str(), type.size() + 1) != EOK) {
+        if (memcpy_s(ipcNpuMessage->metadata.type, sizeof(ipcNpuMessage->metadata.type), type.c_str(),
+                     type.size() + 1) != EOK)
+        {
             throw std::runtime_error("memcpy_s failed" + IPC_ERROR(ErrCode::MEMORY));
         }
         static_assert(std::is_trivially_copyable<T>::value);
         static_assert(std::is_trivially_copyable<U>::value);
         ipcNpuMessage->metadata.size = sizeof(data) + sizeof(U) * n;
         ipcNpuMessage->buf = std::make_unique<unsigned char[]>(ipcNpuMessage->metadata.size);
-        if (memcpy_s(ipcNpuMessage->buf.get(), ipcNpuMessage->metadata.size,
-                     &data, ipcNpuMessage->metadata.size) != EOK) {
+        if (memcpy_s(ipcNpuMessage->buf.get(), ipcNpuMessage->metadata.size, &data, ipcNpuMessage->metadata.size) !=
+            EOK)
+        {
             throw std::runtime_error("memcpy_s failed" + IPC_ERROR(ErrCode::MEMORY));
         }
         return ipcNpuMessage;
@@ -130,44 +148,50 @@ struct Message {
     static std::unique_ptr<Message> ConstructStrMessage(const std::string &data, const std::string &type)
     {
         std::unique_ptr<Message> ipcNpuMessage = std::make_unique<Message>(Message());
-        if (type.size() + 1 > sizeof(ipcNpuMessage->metadata.type)) {
+        if (type.size() + 1 > sizeof(ipcNpuMessage->metadata.type))
+        {
             throw std::runtime_error("Type string is too long to fit in metadata.type" + IPC_ERROR(ErrCode::PARAM));
         }
-        if (memcpy_s(ipcNpuMessage->metadata.type, sizeof(ipcNpuMessage->metadata.type),
-                     type.c_str(), type.size() + 1) != EOK) {
+        if (memcpy_s(ipcNpuMessage->metadata.type, sizeof(ipcNpuMessage->metadata.type), type.c_str(),
+                     type.size() + 1) != EOK)
+        {
             throw std::runtime_error("memcpy_s failed" + IPC_ERROR(ErrCode::MEMORY));
         }
         ipcNpuMessage->metadata.size = data.size();
         ipcNpuMessage->buf = std::make_unique<unsigned char[]>(ipcNpuMessage->metadata.size);
-        if (memcpy_s(ipcNpuMessage->buf.get(), ipcNpuMessage->metadata.size, data.c_str(), data.size()) != EOK) {
+        if (memcpy_s(ipcNpuMessage->buf.get(), ipcNpuMessage->metadata.size, data.c_str(), data.size()) != EOK)
+        {
             throw std::runtime_error("memcpy_s failed" + IPC_ERROR(ErrCode::MEMORY));
         }
         return ipcNpuMessage;
     }
 };
 
-class IpcClient {
-public:
+class IpcClient
+{
+   public:
     IpcClient(const IpcClient &) = delete;
-    IpcClient &operator = (const IpcClient &) = delete;
+    IpcClient &operator=(const IpcClient &) = delete;
     IpcClient() = default;
     bool Init();
     bool RegisterInstance(int32_t npu);
-    bool SendNpuStatus(const NpuStatus& status, const std::string& msgType);
+    bool SendNpuStatus(const NpuStatus &status, const std::string &msgType);
     std::string IpcClientNpuConfig();
     bool SyncSendMessage(const Message &message, const std::string &destName, int numRetry = 10,
-        int seepTimeUs = 10000);
+                         int seepTimeUs = 10000);
+    static std::string GetDynoIpcName(const std::string &suffix = "");
 
-private:
+   private:
+    std::string ipcName_;
     std::vector<int32_t> pids_;
-    NpuIpcEndPoint<0> ep_{ "dynoconfigclient" + GenerateUuidV4() };
+    NpuIpcEndPoint<0> ep_{"dynoconfigclient" + GenerateUuidV4()};
     std::mutex dequeLock_;
     std::deque<std::unique_ptr<Message>> msgDynoDeque_;
     std::unique_ptr<Message> ReceiveMessage();
     bool Recv();
     std::unique_ptr<Message> PollRecvMessage(int maxRetry, int sleeTimeUs);
 };
-} // namespace ipc_monitor
-} // namespace dynolog_npu
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
 
-#endif // NPU_IPC_CLIENT_H
+#endif  // NPU_IPC_CLIENT_H

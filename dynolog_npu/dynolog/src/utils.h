@@ -36,5 +36,6 @@ struct PathUtils
 bool IsRoot();
 bool CheckJsonDepth(const std::string &json_str);
 std::string GetCurrentUserHomePath();
+std::string GetHostUid();
 }  // namespace dynolog
 #endif
