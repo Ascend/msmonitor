@@ -42,7 +42,7 @@ class MetricProcessBaseTest : public ::testing::Test
 TEST_F(MetricProcessBaseTest, BuildDataIpcName_HostUidPresent)
 {
     MOCKER_CPP(&GetHostUid).stubs().will(returnValue(std::string("123")));
-    EXPECT_EQ(IpcClient::GetDynoIpcName("_data"), DYNO_IPC_NAME + std::string("_123_data"));
+    EXPECT_EQ(IpcClient::GetDynoIpcName("_data"), DYNO_IPC_NAME + std::string("_data_123"));
     GlobalMockObject::verify();
 }
 
@@ -62,11 +62,11 @@ TEST_F(MetricProcessBaseTest, BuildDataIpcName_HostUidEmpty_NoFallback)
     GlobalMockObject::verify();
 }
 
-TEST_F(MetricProcessBaseTest, BuildDataIpcName_EqualsBasePlusDataSuffix)
+TEST_F(MetricProcessBaseTest, BuildDataIpcName_DataSuffixBeforeHostUid)
 {
-    // data 名恒为 base 名 + "_data"，锁定两处调用点（IpcClient::Init 与 SendMessage）的一致性
+    // Data IPC names place the socket purpose before the host UID.
     MOCKER_CPP(&GetHostUid).stubs().will(returnValue(std::string("555")));
-    EXPECT_EQ(IpcClient::GetDynoIpcName("_data"), IpcClient::GetDynoIpcName() + "_data");
+    EXPECT_EQ(IpcClient::GetDynoIpcName("_data"), DYNO_IPC_NAME + std::string("_data_555"));
     GlobalMockObject::verify();
 }
 
@@ -85,7 +85,7 @@ TEST_F(MetricProcessBaseTest, MockedGetHostUidNonEmpty_SuffixAppended)
     MOCKER_CPP(&GetHostUid).stubs().will(returnValue(std::string("88888")));
     std::string uid = GetHostUid();
     EXPECT_EQ(uid, "88888");
-    EXPECT_EQ(IpcClient::GetDynoIpcName("_data"), DYNO_IPC_NAME + "_88888_data");
+    EXPECT_EQ(IpcClient::GetDynoIpcName("_data"), DYNO_IPC_NAME + "_data_88888");
     GlobalMockObject::verify();
 }
 
