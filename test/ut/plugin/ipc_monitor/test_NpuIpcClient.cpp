@@ -80,7 +80,7 @@ TEST_F(NpuIpcClientTest, GetDynoIpcName_HostUidEmpty_NoHostnameFallback)
 TEST_F(NpuIpcClientTest, GetDynoIpcName_Suffix_HostUidPresent)
 {
     MOCKER_CPP(&GetHostUid).stubs().will(returnValue(std::string("88888")));
-    EXPECT_EQ(IpcClient::GetDynoIpcName("_data"), DYNO_IPC_NAME + std::string("_88888_data"));
+    EXPECT_EQ(IpcClient::GetDynoIpcName("_data"), DYNO_IPC_NAME + std::string("_data_88888"));
     GlobalMockObject::verify();
 }
 
@@ -98,11 +98,11 @@ TEST_F(NpuIpcClientTest, GetDynoIpcName_DefaultSuffixIsEmpty)
     GlobalMockObject::verify();
 }
 
-TEST_F(NpuIpcClientTest, GetDynoIpcName_SuffixComposition)
+TEST_F(NpuIpcClientTest, GetDynoIpcName_SuffixBeforeHostUid)
 {
-    // data 名恒为 base 名 + suffix，与 MetricProcessBase 的使用方式一致
+    // Keep the socket purpose before the host UID: dynolog_data_<host_uid>.
     MOCKER_CPP(&GetHostUid).stubs().will(returnValue(std::string("XYZ")));
-    EXPECT_EQ(IpcClient::GetDynoIpcName("_data"), IpcClient::GetDynoIpcName() + "_data");
+    EXPECT_EQ(IpcClient::GetDynoIpcName("_data"), DYNO_IPC_NAME + std::string("_data_XYZ"));
     GlobalMockObject::verify();
 }
 

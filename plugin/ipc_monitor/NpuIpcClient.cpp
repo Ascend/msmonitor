@@ -26,7 +26,7 @@ namespace ipc_monitor
 std::string IpcClient::GetDynoIpcName(const std::string &suffix)
 {
     auto hostUid = GetHostUid();
-    auto ipcName = (hostUid.empty() ? DYNO_IPC_NAME : DYNO_IPC_NAME + "_" + hostUid) + suffix;
+    auto ipcName = (hostUid.empty() ? DYNO_IPC_NAME + suffix : DYNO_IPC_NAME + suffix + "_" + hostUid);
     return ipcName;
 }
 
