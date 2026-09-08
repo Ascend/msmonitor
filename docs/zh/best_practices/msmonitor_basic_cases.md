@@ -328,7 +328,7 @@ dyno --certs-dir NO_CERTS npu-monitor --npu-monitor-start --mspti-activity-kind 
 
 在 torch 调用 `new_group` 接口创建通信域时，可以通过 `pg_options` 参数传入用户自定义的信息，例如 group_name、hccl_buffer_size 等。在 TorchNPU中，`pg_options` 参数对应的对象是 `torch_npu._C_.distributed_c10d.ProcessGroupHccl.Options`，通过在该对象中设置 group_name，即可在 msMonitor 中查看该通信域的信息。
 
-![torch_new_group](../figures/torch_new_group.png)
+`new_group` 接口详细介绍请参见“[Groups](https://docs.pytorch.org/docs/2.9/distributed.html#torch.distributed.new_group)”。
 
 如果用户需要采集并行策略通信域的信息，需要在 torch 调用 `new_group` 接口时，传入 group_name 参数，以Megatron/MindSpeed为例：
 

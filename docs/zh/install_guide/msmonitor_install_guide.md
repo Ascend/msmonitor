@@ -35,7 +35,7 @@ msMonitor工具仅支持在Linux系统下使用，兼容aarch64和x86 CPU架构�
 
 ```bash
 cd ~
-git clone https://gitcode.com/Ascend/msmonitor.git
+git clone https://gitcode.com/Ascend/msmonitor.git -b master
 ```
 
 > 可选：如需安装openssl（RPC TLS认证）& 生成证书密钥，请参考 [第5节](#5-安装opensslrpc-tls认证生成证书密钥)。
@@ -131,7 +131,7 @@ python3 -c "import msmonitor; print('All is OK')"
 
 升级即“先卸后装”。直接执行安装命令，工具将自动卸载旧版本，并引导您完成覆盖安装。
 
-可通过`dyno --version`命令查看当前环境的版本信息，再选择需要升级的版本。升级版本时需要关注版本配套关系，请参见《[版本说明](https://gitcode.com/Ascend/release-management/blob/master/MindStudio/26.1.0/release_notes.md)》。
+可通过`dyno --version`命令查看当前环境的版本信息，再选择需要升级的版本。升级版本时需要关注版本配套关系，请参见《[版本说明](https://gitcode.com/Ascend/release-management/blob/master/MindStudio/master/release_notes.md)》。
 
 ## 5. 安装openssl（RPC TLS认证）生成证书密钥
 

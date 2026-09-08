@@ -12,6 +12,8 @@
 
 </div>
 
+简体中文 | [English](./README_EN.md)
+
 ## ✨ 最新消息
 
 - [2025.12.30] MindStudio Monitor 项目全面开源
