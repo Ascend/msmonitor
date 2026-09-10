@@ -2,21 +2,21 @@
 
 ## mindstudio_monitor Module
 
-Provides inter-process communication (IPC) interfaces and the capability of independently controlling MSPTI Monitor to collect and obtain profile data.
+Provides inter-process communication (IPC) interfaces and the capability of independently controlling msPTI Monitor to collect and obtain profile data.
 
 1. IPC control channel: The profiler backend obtains the profiler configuration from the dynolog daemon.
-2. IPC data channel: MSPTI Monitor sends profile data to the dynolog daemon.
+2. IPC data channel: msPTI Monitor sends profile data to the dynolog daemon.
 3. Lightweight profile data collection
 
-  * Starts or stops MSPTI Monitor to collect data.
-  * Obtains the profile data collected by MSPTI Monitor online.
-  * Exports the profile data collected by MSPTI Monitor to the local PC in Excel format.
+  * Starts or stops msPTI Monitor to collect data.
+  * Obtains the profile data collected by msPTI Monitor online.
+  * Exports the profile data collected by msPTI Monitor to the local PC in Excel format.
 
 ### PyDynamicMonitorProxy API
 
 Communicates with the dynolog daemon through IPC, and sends registration requests and profiler configuration parameters to the dynolog daemon. You do not need to directly call this API.
 
-* `init_dyno` sends registration requests the dynolog daemon.
+* `init_dyno` sends registration requests to the dynolog daemon.
   * Input: npu_id(int)
   * Return: None
 * `poll_dyno` obtains profiler control parameters from the dynolog daemon.
@@ -34,9 +34,11 @@ Communicates with the dynolog daemon through IPC, and sends registration request
 
 ### Monitor Feature APIs
 
+For usage examples of the Monitor API, see [monitor_feature.md](./monitor_feature.md).
+
 ### ActivityKind Enumeration Class
 
-This enumeration class defines the types of the data can be collected by MSPTI Monitor and is used to configure the monitor module. Each enumerated value corresponds to a data type.
+This enumeration class defines the types of the data can be collected by msPTI Monitor and is used to configure the monitor module. Each enumerated value corresponds to a data type.
 
   * ActivityKind.Marker: collects mstx dotting data and returns the marker data structure.
   * ActivityKind.Kernel: collects the time consumption data of compute operators and returns the kernel data structure.
@@ -112,4 +114,4 @@ Defines the profile data structure collected by monitor.
 
 ## Installation
 
-For details about how to install the mindstudio_monitor module, see [msMonitor Installation Guide](./install_guide.md).
+For details about how to install the mindstudio_monitor module, see [msMonitor Installation Guide](../install_guide/msmonitor_install_guide.md).
