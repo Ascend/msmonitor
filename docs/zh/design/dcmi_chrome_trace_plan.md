@@ -357,7 +357,7 @@ v2 为**扁平 dev_id 模型**（单参），结构体布局与 v1 一致：
 | `dcmiv2_get_device_utilization_rate` | `int(int dev_id, int type, unsigned int *)` | type 2/3/12/13/14 |
 | `dcmiv2_get_device_aicore_info` / `aicpu_info` / `hbm_info` / `multi_utilization_rate` | `int(int dev_id, struct *)` | 结构体与 v1 一致 |
 
-**910B（Atlas 中心训练卡）实测发现的限制**（2026-08-22 服务器，npu-smi 确认 Chip=910B3）：
+**910B（Atlas中心训练卡）实测发现的限制**（2026-08-22 服务器，npu-smi 确认 Chip=910B3）：
 
 | utilization type | 名称 | 文档支持（910B 训练卡） | 实测 |
 |---|---|---|---|
@@ -541,9 +541,9 @@ flowchart LR
 
 ## 参考资料
 
-- Atlas A2 中心推理和训练硬件 26.1.x DCMI API 参考 02（PDF）
-- Atlas A3 中心推理和训练硬件 26.1.x DCMI API 参考 02（PDF）
-- Atlas 中心训练卡 26.1.x DCMI API 参考 02（PDF）
+- Atlas A2中心推理和训练硬件 26.1.x DCMI API 参考 02（PDF）
+- Atlas A3中心推理和训练硬件 26.1.x DCMI API 参考 02（PDF）
+- Atlas中心训练卡 26.1.x DCMI API 参考 02（PDF）
 - 950（Ascend950DT）`/usr/local/dcmi/dcmi_interface_api.h`（v2 签名来源，已实测核对）
 - [Ascend/msmonitor !133 support dcmi collect](https://gitcode.com/Ascend/msmonitor/pull/133)
 

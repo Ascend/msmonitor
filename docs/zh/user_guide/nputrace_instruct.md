@@ -88,20 +88,20 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
    ```bash
    # 示例1：从第10个step开始采集，采集2个step，采集框架、CANN和device数据，同时采集完后自动解析以及解析完成不做数据精简，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
-   
+
    # 示例2：从下一个step开始采集，采集2个step，采集框架、CANN和device数据，同时采集完后自动解析以及解析完成不做数据精简，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step -1 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
-   
+
    # 示例3：从第10个step开始采集，采集2个step，只采集CANN和device数据，同时采集完后自动解析以及解析完成后开启数据精简，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities NPU --analyse --data-simplification true --log-file /tmp/profile_data
-   
+
    # 示例4：从第10个step开始采集，采集2个step，只采集CANN和device数据，只采集不解析，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities NPU --log-file /tmp/profile_data
-   
+
    # 示例5：多机场景下向特定机器x.x.x.x发送参数信息，参数表示从第10个step开始采集，采集2个step，只采集CANN和device数据，只采集不解析，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs --hostname x.x.x.x nputrace --start-step 10 --iterations 2 --activities NPU --log-file /tmp/profile_data
    ```
 
 ## 输出结果文件说明
 
-nputrace落盘的数据格式和交付件包含PyTorch和MindSpore框架数据，详细介绍可参考Ascend PyTorch调优工具的[输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
+nputrace落盘的数据格式和交付件包含PyTorch和MindSpore框架数据，详细介绍可参考Ascend PyTorch调优工具的[输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/v2.14.0-26.2.0/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
