@@ -2,9 +2,9 @@
 
 ## ℹ️ 简介
 
-MindStudio Monitor（msMonitor）是面向昇腾集群场景的在线性能监测与动态采集工具， 基于 [dynolog](https://github.com/facebookincubator/dynolog)（Meta CPU-GPU监控系统）和 [msPTI](https://gitcode.com/Ascend/mspti/blob/master/docs/zh/quick_start/mspti_quick_start.md)（MindStudio Profiler Tools Interface，MindStudio 性能分析工具接口）构建，支持`npu-monitor`、`nputrace`和`Monitor API`等能力。
+MindStudio Monitor（msMonitor）是面向昇腾集群场景的在线性能监测与动态采集工具， 基于 [dynolog](https://github.com/facebookincubator/dynolog)（Meta CPU-GPU监控系统）和 [msPTI](https://gitcode.com/Ascend/mspti/blob/26.2.0/docs/zh/quick_start/mspti_quick_start.md)（MindStudio Profiler Tools Interface，MindStudio 性能分析工具接口）构建，支持`npu-monitor`、`nputrace`和`Monitor API`等能力。
 
-支持的框架Profiler工具：[Ascend PyTorch Profiler](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md)和[MindSpore Profiler](https://gitcode.com/Ascend/docs/blob/master/MindStudio/master/zh/menu/mindspore_profiler_user_guide.md)
+支持的框架Profiler工具：[Ascend PyTorch Profiler](https://gitcode.com/Ascend/pytorch/blob/v2.14.0-26.2.0/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md)和[MindSpore Profiler](https://gitcode.com/Ascend/docs/blob/master/MindStudio/26.2.0/zh/menu/mindspore_profiler_user_guide.md)
 
 ![msMonitor](./figures/msMonitor.png)
 
@@ -22,22 +22,22 @@ MindStudio Monitor（msMonitor）是面向昇腾集群场景的在线性能监�
 > 昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
 
 <!-- npu="950" id1 -->
-- Ascend 950PR&950DT 系列产品：支持
+- Ascend 950PR&950DT系列产品：支持
 <!-- end id1 -->
 <!-- npu="A3" id2 -->
-- Atlas A3 系列产品：支持
+- Atlas A3系列产品：支持
 <!-- end id2 -->
 <!-- npu="910b" id3 -->
-- Atlas A2 系列产品：支持
+- Atlas A2系列产品：支持
 <!-- end id3 -->
 <!-- npu="310b" id4 -->
-- Atlas 200I/500 A2 推理产品：支持
+- Atlas 200I/500 A2推理产品：支持
 <!-- end id4 -->
 <!-- npu="310p" id5 -->
-- Atlas 推理系列产品：不支持
+- Atlas推理系列产品：不支持
 <!-- end id5 -->
 <!-- npu="910" id6 -->
-- Atlas 训练系列产品：不支持
+- Atlas训练系列产品：不支持
 <!-- end id6 -->
 
 ## ⚙️ 功能介绍

@@ -20,10 +20,10 @@
 
 ## ℹ️ 简介
 
-MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监测与动态采集工具，基于 [dynolog][dynolog]（Meta CPU-GPU监控系统） 和 [msPTI][mspti]（MindStudio Profiler Tools Interface，MindStudio 性能分析工具接口）构建，支持`npu-monitor`、`nputrace`和`Monitor API`等能力。
+MindStudio Monitor（`msMonitor`）是面向昇腾集群场景的在线性能监测与动态采集工具，基于 [dynolog](https://github.com/facebookincubator/dynolog)（Meta CPU-GPU监控系统） 和 [msPTI](https://gitcode.com/Ascend/mspti/blob/26.2.0/docs/zh/quick_start/mspti_quick_start.md)（MindStudio Profiler Tools Interface，MindStudio 性能分析工具接口）构建，支持`npu-monitor`、`nputrace`和`Monitor API`等能力。
 
-支持框架 Profiler：[Ascend PyTorch Profiler][ascend-pytorch-profiler] |
-[MindSpore Profiler][mindspore-profiler]
+支持框架 Profiler：[Ascend PyTorch Profiler](https://gitcode.com/Ascend/pytorch/blob/v2.14.0-26.2.0/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md) |
+[MindSpore Profiler](https://gitcode.com/Ascend/docs/blob/master/MindStudio/26.2.0/zh/menu/mindspore_profiler_user_guide.md)
 
 ![msMonitor](./docs/zh/figures/msMonitor.png)
 
@@ -113,8 +113,3 @@ msMonitor 在大模型训练&推理场景下的使用案例，请参见《[msMon
 🔹 昇腾计算MindStudio开发部<br>
 🔹 2012 欧拉实验室<br>
 感谢来自社区的每一个 PR，欢迎贡献！
-
-[dynolog]: https://github.com/facebookincubator/dynolog
-[mspti]: https://gitcode.com/Ascend/mspti/blob/master/docs/zh/quick_start/mspti_quick_start.md
-[ascend-pytorch-profiler]: https://gitcode.com/Ascend/pytorch/blob/v2.7.1/docs/zh/ascend_pytorch_profiler/ascend_pytorch_profiler_user_guide.md
-[mindspore-profiler]: https://gitcode.com/Ascend/docs/blob/master/MindStudio/master/mindspore_profiler_user_guide.md
