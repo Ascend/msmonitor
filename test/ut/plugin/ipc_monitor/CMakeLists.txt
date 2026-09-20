@@ -13,6 +13,7 @@ set(TEST_SOURCES
     test_DcmiMonitorSession.cpp
     test_NpuIpcClient.cpp
     test_MetricProcessBase.cpp
+    test_MetricManager.cpp
 )
 
 find_package(Python 3.9 REQUIRED COMPONENTS Interpreter Development)

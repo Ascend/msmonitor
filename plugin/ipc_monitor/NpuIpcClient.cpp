@@ -187,6 +187,13 @@ bool IpcClient::Recv()
         }
         if (successFlag)
         {
+            if (recvMetadata.size > MAX_IPC_MESSAGE_SIZE)
+            {
+                LOG(ERROR) << "Received message size " << recvMetadata.size << " exceeds maximum "
+                           << MAX_IPC_MESSAGE_SIZE << ", message will be ignored";
+                (void)ep_.TryRcvMessage(*peekCtxt);
+                return false;
+            }
             std::unique_ptr<Message> npuMessage = std::make_unique<Message>(Message());
             npuMessage->metadata = recvMetadata;
             npuMessage->buf = std::make_unique<unsigned char[]>(recvMetadata.size);
@@ -194,6 +201,7 @@ bool IpcClient::Recv()
             if (srcName == nullptr)
             {
                 LOG(ERROR) << "Failed to get source name from peek context";
+                (void)ep_.TryRcvMessage(*peekCtxt);
                 return false;
             }
             npuMessage->src = std::string(srcName);
