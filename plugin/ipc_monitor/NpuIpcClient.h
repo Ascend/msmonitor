@@ -36,6 +36,7 @@ constexpr int JOB_ID = 0;
 constexpr const int DYNO_IPC_TYPE = 3;
 constexpr const int MAX_IPC_RETRIES = 5;
 constexpr const int MAX_SLEEP_US = 10000;
+constexpr size_t MAX_IPC_MESSAGE_SIZE = 4096;
 const std::string DYNO_IPC_NAME = "dynolog";
 const std::string MSG_TYPE_REQUEST = "req";
 const std::string MSG_TYPE_CONTEXT = "ctxt";

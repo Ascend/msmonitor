@@ -14,22 +14,29 @@
  * limitations under the License.
  */
 #include "MetricManager.h"
-#include "MetricKernelProcess.h"
+
 #include "MetricApiProcess.h"
-#include "MetricMemCpyProcess.h"
-#include "MetricHcclProcess.h"
-#include "MetricMarkProcess.h"
-#include "MetricMemSetProcess.h"
-#include "MetricMemProcess.h"
 #include "MetricCommunicationProcess.h"
+#include "MetricHcclProcess.h"
+#include "MetricKernelProcess.h"
+#include "MetricMarkProcess.h"
+#include "MetricMemCpyProcess.h"
+#include "MetricMemProcess.h"
+#include "MetricMemSetProcess.h"
 #include "utils.h"
 
-namespace dynolog_npu {
-namespace ipc_monitor {
-namespace metric {
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace metric
+{
 
-MetricManager::MetricManager(): MsptiDataProcessBase("MetricManager"),
-    kindSwitchs_(MSPTI_ACTIVITY_KIND_COUNT), consumeStatus_(MSPTI_ACTIVITY_KIND_COUNT) {
+MetricManager::MetricManager()
+    : MsptiDataProcessBase("MetricManager"),
+      kindSwitches_(MSPTI_ACTIVITY_KIND_COUNT),
+      consumeStatus_(MSPTI_ACTIVITY_KIND_COUNT)
+{
     metrics.resize(MSPTI_ACTIVITY_KIND_COUNT);
     metrics[MSPTI_ACTIVITY_KIND_KERNEL] = std::make_shared<MetricKernelProcess>();
     metrics[MSPTI_ACTIVITY_KIND_API] = std::make_shared<MetricApiProcess>("API");
@@ -46,9 +53,16 @@ MetricManager::MetricManager(): MsptiDataProcessBase("MetricManager"),
 
 void MetricManager::RunPostTask()
 {
-    for (int i = 0; i < MSPTI_ACTIVITY_KIND_COUNT; i++) {
-        if (kindSwitchs_[i].load()) {
-            kindSwitchs_[i] = false;
+    for (int i = 0; i < MSPTI_ACTIVITY_KIND_COUNT; i++)
+    {
+        if (kindSwitches_[i].load())
+        {
+            kindSwitches_[i] = false;
+            if (metrics[i] == nullptr)
+            {
+                LOG(ERROR) << "Metric processor is null, kind: " << i;
+                continue;
+            }
             metrics[i]->Clear();
         }
     }
@@ -56,10 +70,20 @@ void MetricManager::RunPostTask()
 
 ErrCode MetricManager::ConsumeMsptiData(msptiActivity *record)
 {
-    if (!kindSwitchs_[record->kind]) {
+    if (record->kind <= MSPTI_ACTIVITY_KIND_INVALID || record->kind >= MSPTI_ACTIVITY_KIND_COUNT)
+    {
+        return ErrCode::PARAM;
+    }
+    if (!kindSwitches_[record->kind])
+    {
         return ErrCode::PERMISSION;
     }
     auto metricProcess = metrics[record->kind];
+    if (metricProcess == nullptr)
+    {
+        LOG(ERROR) << "Metric processor is null, kind: " << static_cast<int32_t>(record->kind);
+        return ErrCode::NOT_SUPPORT;
+    }
     consumeStatus_[record->kind] = true;
     metricProcess->ConsumeMsptiData(record);
     consumeStatus_[record->kind] = false;
@@ -68,31 +92,33 @@ ErrCode MetricManager::ConsumeMsptiData(msptiActivity *record)
 
 void MetricManager::SetReportInterval(uint32_t intervalTimes)
 {
-    if (reportInterval_.load() != intervalTimes) {
+    if (reportInterval_.load() != intervalTimes)
+    {
         SendMetricMsg();
         SetInterval(intervalTimes);
         reportInterval_.store(intervalTimes);
     }
 }
 
-void MetricManager::ExecuteTask()
-{
-    SendMetricMsg();
-}
+void MetricManager::ExecuteTask() { SendMetricMsg(); }
 
 void MetricManager::SendMetricMsg()
 {
-    for (int i = 0; i < MSPTI_ACTIVITY_KIND_COUNT; i++) {
-        if (kindSwitchs_[i].load()) {
+    for (int i = 0; i < MSPTI_ACTIVITY_KIND_COUNT; i++)
+    {
+        if (kindSwitches_[i].load())
+        {
+            if (metrics[i] == nullptr)
+            {
+                LOG(ERROR) << "Metric processor is null, kind: " << i;
+                continue;
+            }
             metrics[i]->SendProcessMessage();
         }
     }
 }
 
-void MetricManager::EnableKindSwitch(msptiActivityKind kind, bool flag)
-{
-    kindSwitchs_[kind] = flag;
-}
-} // namespace metric
-} // namespace ipc_monitor
-} // namespace dynolog_npu
+void MetricManager::EnableKindSwitch(msptiActivityKind kind, bool flag) { kindSwitches_[kind] = flag; }
+}  // namespace metric
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
