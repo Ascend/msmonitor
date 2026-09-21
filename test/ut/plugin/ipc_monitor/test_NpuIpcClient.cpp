@@ -20,6 +20,16 @@
 
 using namespace dynolog_npu::ipc_monitor;
 
+namespace
+{
+bool PeekOversizedMessage(NpuIpcEndPointCtxt<0> &ctxt)
+{
+    auto *metadata = static_cast<Metadata *>(ctxt.iov[0].iov_base);
+    metadata->size = MAX_IPC_MESSAGE_SIZE + 1;
+    return true;
+}
+}  // namespace
+
 class NpuIpcClientTest : public ::testing::Test
 {
    protected:
@@ -167,6 +177,17 @@ TEST_F(NpuIpcClientTest, IpcClientNpuConfig_NoServer_ReturnsEmpty)
     EXPECT_NO_THROW(cfg = client.IpcClientNpuConfig());
     // Without server, cfg should be empty string
     EXPECT_EQ(cfg, "");
+}
+
+TEST_F(NpuIpcClientTest, IpcClientNpuConfig_OversizedMessageIsRejected)
+{
+    MOCKER_CPP(&IpcClient::SyncSendMessage).stubs().will(returnValue(true));
+    MOCKER_CPP(&NpuIpcEndPoint<0>::TryPeekMessage).stubs().will(invoke(PeekOversizedMessage));
+    MOCKER_CPP(&NpuIpcEndPoint<0>::TryRcvMessage).stubs().will(returnValue(true));
+    MOCKER_CPP(&NpuIpcEndPoint<0>::GetName).expects(never());
+
+    IpcClient client;
+    EXPECT_TRUE(client.IpcClientNpuConfig().empty());
 }
 
 int main(int argc, char **argv)

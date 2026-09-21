@@ -16,16 +16,21 @@
 #ifndef METRIC_MANAGER_H
 #define METRIC_MANAGER_H
 
-#include <vector>
 #include <atomic>
-#include "MsptiDataProcessBase.h"
-#include "MetricProcessBase.h"
+#include <vector>
 
-namespace dynolog_npu {
-namespace ipc_monitor {
-namespace metric {
-class MetricManager : public MsptiDataProcessBase {
-public:
+#include "MetricProcessBase.h"
+#include "MsptiDataProcessBase.h"
+
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace metric
+{
+class MetricManager : public MsptiDataProcessBase
+{
+   public:
     MetricManager();
     ~MetricManager() = default;
     ErrCode ConsumeMsptiData(msptiActivity *record) override;
@@ -34,15 +39,16 @@ public:
     void EnableKindSwitch(msptiActivityKind kind, bool flag) override;
     void RunPostTask() override;
 
-private:
+   private:
     void SendMetricMsg();
-private:
-    std::vector<std::atomic<bool>> kindSwitchs_;
+
+   private:
+    std::vector<std::atomic<bool>> kindSwitches_;
     std::vector<std::atomic<bool>> consumeStatus_;
     std::atomic<uint32_t> reportInterval_;
     std::vector<std::shared_ptr<MetricProcessBase>> metrics;
 };
-} // namespace metric
-} // namespace ipc_monitor
-} // namespace dynolog_npu
-#endif // METRIC_MANAGER_H
+}  // namespace metric
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
+#endif  // METRIC_MANAGER_H
