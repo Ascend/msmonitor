@@ -31,7 +31,8 @@ jobs:
     # l0_ascend_msmonitor_communication 用例需要双卡 NPU，单卡 runner 上失败属环境限制，不阻断流水线
     continue-on-error: true
     env:
-      ARTIFACT_NAME: ${{ format('{0}-{1}', inputs.ARTIFACT_NAME, atomgit.run_number) }}
+      ARTIFACT_NAME_WHL: ${{ format('{0}-whl-{1}', inputs.ARTIFACT_NAME, atomgit.run_number) }}
+      ARTIFACT_NAME_DYNO: ${{ format('{0}-dyno-{1}', inputs.ARTIFACT_NAME, atomgit.run_number) }}
     select: selected_by_default
     runs-on: [ self-hosted, npu=2 ]
     container:
@@ -41,7 +42,12 @@ jobs:
       - name: Download artifacts
         uses: download-artifact
         with:
-          name: ${{ env.ARTIFACT_NAME }}
+          name: ${{ env.ARTIFACT_NAME_DYNO }}
+          path: artifacts
+      - name: Download artifacts
+        uses: download-artifact
+        with:
+          name: ${{ env.ARTIFACT_NAME_WHL }}
           path: artifacts
       - name: PreSmoke
         run: |
@@ -60,17 +66,13 @@ jobs:
           BASE_COMMIT=$(git merge-base origin/${{ inputs.TARGET_BRANCH }} new_${{ inputs.pr_id }})
           git diff --name-only $BASE_COMMIT HEAD > /tmp/modify_files.txt
 
-          cd /tmp/
-          # 清理旧的 whl 包
-          rm -f mindstudio_monitor-*.whl
-          rm -f dynolog_0.*.aarch64.rpm
+          cd ${ATOMGIT_WORKSPACE}
 
-          wget https://mindstudio-pr.obs.cn-north-4.myhuaweicloud.com/msmonitor/pr/${inputs.pr_id}/dynolog_0.3.2_1.aarch64.rpm
-          wget https://mindstudio-pr.obs.cn-north-4.myhuaweicloud.com/msmonitor/pr/${inputs.pr_id}/mindstudio_monitor-1.0.0-cp39-cp39-linux_aarch64.whl
-          cd ${CODE_PARENT_DIR}
           # 执行安装
-          sudo rpm -ivh /tmp/dynolog*.rpm --force --nodeps
-          pip install /tmp/mindstudio_monitor-*.whl --force-reinstall
+          sudo rpm -ivh ./artifacts/dynolog*.rpm --force --nodeps
+          pip install ./artifacts/mindstudio_monitor-*.whl --force-reinstall
+
+          cd CODE
 
           mkdir -p third_party/dynolog/build/bin/
           cp /usr/local/bin/dynolog third_party/dynolog/build/bin/
