@@ -1,4 +1,4 @@
-# msmonitor DCMI 采集 + Chrome Trace 分层可视化 技术方案设计（RFC）
+# msmonitor DCMI 采集 + Chrome Trace 分层可视化技术方案设计（RFC）
 
 **状态（Status）**：Draft
 
@@ -332,7 +332,7 @@ flowchart LR
 | `dcmi_get_device_temperature` | `(card, dev, int *temp)` | ℃ | 三代一致 |
 | `dcmi_get_device_aicore_info` | `struct {freq, cur_freq}` | MHz | 三代一致 |
 | `dcmi_get_device_aicpu_info` | `struct {max_freq, cur_freq, aicpu_num, util_rate[]}` | MHz | 三代一致 |
-| `dcmi_get_device_hbm_info` | `struct {memory_size, freq, memory_usage, temp, bandwith_util_rate}` | MB/MHz/%/℃ | 三代一致 |
+| `dcmi_get_device_hbm_info` | `struct {memory_size, freq, memory_usage, temp, bandwidth_util_rate}` | MB/MHz/%/℃ | 三代一致 |
 | `dcmi_get_device_multi_utilization_rate` | `struct {aic_util, aiv_util, aicore_util, npu_util}` | % | 三代一致 |
 | `dcmi_get_device_utilization_rate` | `(card, dev, type, unsigned int*)` | % | A2/A3 支持 2,3,4,6,10,12,13,14；A5 支持 1,2,3,4,5,6,10 |
 | `dcmi_get_device_id_in_card` | `(card, &device_id_max, &mcu_id, &cpu_id)` | - | **A2/A5 每卡 1 片 NPU，A3 每卡 2 片 NPU** |
@@ -377,7 +377,7 @@ v2 为**扁平 dev_id 模型**（单参），结构体布局与 v1 一致：
 
 ```mermaid
 flowchart TD
-    A[启用 AICORE 利用率 kind] --> B{multi_utilization_rate<br/>符号存在?}
+    A[启用 AICORE 利用率 kind] --> B{multi_utilization_rate<br/>符号存在？}
     B -- 是 --> C[probe 一次调用]
     C -- 成功 --> D[MultiUtilMetric 采集]
     C -- 失败 --> E[记录原因]

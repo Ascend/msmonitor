@@ -157,7 +157,7 @@
      ```bash
      # Debian/Ubuntu:
      sudo dpkg -r dynolog
-     sudo dpkg -i dynolog_{version}_{arch}.deb --ignore-depends
+     sudo dpkg -i --force-depends dynolog_{version}_{arch}.deb
 
      # CentOS/RHEL/OpenSUSE:
      sudo rpm -e dynolog
