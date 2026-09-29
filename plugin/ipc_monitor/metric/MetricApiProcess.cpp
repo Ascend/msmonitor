@@ -1,28 +1,33 @@
 /*
- * Copyright (C) 2025-2025. Huawei Technologies Co., Ltd. All rights reserved.
+ * -------------------------------------------------------------------------
+ * This file is part of the MindStudio project.
+ * Copyright (c) 2026 Huawei Technologies Co.,Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * MindStudio is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *          http://license.coscl.org.cn/MulanPSL2
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ * -------------------------------------------------------------------------
  */
 #include "MetricApiProcess.h"
 
-#include <numeric>
 #include <nlohmann/json.hpp>
+#include <numeric>
 
 #include "utils.h"
 
-namespace dynolog_npu {
-namespace ipc_monitor {
-namespace metric {
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace metric
+{
 
 std::string ApiMetric::seriesToJson() const
 {
@@ -34,12 +39,13 @@ std::string ApiMetric::seriesToJson() const
     return jsonMsg.dump();
 }
 
-void MetricApiProcess::ConsumeMsptiData(msptiActivity *record)
+void MetricApiProcess::ConsumeMsptiData(msptiActivity* record)
 {
     msptiActivityApi* apiData = ReinterpretConvert<msptiActivityApi*>(record);
     std::shared_ptr<msptiActivityApi> tmp;
     MakeSharedPtr(tmp);
-    if (tmp == nullptr || memcpy_s(tmp.get(), sizeof(msptiActivityApi), apiData, sizeof(msptiActivityApi)) != EOK) {
+    if (tmp == nullptr || memcpy_s(tmp.get(), sizeof(msptiActivityApi), apiData, sizeof(msptiActivityApi)) != EOK)
+    {
         LOG(ERROR) << "memcpy_s failed " << IPC_ERROR(ErrCode::MEMORY);
         return;
     }
@@ -57,14 +63,14 @@ std::vector<ApiMetric> MetricApiProcess::AggregatedData()
         copyRecords = std::move(records);
         records.clear();
     }
-    if (copyRecords.empty()) {
+    if (copyRecords.empty())
+    {
         return {};
     }
     ApiMetric apiMetric{};
     auto ans = std::accumulate(copyRecords.begin(), copyRecords.end(), 0ULL,
-        [](uint64_t acc, std::shared_ptr<msptiActivityApi> api) {
-                    return acc + api->end - api->start;
-                });
+                               [](uint64_t acc, std::shared_ptr<msptiActivityApi> api)
+                               { return acc + api->end - api->start; });
     apiMetric.duration = ans;
     apiMetric.deviceId = -1;
     apiMetric.timestamp = getCurrentTimestamp64();
@@ -75,15 +81,13 @@ std::vector<ApiMetric> MetricApiProcess::AggregatedData()
 void MetricApiProcess::SendProcessMessage()
 {
     auto afterAggregated = AggregatedData();
-    for (auto& metric: afterAggregated) {
+    for (auto& metric : afterAggregated)
+    {
         SendMessage(metric.seriesToJson());
     }
 }
 
-void MetricApiProcess::Clear()
-{
-    records.clear();
-}
-} // namespace metric
-} // namespace ipc_monitor
-} // namespace dynolog_npu
+void MetricApiProcess::Clear() { records.clear(); }
+}  // namespace metric
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu

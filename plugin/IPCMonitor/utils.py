@@ -1,17 +1,18 @@
-# Copyright (c) 2025, Huawei Technologies Co., Ltd.
-# All rights reserved.
+# -------------------------------------------------------------------------
+# This file is part of the MindStudio project.
+# Copyright (c) 2025 Huawei Technologies Co.,Ltd.
 #
-# Licensed under the Apache License, Version 2.0  (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# MindStudio is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#          http://license.coscl.org.cn/MulanPSL2
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
+# -------------------------------------------------------------------------
 
 import os
 import json
@@ -23,6 +24,7 @@ def get_pytorch_rank_id() -> Optional[int]:
     """Get pytorch rank id."""
     try:
         import torch
+
         rank_id = os.environ.get("RANK")
         if rank_id is None and torch.distributed.is_available() and torch.distributed.is_initialized():
             rank_id = torch.distributed.get_rank()
@@ -38,6 +40,7 @@ def get_pytorch_parallel_group_info() -> str:
     try:
         import torch
         from torch.distributed.distributed_c10d import _world as distributed_world
+
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             group_info = {}
             global_rank = torch.distributed.get_rank()
@@ -50,7 +53,7 @@ def get_pytorch_parallel_group_info() -> str:
                     group_info[comm_name] = {
                         "group_name": hccl_group.options.hccl_config.get("group_name", ""),
                         "group_rank": torch.distributed.get_group_rank(group, global_rank),
-                        "global_ranks": torch.distributed.get_process_group_ranks(group)
+                        "global_ranks": torch.distributed.get_process_group_ranks(group),
                     }
             default_group = torch.distributed.distributed_c10d._get_default_group()
             comm_name = default_group._get_backend(torch.device("npu")).get_hccl_comm_name(global_rank, init_comm=False)
@@ -58,7 +61,7 @@ def get_pytorch_parallel_group_info() -> str:
                 group_info[comm_name] = {
                     "group_name": "default_group",
                     "group_rank": torch.distributed.get_group_rank(default_group, global_rank),
-                    "global_ranks": torch.distributed.get_process_group_ranks(default_group)
+                    "global_ranks": torch.distributed.get_process_group_ranks(default_group),
                 }
             if group_info:
                 return json.dumps(group_info)
@@ -71,6 +74,7 @@ def get_mindspore_rank_id() -> Optional[int]:
     """Get mindspore rank id."""
     try:
         import mindspore.communication as comm
+
         rank_id = os.environ.get("RANK_ID")
         if rank_id is None and comm.GlobalComm.INITED:
             rank_id = comm.get_rank()
@@ -86,6 +90,7 @@ def get_mindspore_parallel_group_info() -> str:
     try:
         import mindspore.communication as comm
         import mindspore.communication._comm_helper as comm_helper
+
         if comm.GlobalComm.INITED and comm.GlobalComm.BACKEND == comm_helper.Backend.HCCL:
             group_info = {}
             for group_name in comm_helper._get_group_map().keys():
@@ -95,7 +100,7 @@ def get_mindspore_parallel_group_info() -> str:
                 group_info[comm_name] = {
                     "group_name": group_name,
                     "group_rank": comm.get_local_rank(group_name),
-                    "global_ranks": comm.get_process_group_ranks(group_name)
+                    "global_ranks": comm.get_process_group_ranks(group_name),
                 }
             if group_info:
                 return json.dumps(group_info)
