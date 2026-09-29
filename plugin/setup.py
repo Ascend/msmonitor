@@ -1,21 +1,22 @@
-# Copyright (c) 2025, Huawei Technologies Co., Ltd.
-# All rights reserved.
+# -------------------------------------------------------------------------
+# This file is part of the MindStudio project.
+# Copyright (c) 2025 Huawei Technologies Co.,Ltd.
 #
-# Licensed under the Apache License, Version 2.0  (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# MindStudio is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#          http://license.coscl.org.cn/MulanPSL2
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
+# -------------------------------------------------------------------------
 import os
 import sys
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import pybind11
 
 from setuptools import setup, Extension, find_namespace_packages
@@ -44,22 +45,19 @@ class CMakeBuild(build_ext):
             '-DPYTHON_EXECUTABLE=' + sys.executable,
             '-DCMAKE_PREFIX_PATH=' + pybind11.get_cmake_dir(),
             '-DCMAKE_INSTALL_PREFIX=' + ext_dir,
-            '-DCMAKE_BUILD_TYPE=' + cfg
+            '-DCMAKE_BUILD_TYPE=' + cfg,
         ]
 
         env = os.environ.copy()
-        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
-                                                             self.distribution.get_version())
+        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''), self.distribution.get_version())
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
-        subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
-        subprocess.check_call(['cmake', '--build', '.', '-j', '8'] + build_args,
-                              cwd=self.build_temp)
+        subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)  # nosec B603
+        subprocess.check_call(['cmake', '--build', '.', '-j', '8'] + build_args, cwd=self.build_temp)  # nosec B603
 
 
 class CustomBuildPy(build_py):
-
     def run(self):
         super().run()
 

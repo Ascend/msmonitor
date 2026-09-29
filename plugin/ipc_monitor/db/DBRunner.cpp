@@ -1,41 +1,48 @@
 /*
- * Copyright (C) 2025-2025. Huawei Technologies Co., Ltd. All rights reserved.
+ * -------------------------------------------------------------------------
+ * This file is part of the MindStudio project.
+ * Copyright (c) 2026 Huawei Technologies Co.,Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * MindStudio is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *          http://license.coscl.org.cn/MulanPSL2
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ * -------------------------------------------------------------------------
  */
 
 #include "db/DBRunner.h"
+
 #include <algorithm>
 
-namespace dynolog_npu {
-namespace ipc_monitor {
-namespace db {
-namespace {
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace db
+{
+namespace
+{
 std::string GetColumnsString(const std::vector<TableColumn> &columns)
 {
     std::vector<std::string> columnStrings(columns.size());
-    std::transform(columns.begin(), columns.end(), columnStrings.begin(), [](const TableColumn &column) {
-        return column.ToString();
-    });
+    std::transform(columns.begin(), columns.end(), columnStrings.begin(),
+                   [](const TableColumn &column) { return column.ToString(); });
     return join(columnStrings, ",");
 }
-}
+}  // namespace
 
 bool DBRunner::CheckTableExists(const std::string &tableName) const
 {
     std::shared_ptr<Connection> conn{nullptr};
     MakeSharedPtr(conn, path_);
-    if (conn == nullptr || !conn->IsDBOpened()) {
+    if (conn == nullptr || !conn->IsDBOpened())
+    {
         LOG(ERROR) << "Create connection failed: " << path_;
         return false;
     }
@@ -44,20 +51,23 @@ bool DBRunner::CheckTableExists(const std::string &tableName) const
 
 bool DBRunner::CreateTable(const std::string &tableName, const std::vector<TableColumn> &columns) const
 {
-    if (tableName.empty()) {
+    if (tableName.empty())
+    {
         LOG(ERROR) << "Create table failed, table name is empty";
         return false;
     }
     std::shared_ptr<Connection> conn{nullptr};
     MakeSharedPtr(conn, path_);
-    if (conn == nullptr || !conn->IsDBOpened()) {
+    if (conn == nullptr || !conn->IsDBOpened())
+    {
         LOG(ERROR) << "Create connection failed: " << path_;
         return false;
     }
     LOG(INFO) << "Create table " << tableName;
     std::string columnsString = GetColumnsString(columns);
     std::string sql = "CREATE TABLE IF NOT EXISTS " + tableName + " (" + columnsString + ")";
-    if (!conn->ExecuteCreateTable(sql)) {
+    if (!conn->ExecuteCreateTable(sql))
+    {
         LOG(ERROR) << "Create table " << tableName << " failed";
         return false;
     }
@@ -68,20 +78,23 @@ bool DBRunner::CreateTable(const std::string &tableName, const std::vector<Table
 bool DBRunner::CreateIndex(const std::string &tableName, const std::string &indexName,
                            const std::vector<std::string> &colNames) const
 {
-    if (tableName.empty() || indexName.empty() || colNames.empty()) {
+    if (tableName.empty() || indexName.empty() || colNames.empty())
+    {
         LOG(ERROR) << "Create index failed, table name or index name or column name is empty";
         return false;
     }
     std::shared_ptr<Connection> conn{nullptr};
     MakeSharedPtr(conn, path_);
-    if (conn == nullptr || !conn->IsDBOpened()) {
+    if (conn == nullptr || !conn->IsDBOpened())
+    {
         LOG(ERROR) << "Create connection failed: " << path_;
         return false;
     }
     LOG(INFO) << "Create index " << indexName << " on table " << tableName;
     std::string valueStr = join(colNames, ",");
     std::string sql = "CREATE INDEX IF NOT EXISTS " + indexName + " ON " + tableName + " (" + valueStr + ")";
-    if (!conn->ExecuteCreateIndex(sql)) {
+    if (!conn->ExecuteCreateIndex(sql))
+    {
         LOG(ERROR) << "Create index " << indexName << " on table " << tableName << " failed, sql: " << sql;
         return false;
     }
@@ -91,19 +104,22 @@ bool DBRunner::CreateIndex(const std::string &tableName, const std::string &inde
 
 bool DBRunner::DropTable(const std::string &tableName) const
 {
-    if (tableName.empty()) {
+    if (tableName.empty())
+    {
         LOG(ERROR) << "Drop table failed, table name is empty";
         return false;
     }
     std::shared_ptr<Connection> conn{nullptr};
     MakeSharedPtr(conn, path_);
-    if (conn == nullptr || !conn->IsDBOpened()) {
+    if (conn == nullptr || !conn->IsDBOpened())
+    {
         LOG(ERROR) << "Create connection failed: " << path_;
         return false;
     }
     LOG(INFO) << "Drop table " << tableName;
     std::string sql = "DROP TABLE " + tableName;
-    if (!conn->ExecuteDropTable(sql)) {
+    if (!conn->ExecuteDropTable(sql))
+    {
         LOG(ERROR) << "Drop table " << tableName << " failed";
         return false;
     }
@@ -115,12 +131,14 @@ bool DBRunner::DeleteData(const std::string &sql) const
 {
     std::shared_ptr<Connection> conn{nullptr};
     MakeSharedPtr(conn, path_);
-    if (conn == nullptr || !conn->IsDBOpened()) {
+    if (conn == nullptr || !conn->IsDBOpened())
+    {
         LOG(ERROR) << "Create connection failed: " << path_;
         return false;
     }
     LOG(INFO) << "Delete data, sql: " << sql;
-    if (!conn->ExecuteDelete(sql)) {
+    if (!conn->ExecuteDelete(sql))
+    {
         LOG(ERROR) << "Delete data failed, sql: " << sql;
         return false;
     }
@@ -132,12 +150,14 @@ bool DBRunner::UpdateData(const std::string &sql) const
 {
     std::shared_ptr<Connection> conn{nullptr};
     MakeSharedPtr(conn, path_);
-    if (conn == nullptr || !conn->IsDBOpened()) {
+    if (conn == nullptr || !conn->IsDBOpened())
+    {
         LOG(ERROR) << "Create connection failed: " << path_;
         return false;
     }
     LOG(INFO) << "Update data, sql: " << sql;
-    if (!conn->ExecuteUpdate(sql)) {
+    if (!conn->ExecuteUpdate(sql))
+    {
         LOG(ERROR) << "Update data failed, sql: " << sql;
         return false;
     }
@@ -149,19 +169,21 @@ std::vector<TableColumn> DBRunner::GetTableColumns(const std::string &tableName)
 {
     std::shared_ptr<Connection> conn{nullptr};
     MakeSharedPtr(conn, path_);
-    if (conn == nullptr || !conn->IsDBOpened()) {
+    if (conn == nullptr || !conn->IsDBOpened())
+    {
         LOG(ERROR) << "Create connection failed: " << path_;
         return {};
     }
     LOG(INFO) << "Get table columns, table name: " << tableName;
     auto cols = conn->ExecuteGetTableColumns(tableName);
-    if (cols.empty()) {
+    if (cols.empty())
+    {
         LOG(ERROR) << "Get table columns failed, table name: " << tableName;
         return cols;
     }
     LOG(INFO) << "Get table columns success, table name: " << tableName;
     return cols;
 }
-} // namespace db
-} // namespace ipc_monitor
-} // namespace dynolog_npu
+}  // namespace db
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
