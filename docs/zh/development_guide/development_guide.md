@@ -20,7 +20,7 @@ msmonitor 已内置 [devcontainer](https://containers.dev/) 开发环境配置�
 
 | 环境 | 要求 |
 |------|------|
-| PC | VS Code，安装 Dev Containers 插件 和 Remote-SSH 插件 |
+| PC | VS Code，安装 Dev Containers 插件和 Remote-SSH 插件 |
 | Linux 服务器 | Docker 服务运行中 |
 
 **使用步骤：**
@@ -175,7 +175,7 @@ cd msmonitor
 
 仓库提供统一构建脚本 `scripts/build.sh`。该脚本会：
 
-1. 检查 gcc 和 Rust 版本。
+1. 检查 GCC 和 Rust 版本。
 2. 初始化并切换 `third_party/dynolog` 子模块到指定提交。
 3. 生成并应用 Ascend 相关补丁。
 4. 构建 dyno 和 dynolog，或打包成 deb / rpm。

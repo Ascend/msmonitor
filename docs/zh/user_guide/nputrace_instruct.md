@@ -24,7 +24,7 @@ nputrace作为dyno命令的子命令，执行命令时需配置--certs-dir参数
 dyno --certs-dir <CERT_DIR> nputrace [options]
 ```
 
-`CERT_DIR`配置为证书路径，如果不使用TLS证书密钥，则设置为NO_CERTS；[options]为nputrace功能的参数，详细介绍如下**参数说明**。
+`CERT_DIR`配置为证书路径，如果不使用TLS证书密钥，则设置为NO_CERTS；`options`为nputrace功能的参数，详细介绍如下**参数说明**。
 
 **参数说明**
 
@@ -58,7 +58,7 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
 | --export-type         | 可选 | profiler解析导出数据的类型，取值为：<br/>&#8226; Text：表示解析为.json和.csv格式的timeline和summary文件以及汇总所有性能数据的.db格式文件。<br/>&#8226; Db：表示仅解析为汇总所有性能数据的.db格式文件，使用MindStudio Insight工具展示。<br/>默认值为Text。 |     Y     |      Y      |
 | --gc-detect-threshold | 可选 | GC检测阈值，Option\<f32\>类型，单位ms，只采集超过阈值的GC事件。默认不设置时不开启GC检测。                                                                                                                                                                                                                           |     Y     |      N      |
 | --host-sys            | 可选 | 采集host侧系统数据，取值为：<br/>&#8226; cpu：进程级别的CPU利用率。<br/>&#8226; mem：进程级别的内存利用率。<br/>&#8226; disk：进程级别的磁盘I/O利用率。<br/>&#8226; network：系统级别的网络I/O利用率。<br/>&#8226; osrt：进程级别的syscall和pthreadcall。<br/>可以设置单个或多个，多个类型以逗号分隔，例如：--host-sys cpu,mem。<br/>默认未配置，表示未开启Host侧系统数据采集。 |     Y     |      Y      |
-| --sys-io              | 可选 | NIC、ROCE数据采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                            |     Y     |      Y      |
+| --sys-io              | 可选 | NIC、RoCE数据采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                            |     Y     |      Y      |
 | --sys-interconnection | 可选 | 集合通信带宽数据（HCCS）、PCIe、片间传输带宽数据采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                   |     Y     |      Y      |
 
 **使用示例**
@@ -88,16 +88,16 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
    ```bash
    # 示例1：从第10个step开始采集，采集2个step，采集框架、CANN和device数据，同时采集完后自动解析以及解析完成不做数据精简，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
-   
+
    # 示例2：从下一个step开始采集，采集2个step，采集框架、CANN和device数据，同时采集完后自动解析以及解析完成不做数据精简，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step -1 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
-   
+
    # 示例3：从第10个step开始采集，采集2个step，只采集CANN和device数据，同时采集完后自动解析以及解析完成后开启数据精简，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities NPU --analyse --data-simplification true --log-file /tmp/profile_data
-   
+
    # 示例4：从第10个step开始采集，采集2个step，只采集CANN和device数据，只采集不解析，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activities NPU --log-file /tmp/profile_data
-   
+
    # 示例5：多机场景下向特定机器x.x.x.x发送参数信息，参数表示从第10个step开始采集，采集2个step，只采集CANN和device数据，只采集不解析，落盘路径为/tmp/profile_data
    dyno --certs-dir /home/ssl_certs --hostname x.x.x.x nputrace --start-step 10 --iterations 2 --activities NPU --log-file /tmp/profile_data
    ```

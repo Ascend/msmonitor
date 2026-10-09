@@ -206,4 +206,4 @@ Monitor 是集成在MindStudio Monitor中的一套接口，用户可以通过调
 | HBM | 片上内存频率、总容量、已用内存、带宽利用率、温度 | 曲线 |
 | Overlap Analysis | 每个设备一条泳道：Computing / Communication（Overlapped / Not Overlapped）/ Free | 耗时条 |
 
-DCMI 采集在独立 C++ 线程中执行，不阻塞训练主流程；默认采样间隔 10ms，样本使用有界环形缓冲（上限 100 万条，超出覆盖最旧）。`libdcmi.so` 不可用或接口不支持时自动跳过对应指标，不影响算子类数据采集；加载/使能/失败的 DFX 信息在启动日志中打印，并写入 trace metadata（Chrome Trace 打开后可查看），供问题定位。
+DCMI 采集在独立 C++ 线程中执行，不阻塞训练主流程；默认采样间隔 10ms，样本使用有界环形缓冲（上限 100 万条，超出后覆盖最旧）。`libdcmi.so` 不可用或接口不支持时自动跳过对应指标，不影响算子类数据采集；加载/使能/失败的 DFX 信息在启动日志中打印，并写入 trace metadata（Chrome Trace 打开后可查看），供问题定位。
