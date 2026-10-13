@@ -217,20 +217,9 @@ msMonitor 由以下三个交付件组成：
 
 ## 🤝 致谢
 
-msMonitor 由华为公司的下列部门联合贡献：
+本工具由华为技术有限公司与开发者联合贡献。
 
-- 昇腾计算 MindStudio 开发部
-
-感谢来自社区的每一个 Pull Request，欢迎贡献 msMonitor。
-
-## 关于 MindStudio 团队
-
-华为 MindStudio 全流程开发工具链团队致力于提供端到端的昇腾 AI
-应用开发解决方案，帮助开发者高效完成训练开发、推理开发和性能调优。
-更多信息可访问：
-
-- [昇腾社区 MindStudio 专区](https://www.hiascend.com/developer/software/mindstudio)
-- [昇腾论坛](https://www.hiascend.com/forum/)
+感谢来自社区的每一个PR，欢迎贡献！
 
 [dynolog]: https://github.com/facebookincubator/dynolog
 [mspti]: https://gitcode.com/Ascend/mspti/blob/26.0.0/docs/zh/quick_start.md
