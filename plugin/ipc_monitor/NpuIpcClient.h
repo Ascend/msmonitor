@@ -173,7 +173,7 @@ class IpcClient
    public:
     IpcClient(const IpcClient &) = delete;
     IpcClient &operator=(const IpcClient &) = delete;
-    IpcClient() = default;
+    IpcClient();
     bool Init();
     bool RegisterInstance(int32_t npu);
     bool SendNpuStatus(const NpuStatus &status, const std::string &msgType);

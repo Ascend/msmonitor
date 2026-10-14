@@ -32,9 +32,10 @@ std::string IpcClient::GetDynoIpcName(const std::string &suffix)
     return ipcName;
 }
 
+IpcClient::IpcClient() { ipcName_ = GetDynoIpcName(); }
+
 bool IpcClient::Init()
 {
-    ipcName_ = GetDynoIpcName();
     pids_ = GetPids();
     return true;
 }
