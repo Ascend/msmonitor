@@ -35,6 +35,8 @@ class NpuIpcClientTest : public ::testing::Test
    protected:
     void SetUp() override { GlobalMockObject::verify(); }
     void TearDown() override { GlobalMockObject::verify(); }
+
+    std::string capturedDest_;
 };
 
 // 1. utils: CalcHashId deterministic
@@ -124,7 +126,7 @@ TEST_F(NpuIpcClientTest, GetDynoIpcName_Actual_ReturnsWithPrefix)
     EXPECT_EQ(name.compare(0, DYNO_IPC_NAME.size(), DYNO_IPC_NAME), 0);
 }
 
-// 6. IpcClient lifecycle（Init 内按实例缓存 ipcName_，供 Register/Send/Config 复用）
+// 6. IpcClient lifecycle（ipcName_ 在构造时解析，Init() 只刷新 pids_）
 TEST_F(NpuIpcClientTest, Init_DoesNotThrow)
 {
     IpcClient client;
@@ -188,6 +190,98 @@ TEST_F(NpuIpcClientTest, IpcClientNpuConfig_OversizedMessageIsRejected)
 
     IpcClient client;
     EXPECT_TRUE(client.IpcClientNpuConfig().empty());
+}
+
+// 7. ipcName_ 初始化时机：构造函数内解析（改动将 GetDynoIpcName 从 Init() 前移到构造函数）
+TEST_F(NpuIpcClientTest, Constructor_ResolvesIpcName_WithoutInit)
+{
+    // 构造函数调用 GetDynoIpcName()，因此 GetHostUid 恰好 1 次；
+    // 改动前 ipcName_ 到 Init() 才解析，此时调用次数为 0，verify 抛异常即判定失败
+    MOCKER_CPP(&GetHostUid).expects(exactly(1)).will(returnValue(std::string("4242")));
+    IpcClient client;
+    GlobalMockObject::verify();  // 构造后立即校验（verify 成功后同时 reset）
+    // Init() 只刷新 pids_，不再调用 GetDynoIpcName
+    EXPECT_TRUE(client.Init());
+}
+
+TEST_F(NpuIpcClientTest, RegisterInstance_BeforeInit_SendsToConstructorIpcName)
+{
+    MOCKER_CPP(&GetHostUid).stubs().will(returnValue(std::string("123")));
+    // with() 按真实参数匹配（不含 this）：第 1 个是 message，第 2 个是 destName
+    MOCKER_CPP(&IpcClient::SyncSendMessage)
+        .stubs()
+        .with(any(), spy(capturedDest_), any(), any())
+        .will(returnValue(true));
+
+    // 未调用 Init()：ipcName_ 应已在构造时就绪
+    IpcClient client;
+    EXPECT_TRUE(client.RegisterInstance(0));
+    EXPECT_EQ(capturedDest_, DYNO_IPC_NAME + std::string("_123"));
+    GlobalMockObject::verify();
+}
+
+TEST_F(NpuIpcClientTest, RegisterInstance_EmptyHostUid_BeforeInit_SendsToBaseName)
+{
+    MOCKER_CPP(&GetHostUid).stubs().will(returnValue(std::string("")));
+    MOCKER_CPP(&IpcClient::SyncSendMessage)
+        .stubs()
+        .with(any(), spy(capturedDest_), any(), any())
+        .will(returnValue(true));
+
+    IpcClient client;
+    EXPECT_TRUE(client.RegisterInstance(0));
+    // hostUid 为空时构造出的 ipcName_ 退化为 dynolog
+    EXPECT_EQ(capturedDest_, DYNO_IPC_NAME);
+    GlobalMockObject::verify();
+}
+
+TEST_F(NpuIpcClientTest, Init_DoesNotRecomputeIpcName)
+{
+    // 构造消费第 1 个返回值；若 Init() 重新解析会取到第 2 个值（exactly(1) 也会失败）
+    MOCKER_CPP(&GetHostUid).expects(exactly(1)).will(returnObjectList(std::string("first"), std::string("second")));
+    MOCKER_CPP(&IpcClient::SyncSendMessage)
+        .stubs()
+        .with(any(), spy(capturedDest_), any(), any())
+        .will(returnValue(true));
+
+    IpcClient client;
+    EXPECT_TRUE(client.Init());
+    EXPECT_TRUE(client.RegisterInstance(0));
+    EXPECT_EQ(capturedDest_, DYNO_IPC_NAME + std::string("_first"));
+    GlobalMockObject::verify();
+}
+
+TEST_F(NpuIpcClientTest, SendNpuStatus_BeforeInit_SendsToConstructorIpcName)
+{
+    MOCKER_CPP(&GetHostUid).stubs().will(returnValue(std::string("31337")));
+    MOCKER_CPP(&IpcClient::SyncSendMessage)
+        .stubs()
+        .with(any(), spy(capturedDest_), any(), any())
+        .will(returnValue(true));
+
+    IpcClient client;
+    NpuStatus status;
+    status.status = 0;
+    status.currentStep = 1;
+    status.pid = GetProcessId();
+    EXPECT_TRUE(client.SendNpuStatus(status, MSG_TYPE_MONITOR_STATUS));
+    EXPECT_EQ(capturedDest_, DYNO_IPC_NAME + std::string("_31337"));
+    GlobalMockObject::verify();
+}
+
+TEST_F(NpuIpcClientTest, IpcClientNpuConfig_BeforeInit_SendsToConstructorIpcName)
+{
+    MOCKER_CPP(&GetHostUid).stubs().will(returnValue(std::string("555")));
+    // 返回 false：立即走失败分支，避免 PollRecvMessage 轮询（5 × 10ms）
+    MOCKER_CPP(&IpcClient::SyncSendMessage)
+        .stubs()
+        .with(any(), spy(capturedDest_), any(), any())
+        .will(returnValue(false));
+
+    IpcClient client;
+    EXPECT_EQ(client.IpcClientNpuConfig(), "");
+    EXPECT_EQ(capturedDest_, DYNO_IPC_NAME + std::string("_555"));
+    GlobalMockObject::verify();
 }
 
 int main(int argc, char **argv)
