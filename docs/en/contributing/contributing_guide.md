@@ -100,7 +100,8 @@ In addition, you can learn about the project's development plans and roadmap by 
 Before submitting code, ensure that all tests pass.
 
 ```bash
-bash scripts/run_ut.sh
+bash scripts/run_ut_python.sh
+bash scripts/run_ut_cpp.sh
 bash scripts/run_st.sh
 ```
 
@@ -113,6 +114,24 @@ bash scripts/run_st.sh
 - Test cases should be readable and maintainable.
 
 - Test data should be placed in the appropriate location under the `test/` directory.
+
+#### Code Coverage
+
+Run on Linux. Python UTs require `xlsxwriter`; coverage collection also requires `coverage`. C++ coverage requires GCC, a matching `gcov`, `lcov >= 2.0`, and `genhtml`. Incremental checks require `diff-cover`, plus `lcov_cobertura` for C++.
+
+```bash
+# Full coverage
+bash scripts/run_ut_coverage_python.sh
+bash scripts/run_ut_coverage_cpp.sh
+
+# Full coverage and incremental line coverage checks
+DIFF_BASE=origin/master FAIL_UNDER=80 bash scripts/run_ut_coverage_python.sh diff
+DIFF_BASE=origin/master FAIL_UNDER=80 bash scripts/run_ut_coverage_cpp.sh diff
+```
+
+Python coverage measures `plugin/IPCMonitor/`. C++ coverage measures code under `plugin/ipc_monitor/` compiled into the UTs. Tests, stubs, and third-party code are excluded. Reports are written to `test/build_llt/output/python_coverage/` and `test/build_llt/output/cpp_coverage/`, respectively.
+
+`DIFF_BASE` defaults to `origin/${TARGET_BRANCH:-${targetBranch:-master}}` and must exist in the local Git history. `FAIL_UNDER` defaults to 80%; incremental checks return a nonzero status below this threshold. Without `diff`, only full coverage reports are generated.
 
 ### Documentation Development
 

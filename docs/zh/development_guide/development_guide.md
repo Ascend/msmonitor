@@ -236,21 +236,15 @@ dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activ
 
 ### 5.1 单元测试
 
-仓库提供 `scripts/run_ut.sh` 作为单元测试入口。
+仓库提供按语言区分的单元测试脚本，`scripts/run_ut.sh` 会依次执行C++和Python UT。
 
 ```bash
-# 运行全部 UT 构建与测试
 bash scripts/run_ut.sh
-
-# 仅运行 plugin 相关测试
-bash scripts/run_ut.sh plugin
+bash scripts/run_ut_cpp.sh
+bash scripts/run_ut_python.sh
 ```
 
-当前脚本会：
-
-1. 在 `test/build_llt` 下执行 CMake 构建。
-2. 默认构建 `ut` 目标。
-3. 执行 `test/ut/plugin/ipc_monitor` 下的可执行测试文件。
+C++ UT在 `test/build_llt` 下通过CMake构建、CTest执行；Python UT通过unittest执行 `test/ut/python` 下的测试。覆盖率用法参见[贡献指南的代码测试章节](../contributing/contributing_guide.md#代码测试)。
 
 ### 5.2 系统测试
 
