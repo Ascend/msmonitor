@@ -1,7 +1,5 @@
 # dyno Usage Guide
 
-<!-- md-trans-meta sourceCommit=4222e88544e08580745f0b6eec2d1d22cda8f31b translatedAt=2026-08-12T08:30:55.102Z pushedAt=2026-08-12T08:32:41.113Z -->
-
 ## Introduction
 
 dyno is responsible for sending RPC requests from the dyno CLI to trigger nputrace and npu-monitor functions.
@@ -55,29 +53,18 @@ After the command is executed, a JSON string example is output:
 ### Status Description
 
 - `Uninitialized`: The process is not started, or `dynolog init` has not been executed for initialization.
-
 - `Idle`: Initialized, but no collection command has been issued yet.
-
 - `Ready`: The collection command has been issued, but the current step has not yet reached the collection start step.
-
 - `Running`: Data collection is in progress.
 
 ### Additional Notes
 
 1. Field Status Set
-
    - `nputrace`: Supports four statuses: `Uninitialized` / `Idle` / `Ready` / `Running`.
-
    - `npumonitor`: Supports only three statuses: `Uninitialized` / `Idle` / `Running`.
-
 2. `start_step` and `stop_step` are the boundaries of the collection step interval. The interval rules differ across frameworks:
-
    - PyTorch: The collection interval is left-closed, right-open `[start_step, stop_step)`, including the start step but excluding the stop step.
-
    - MindSpore: The collection interval is a closed interval `[start_step, stop_step]`, where both the start and stop steps are included in the collection scope.
-
 3. The `start_step` and `stop_step` fields are displayed in the result only when the `nputrace` status is `Ready` or `Running`.
-
 4. The default initial value of `current_step` is `-1`.
-
 5. Under the MindSpore framework, `nputrace` does not have a `Ready` status.

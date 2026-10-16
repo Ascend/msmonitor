@@ -1,11 +1,8 @@
 # msMonitor Quick Start
 
-<!-- md-trans-meta sourceCommit=4222e88544e08580745f0b6eec2d1d22cda8f31b translatedAt=2026-08-12T07:48:10.212Z pushedAt=2026-08-12T07:49:07.091Z -->
-
 The following introduces the msMonitor quick start through common usage scenarios.
 
 1. Use the npu-monitor function to obtain the latency of key operators.
-
 2. When critical operator latency degradation is detected, use nputrace to collect detailed performance data for analysis.
 
 **Prerequisites**
@@ -26,8 +23,7 @@ Complete the msMonitor tool installation. For details, see *[msMonitor Installat
    dynolog --certs-dir NO_CERTS --enable-ipc-monitor --metric_log_dir /tmp/metric_log_dir    # The log path of the dynolog daemon is: /var/log/dynolog.log
    ```
 
-   > [!NOTE]
-   > 
+   > [!NOTE] Note
    > `--certs-dir NO_CERTS` indicates that certificate verification is not used. This is intended for test environments only, and the same applies below. In production environments, certificate verification is recommended to ensure data transmission security. For details, see [dynolog_instruct](../user_guide/dynolog_instruct.md).
 
 2. Configure the msMonitor environment variables.
