@@ -82,9 +82,12 @@
 在提交代码前，请确保所有测试通过：
 
 ```bash
-bash scripts/run_ut.sh
+bash scripts/run_ut_python.sh
+bash scripts/run_ut_cpp.sh
 bash scripts/run_st.sh
 ```
+
+`python3 build.py test` 会依次执行C++和Python单元测试；`scripts/run_ut.sh` 保留为兼容入口。
 
 #### 添加测试
 
@@ -92,6 +95,24 @@ bash scripts/run_st.sh
 - 确保测试覆盖主要逻辑分支
 - 测试用例应该具有良好的可读性和维护性
 - 测试数据应该放在`test/`目录下的相应位置
+
+#### 代码覆盖率
+
+在Linux环境运行。Python UT需要`xlsxwriter`，覆盖率采集还需要`coverage`；C++覆盖率采集需要GCC、匹配的`gcov`、`lcov >= 2.0`和`genhtml`。增量检查需要`diff-cover`，C++还需要`lcov_cobertura`。
+
+```bash
+# 全量覆盖率
+bash scripts/run_ut_coverage_python.sh
+bash scripts/run_ut_coverage_cpp.sh
+
+# 全量覆盖率 + 增量行覆盖率检查
+DIFF_BASE=origin/master FAIL_UNDER=80 bash scripts/run_ut_coverage_python.sh diff
+DIFF_BASE=origin/master FAIL_UNDER=80 bash scripts/run_ut_coverage_cpp.sh diff
+```
+
+Python统计`plugin/IPCMonitor/`，C++统计`plugin/ipc_monitor/`下编译进UT的代码，均排除测试、桩和第三方代码。报告分别输出到`test/build_llt/output/python_coverage/`和`test/build_llt/output/cpp_coverage/`。
+
+增量基线`DIFF_BASE`默认取`origin/${TARGET_BRANCH:-${targetBranch:-master}}`，须已存在于本地Git历史；`FAIL_UNDER`默认为80%，低于门槛时脚本返回非零状态。未加`diff`时仅生成全量报告。
 
 ### 文档开发
 

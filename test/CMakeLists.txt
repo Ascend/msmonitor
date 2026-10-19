@@ -8,7 +8,6 @@ set(ENV{MSMONITOR_TOP_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/..)
 set(CMAKE_MODULE_PATH "$ENV{MSMONITOR_TOP_DIR}/test/cmake")
 
 set(PACKAGE "ut" CACHE STRING "Package to build")
-set(MODE "all" CACHE STRING "Mode to build")
 
 if(PACKAGE STREQUAL "ut")
 
@@ -22,8 +21,6 @@ if(PACKAGE STREQUAL "ut")
     find_package(boost MODULE REQUIRED)
     find_package(mockcpp MODULE REQUIRED)
 
-    if(MODE STREQUAL "plugin" OR MODE STREQUAL "all")
-        add_subdirectory(ut/plugin/ipc_monitor)
-    endif()
+    add_subdirectory(ut/plugin/ipc_monitor)
 
 endif()

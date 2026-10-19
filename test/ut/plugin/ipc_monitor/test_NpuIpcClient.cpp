@@ -22,7 +22,7 @@ using namespace dynolog_npu::ipc_monitor;
 
 namespace
 {
-bool PeekOversizedMessage(NpuIpcEndPointCtxt<0> &ctxt)
+bool PeekOversizedMessage(NpuIpcEndPoint<0> *, NpuIpcEndPointCtxt<0> &ctxt)
 {
     auto *metadata = static_cast<Metadata *>(ctxt.iov[0].iov_base);
     metadata->size = MAX_IPC_MESSAGE_SIZE + 1;
@@ -184,8 +184,8 @@ TEST_F(NpuIpcClientTest, IpcClientNpuConfig_NoServer_ReturnsEmpty)
 TEST_F(NpuIpcClientTest, IpcClientNpuConfig_OversizedMessageIsRejected)
 {
     MOCKER_CPP(&IpcClient::SyncSendMessage).stubs().will(returnValue(true));
-    MOCKER_CPP(&NpuIpcEndPoint<0>::TryPeekMessage).stubs().will(invoke(PeekOversizedMessage));
-    MOCKER_CPP(&NpuIpcEndPoint<0>::TryRcvMessage).stubs().will(returnValue(true));
+    MOCKER_CPP(&NpuIpcEndPoint<0>::TryPeekMessage).expects(exactly(MAX_IPC_RETRIES)).will(invoke(PeekOversizedMessage));
+    MOCKER_CPP(&NpuIpcEndPoint<0>::TryRcvMessage).expects(exactly(MAX_IPC_RETRIES)).will(returnValue(true));
     MOCKER_CPP(&NpuIpcEndPoint<0>::GetName).expects(never());
 
     IpcClient client;

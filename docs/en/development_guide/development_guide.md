@@ -229,23 +229,15 @@ dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activ
 
 ### 5.1 Unit Test
 
-The repository provides `scripts/run_ut.sh` as the entry point for unit tests.
+Language-specific scripts run each UT suite. `scripts/run_ut.sh` runs C++ UTs followed by Python UTs.
 
 ```bash
-# Run all UT builds and tests
 bash scripts/run_ut.sh
-
-# Run only plugin-related tests
-bash scripts/run_ut.sh plugin
+bash scripts/run_ut_cpp.sh
+bash scripts/run_ut_python.sh
 ```
 
-The current script performs the following:
-
-1. Run CMake build under `test/build_llt`.
-
-2. Build the `ut` target by default.
-
-3. Execute the executable test file under `test/ut/plugin/ipc_monitor`.
+C++ UTs build with CMake under `test/build_llt` and run with CTest. Python UTs run tests under `test/ut/python` with unittest. For coverage commands, see [Code Testing in the contributing guide](../contributing/contributing_guide.md#code-testing).
 
 ### 5.2 System Test
 

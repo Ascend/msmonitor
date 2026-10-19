@@ -121,7 +121,7 @@ class BuildManager:
         if 'test' in self.args.command:
             # -------------------- 单元测试 --------------------
             scripts_dir = self.project_root / "scripts"
-            self._execute_command(["pip", "install", "pybind11"])
+            self._execute_command([sys.executable, "-m", "pip", "install", "pybind11", "xlsxwriter"])
 
             # only_down_deps 在依赖下载后、测试前检查
             extra_options = self._get_extra_options()
@@ -129,7 +129,8 @@ class BuildManager:
                 logging.info("only_down_deps=true, exiting after dependency download.")
                 return
 
-            self._execute_command(["bash", "run_ut.sh", "all"], cwd=scripts_dir)
+            test_env = dict(os.environ, PYTHON=sys.executable)
+            self._execute_command(["bash", "run_ut.sh"], cwd=scripts_dir, env=test_env)
         else:
             # -------------------- 产品构建 --------------------
             logging.info("--version: %s", self.args.version)
