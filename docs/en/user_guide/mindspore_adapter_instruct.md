@@ -1,7 +1,5 @@
 # Using msMonitor with the MindSpore Framework
 
-<!-- md-trans-meta sourceCommit=76329dd28bc91c4378603d72fe34ab47b750c710 translatedAt=2026-08-12T08:30:55.025Z pushedAt=2026-08-12T08:32:50.337Z -->
-
 ## Introduction
 
 The msMonitor component is used with the MindSpore framework to monitor performance metrics during the training of MindSpore models. It supports dynamic profiling in both custom for loop mode and callback mode.
@@ -23,7 +21,7 @@ The msMonitor component is used with the MindSpore framework to monitor performa
     export MSMONITOR_USE_DAEMON=1
     ```
 
-3. (Optional) Configure the msMonitor log path. The default path is msmonitor_log in the current directory.
+3. (Optional) Configure the msMonitor log path. When `MSMONITOR_LOG_PATH` is explicitly set, it is directly used as the glog log directory (the Python API is automatically pointed to the `log/` directory of the session directory by `start()`). When it is not set, the default is `msmonitor_log_<device ID>` under the process cwd (or msmonitor_log when the device cannot be obtained).
 
     ```bash
     export MSMONITOR_LOG_PATH=<LOG PATH>
@@ -31,9 +29,8 @@ The msMonitor component is used with the MindSpore framework to monitor performa
     export MSMONITOR_LOG_PATH=/tmp/msmonitor_log
     ```
 
-    > [!NOTE]
-    > 
-    > For steps 1 through 3 and step 5, see the usage examples in [npu-monitor](./npumonitor_instruct.md) or [nputrace](./nputrace_instruct.md).
+    > [!NOTE] Note
+    For the operations in the first 3 steps and step 5, see the usage examples in [npu-monitor](./npumonitor_instruct.md) or [nputrace](./nputrace_instruct.md).
 
 4. Start the training task, instantiate the `DynamicProfilerMonitor` object in the training task, and call the `step()` method after each training iteration.
 
@@ -53,11 +50,12 @@ The msMonitor component is used with the MindSpore framework to monitor performa
 
         def construct(self, x):
             return self.fc(x)
-    
+
 
     def generator_net():
         for_ in range(2):
             yield np.ones([2, 2]).astype(np.float32), np.ones([2]).astype(np.int32)
+
 
     def train(test_net):
         optimizer = nn.Momentum(test_net.trainable_params(), 1, 0.9)
@@ -65,7 +63,7 @@ The msMonitor component is used with the MindSpore framework to monitor performa
         data = ds.GeneratorDataset(generator_net(), ["data", "label"])
         model = mindspore.train.Model(test_net, loss, optimizer)
         model.train(1, data)
-    
+
     if __name__ == '__main__':
         dp = DynamicProfilerMonitor()
         step_num = 100

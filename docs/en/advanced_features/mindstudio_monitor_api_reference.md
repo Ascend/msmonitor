@@ -10,7 +10,7 @@ Provides inter-process communication (IPC) interfaces and the capability of inde
 
   * Starts or stops msPTI Monitor to collect data.
   * Obtains the profile data collected by msPTI Monitor online.
-  * Exports the profile data collected by msPTI Monitor to the local PC in Excel format.
+  * Export profile data collected by msPTI Monitor to the local host in Excel and Chrome Trace JSON formats
 
 ### PyDynamicMonitorProxy API
 
@@ -51,17 +51,34 @@ This enumeration class defines the types of the data can be collected by msPTI M
 ### Monitor API
 
 * `start` starts monitor to collect data.
-  * Input: kinds(List[ActivityKind]) data type list
+  * input:
+    * kinds(List[ActivityKind]): List of data collection types (original capability).
+    * dcmi_layers(List[DcmiLayer], optional): DCMI is configured by hardware layer. Selecting a layer collects all available metrics of that layer; if empty, DCMI is not collected.
+    * dcmi_interval_ms(int, optional, default 10): DCMI sampling interval, unit: ms
+    * save_path(str, optional, default None): Result save directory. When it is None (default), no session directory is created and no log is persisted; data is obtained online only through `get_result()`. When specified, start creates the `msmonitor_<pid>_<timestamp>/` session directory under it, and glog writes directly into its `log/` from the beginning.
   * Return: None
+  * Note: The DCMI collection device does not need to be specified; by default, the device already set for the current process is used
 * `stop` stops monitor to collect data.
   * Input: None
   * Return: None
 * `get_result` obtains the profile data collected by monitor.
   * Input: None
-  * Return: Dict[ActivityKind, List[ActivityData]], profile data
-* `save` saves the profile data collected by monitor.
-  * Input: file_path(str) file path
+  * Return: Dict, with keys being the enabled `ActivityKind` and the DCMI sample list (uniformly using `DCMI` as the key)
+* `save` saves the profile data and running logs collected by monitor.
+  * Input: None (the output directory has been determined in start(save_path))
   * Return: None
+  * Note: Generates `monitor_result.xlsx` (Excel, multiple sheets, including the DCMI sheet) and `monitor_result.json` (Chrome Trace JSON, openable in chrome://tracing / Perfetto, with kernel/comm duration bars plus DCMI curves presented by hardware layer in separate processes, and DFX status embedded in metadata) in the session directory `<save_path>/msmonitor_<pid>_<timestamp>/` determined at start. glog logs are written directly into its `log/` subdirectory from start, with no moving or copying. Each file contains only the data actually collected
+
+### DcmiLayer Enumeration Class
+
+Defines the hardware layers collected by DCMI, as the configuration unit of `start(dcmi_layers=...)` (corresponding one-to-one with the layered presentation of Chrome Trace). Selecting a layer collects all available metrics of that layer:
+
+* `DcmiLayer.DEVICE`: Device-level metrics Power (W) and Temp (℃)
+* `DcmiLayer.AICORE`: AI Core current/rated frequency (MHz) and AI Core/AI Cube/Vector Core/NPU utilization (%)
+* `DcmiLayer.AICPU`: AI CPU maximum running frequency (MHz), current frequency (MHz), and utilization (%)
+* `DcmiLayer.HBM`: On-chip memory frequency (MHz), total capacity (MB), used memory (MB), bandwidth utilization (%), and temperature (℃)
+
+> Compatibility note: The DCMI interface surface is consistent across different generations of chips (A2/A3/A5). Types not supported by the driver (for example, some chips do not have overall NPU utilization) automatically disable the corresponding metrics, and the reason is printed in the startup log and written into the trace metadata.
 
 ### ActivityData Data Structure
 
@@ -111,6 +128,15 @@ Defines the profile data structure collected by monitor.
 * `pid` (int): ID of the process that calls the API
 * `tid` (int): ID of the thread that calls the API
 * `correlationId` (int): API call correlation ID, which is used to associate with kernel/communication data
+
+#### DcmiSample Structure Fields
+
+DCMI sampling sample (an element of the `DCMI` list returned by `get_result()`):
+
+* `kind` (int): metric type (internal enumeration value, corresponding to the metric name in the export metadata)
+* `timestampNs` (int): sampling timestamp, unit: ns
+* `deviceId` (int): device ID (flat index)
+* `value` (float): sampling value (the unit depends on the metric type; for example, power is in W, frequency in MHz, utilization in %, and memory in MB)
 
 ## Installation
 

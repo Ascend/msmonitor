@@ -1,7 +1,5 @@
 # dynolog Usage Guide
 
-<!-- md-trans-meta sourceCommit=4222e88544e08580745f0b6eec2d1d22cda8f31b translatedAt=2026-08-12T08:30:48.350Z pushedAt=2026-08-12T08:32:48.401Z -->
-
 ## Introduction
 
 dynolog is responsible for receiving RPC requests from dyno CLI and triggering nputrace and npu-monitor functions.

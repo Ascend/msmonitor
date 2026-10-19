@@ -16,6 +16,8 @@ You are advised to enable the `address space layout randomization` (ASLR) (level
 
  4. If a tool depends on CANN, use the CANN package installed by the same non-privileged user. After running the `source` command, do not modify environment variables in `set_env.sh`.
 
+ 5. This repository provides reference configurations for vscode and devcontainer for convenience of development and debugging. They are only for development and debugging of this repository in a secure debugging environment. In addition, please check the configuration security by yourself and adjust it according to actual requirements.
+
 ## File Permission Control
 
  1. In the default security mode, the root certificate, server certificate, server private key file, and CRL file are required for the online monitoring function of msMonitor. Ensure that the directory permission is `700` and the certificate permission is `600`.

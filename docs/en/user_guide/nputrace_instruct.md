@@ -1,7 +1,5 @@
 # nputrace Usage Guide
 
-<!-- md-trans-meta sourceCommit=4222e88544e08580745f0b6eec2d1d22cda8f31b translatedAt=2026-08-12T08:31:35.592Z pushedAt=2026-08-12T08:32:53.776Z -->
-
 ## Introduction
 
 The nputrace tool is used to obtain detailed performance data of the framework, CANN, and device.
@@ -106,4 +104,4 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
 
 ## Output Result File Description
 
-The data format and deliverables dumped by nputrace include PyTorch and MindSpore framework data. For details, see the [Output Result File Description](https://gitcode.com/Ascend/pytorch/blob/master/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md#output-result-file-description-3) of the Ascend PyTorch tuning tool.
+The data format persisted by nputrace and the deliverables include PyTorch and MindSpore framework data. For details, see the [Output Result File Description](https://gitcode.com/Ascend/pytorch/blob/v2.14.0-26.2.0/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md#output-result-file-description) of the Ascend PyTorch tuning tool.

@@ -12,7 +12,7 @@ Install msMonitor. For details, see [msMonitor Installation Guide](../install_gu
 
 **Function**
 
-Provides easy-to-use APIs to collect profile data of compute operators, communication operators, APIs, Runtime APIs, and MSTX. You can select metrics to be collected as needed.
+Provides simple and easy-to-use interfaces for collecting performance data such as compute operators, communication operators, APIs, Runtime APIs, and Mstx. You can select the metrics to collect as needed. In addition, it supports collecting device-level metrics (Power, Temp) of the NPU card and metrics of each hardware layer (AICore frequency/utilization, AICPU maximum/current frequency and utilization, HBM on-chip memory frequency/capacity/usage/bandwidth/temperature, etc.) through the DCMI interface, and supports exporting the results in Chrome Trace JSON format for visualization and analysis by hardware layer in the form of timeline bar charts (operator duration) plus curves (device metric change trends) in `chrome://tracing` or Perfetto.
 
 **API Description**
 
@@ -23,7 +23,7 @@ For details, see [Monitor Feature APIs](./mindstudio_monitor_api_reference.md#mo
 1. Import the Monitor APIs to the model Python script.
 
    ```python
-   from msmonitor import Monitor, ActivityKind
+   from msmonitor import Monitor, ActivityKind, DcmiLayer
    ```
 
 2. Call the Monitor APIs in the model Python script to start performance monitoring.
@@ -46,15 +46,25 @@ For details, see [Monitor Feature APIs](./mindstudio_monitor_api_reference.md#mo
            x = self.pool(x)
            return x
 
-   from msmonitor import Monitor, ActivityKind
+   from msmonitor import Monitor, ActivityKind, DcmiLayer
 
-   # Enable performance monitoring.
+   # Enable performance monitoring: operator-type data + DCMI device metrics
+   # DCMI is configured by hardware layer: selecting a layer collects all available metrics of that layer (no need to enumerate them one by one).
    monitor = Monitor()
-   monitor.start(kinds=[
-       ActivityKind.API,
-       ActivityKind.Kernel,
-       ActivityKind.Marker
-   ])
+   monitor.start(
+       kinds=[
+           ActivityKind.API,
+           ActivityKind.Kernel,
+           ActivityKind.Marker
+       ],
+       dcmi_layers=[
+           DcmiLayer.DEVICE,   # Power / Temp
+           DcmiLayer.AICORE,   # AICore frequency / utilization group
+           DcmiLayer.AICPU,    # AICPU maximum/current frequency, utilization
+           DcmiLayer.HBM,      # On-chip memory frequency/capacity/usage/bandwidth/temperature
+       ],
+       dcmi_interval_ms=10,    # DCMI sampling interval, default 10ms
+   )
 
    # Run the model.
    batch_size = 4
@@ -79,11 +89,11 @@ For details, see [Monitor Feature APIs](./mindstudio_monitor_api_reference.md#mo
    # (Optional) Obtain profile data online. For details, see step 3.
    result = monitor.get_result()
 
-   # (Optional) Save the profile data to a local file. For details, see step 4.
-   monitor.save("monitor_result.xlsx")
+   # (Optional) Save performance data to the local host (the output directory has been specified in start; save exports xlsx/json/log without parameters); see step 4
+   monitor.save()
    ```
 
-3. (Optional) Obtain profile data online. For details about the returned data structure, see [ActivityData Data Structure](./mindstudio_monitor_api_reference.md#activitydata-data-structure).
+3. (Optional) Performance data can be obtained online. For the returned data structure, see [ActivityData Data Structure](./mindstudio_monitor_api_reference.md#activitydata-data-structure). The keys of the returned dictionary include the enabled `ActivityKind` and a DCMI sample list (uniformly using `DCMI` as the key, with elements of `DcmiSample`, whose fields include the metric kind, timestamp, device ID, and value).
 
    ```python
    # Obtain and print profile data.
@@ -93,12 +103,23 @@ For details, see [Monitor Feature APIs](./mindstudio_monitor_api_reference.md#mo
            print(f"kind: {kind}, name: {item.name}, durationNs: {item.endNs-item.startNs}")
    ```
 
-4. (Optional) Save the profile data to a local file. Currently, only the Excel format is supported. For details about the file, see [Output File Description](#output-file-description).
+4. (Optional) Save performance data to the local host: `save()` exports without parameters, and the output directory is already determined when `start(save_path=...)` is called — start creates the `msmonitor_<pid>_<timestamp>/` session directory under it, glog writes directly into its `log/` from the beginning, and save only supplements xlsx/json, with no moving or copying at all:
 
    ```python
-   # Save the profile data to a local file.
-   monitor.save("monitor_result.xlsx")
+   # Specify the output directory at start (the session directory is created directly under it)
+   monitor.start(..., save_path="./out")
+   # Export: ./out/msmonitor_<pid>_<timestamp>/monitor_result.xlsx + monitor_result.json + log/
+   monitor.save()
    ```
+
+   > When only obtaining data online (without persistence), omit `save_path`: `start(..., save_path=None)` does not create a session directory
+   > and does not save log files; obtain data directly through `get_result()` in memory. In this case, calling `save()` prompts that there is no session directory.
+
+   - `monitor_result.xlsx`: Excel (multiple sheets, including operator duration and DCMI metric sheets).
+   - `monitor_result.json`: Chrome Trace JSON, which can be opened in `chrome://tracing` or Perfetto. Operator durations are presented as bar charts (X events) and DCMI metrics as curves (C counter events), by hardware layer in separate processes.
+   - `log/` subdirectory: C++ glog running logs of the current process. From `start()`, glog writes into it (there is no outer temporary log directory).
+
+   > For an end-to-end running example, see the system test case [`test/st/test_dcmi_fa_comm_multistream.py`](../../../test/st/test_dcmi_fa_comm_multistream.py) (FA multi-stream computation + DCMI collection + export verification).
 
 ## Output File Description
 
@@ -158,3 +179,31 @@ The fields on each sheet are described as follows:
 * `Tid`: ID of the thread that calls the API
 * `Correlation ID`: API call correlation ID, which is used to associate with kernel/communication data
 * `Duration(us)`: API call duration, in microseconds
+
+### DCMI
+
+When `dcmi_layers` is specified in `start`, the Excel file has an additional `DCMI` sheet.
+
+Each row of the `DCMI` sheet corresponds to one DCMI sampling sample (all devices x all metrics arranged in a flat manner):
+
+* `Layer`: Hardware layer to which the metric belongs, with values `DEVICE` / `AICORE` / `AICPU` / `HBM`
+* `Metric`: Metric name, such as `Power`, `AICore Freq`, `AICPU Max Freq`, or `HBM Memory Used`
+* `Unit`: Metric unit, such as `W`, `MHz`, `%`, `MB`, or `℃`
+* `Timestamp(us)`: Sampling timestamp, unit: us
+* `Device ID`: Device ID (flat index)
+* `Value`: Sampling value
+
+### Chrome Trace (.json)
+
+The Chrome Trace JSON generated by `save()` (located in the `out/msmonitor_<pid>_<timestamp>/` folder determined by `start(save_path)`) can be opened in `chrome://tracing` or Perfetto (`ui.perfetto.dev`). Events are presented by hardware layer in separate processes (6 processes per device, with process names such as `Device 0 · Ascend Hardware`):
+
+| Layer | Content | Presentation |
+|---|---|---|
+| Ascend Hardware | Kernel / Communication duration bars collected by mspti, one lane per stream | Bar chart (X events) |
+| Power/Temp | DEVICE layer metrics (Power/Temp) curves | Curves (C events) |
+| AICore | AICore current/rated frequency and utilization (including AI Cube / Vector Core / NPU utilization) | Curves |
+| AICPU | AICPU maximum/current running frequency and utilization | Curves |
+| HBM | On-chip memory frequency, total capacity, used memory, bandwidth utilization, temperature | Curves |
+| Overlap Analysis | One lane per device: Computing / Communication (Overlapped / Not Overlapped) / Free | Duration bars |
+
+DCMI collection is executed in an independent C++ thread and does not block the main training process. The default sampling interval is 10ms, and samples use a bounded ring buffer (with an upper limit of 1 million entries, overwriting the oldest when exceeded). When `libdcmi.so` is unavailable or the interface is not supported, the corresponding metrics are automatically skipped without affecting operator-type data collection. DFX information about loading, enabling, and failures is printed in the startup log and written into the trace metadata (viewable after the Chrome Trace is opened) for problem localization.

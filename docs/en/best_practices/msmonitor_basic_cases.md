@@ -1,7 +1,5 @@
 # msMonitor Use Cases
 
-<!-- md-trans-meta sourceCommit=4222e88544e08580745f0b6eec2d1d22cda8f31b translatedAt=2026-08-12T05:52:20.319Z pushedAt=2026-08-12T05:53:20.728Z -->
-
 ## Overview
 
 This document introduces how to use msMonitor in training and inference scenarios through simple examples.
@@ -36,8 +34,7 @@ for step in steps:
 dynolog --certs-dir NO_CERTS --enable-ipc-monitor
 ```
 
-> [!NOTE]
->
+> [!NOTE] Note
 > `--certs-dir NO_CERTS` indicates that certificate verification is not used. This is intended for test environments only, and the same applies below. In production environments, certificate verification is recommended to ensure data transmission security. For details, see [dynolog_instruct](../user_guide/dynolog_instruct.md).
 
 ![dynolog daemon](../figures/dynolog_daemon.png)
@@ -67,19 +64,18 @@ The training process receives the collection configuration and enables profile d
 
 ![nputrace](../figures/nputrace_collect.png)
 
-For the collected results, the on-disk data format and deliverables are described in [Ascend PyTorch Profiler Output File Description](https://gitcode.com/Ascend/pytorch/blob/master/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md#output-result-file-description-3)
+For the collected results, see [Ascend PyTorch Profiler Output Result File Description](https://gitcode.com/Ascend/pytorch/blob/v2.14.0-26.2.0/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md#output-result-file-description) for an introduction to the data format and deliverables written to disk.
 
 ![nputrace_result](../figures/nputrace_result.png)
 
-Use the [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/en/user_guide/overview.md) tool to view and analyze profile data.
+Use the [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/26.2.0/docs/en/user_guide/overview.md) tool to view and analyze the performance data.
 
 ![mindstudio insight](../figures/nputrace_insight.png)
 
 ### npu-monitor Subcommand
 
-> [!NOTE]
->
-> The npu-monitor subcommand relies on the [msPTI](https://gitcode.com/Ascend/mspti/tree/master) interface at the underlying layer to implement lightweight data collection. Due to changes in the msPTI implementation mechanism, for versions earlier than CANN 9.0.0, set the `LD_PRELOAD` environment variable to point to the msPTI library path before starting training. The following is an example. CANN 9.0.0 and later versions do not require this setting.
+> [!NOTE] Note
+> The npu-monitor subcommand depends on the [msPTI](https://gitcode.com/Ascend/mspti) interface at the lower layer to implement lightweight data collection. Due to changes in the msPTI implementation mechanism, for versions earlier than CANN 9.0.0, the LD_PRELOAD environment variable must be set before starting training to point to the path of the msPTI library, as shown in the following example. Versions CANN 9.0.0 and later do not need this setting.
 
 ```bash
 # export LD_PRELOAD=<CANN Toolkit installation path>/cann/lib64/libmspti.so
@@ -233,17 +229,16 @@ Parse the profile data offline.
 python -c "import torch_npu; torch_npu.profiler.profiler.analyse('/tmp/profile_data_vllm/81ca290a1462_2429_20260529070008441_ascend_pt')"
 ```
 
-After parsing is complete, refer to <a href="https://gitcode.com/Ascend/pytorch/blob/master/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md#output-result-file-description-3">Ascend PyTorch Profiler Output Result File Description</a> for details on the generated data format and deliverables.
+After parsing is complete, see [Ascend PyTorch Profiler Output Result File Description](https://gitcode.com/Ascend/pytorch/blob/v2.14.0-26.2.0/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md#output-result-file-description) for an introduction to the generated data format and deliverables.
 
-Use the [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/en/user_guide/overview.md) tool to view and analyze the profile data.
+Use the [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/26.2.0/docs/en/user_guide/overview.md) tool to view and analyze the performance data.
 
 ![nputrace_vllm_insight](../figures/nputrace_vllm_insight.png)
 
 ### npu-monitor Subcommand
 
-> [!NOTE]
->
-> The npu-monitor subcommand relies on the [msPTI](https://gitcode.com/Ascend/mspti/tree/master) interface at the underlying layer to implement lightweight data collection. Due to changes in the msPTI implementation mechanism, for versions earlier than CANN 9.0.0,  set the `LD_PRELOAD` environment variable to point to the msPTI library path before starting training. The following is an example. CANN 9.0.0 and later versions do not require this setting.
+> [!NOTE] Note
+> The npu-monitor subcommand depends on the [msPTI](https://gitcode.com/Ascend/mspti) interface at the lower layer to implement lightweight data collection. Due to changes in the msPTI implementation mechanism, for versions earlier than CANN 9.0.0, the LD_PRELOAD environment variable must be set before starting training to point to the path of the msPTI library, as shown in the following example. Versions CANN 9.0.0 and later do not need this setting.
 
 ```bash
 # export LD_PRELOAD=<CANN Toolkit installation path>/cann/lib64/libmspti.so
@@ -333,7 +328,7 @@ In multi-rank model scenarios, parallel strategy communication group information
 
 When torch calls the `new_group` interface to create a communication group, user-defined information such as `group_name` and `hccl_buffer_size` can be passed through the `pg_options` parameter. In TorchNPU, the object corresponding to the `pg_options` parameter is `torch_npu._C_.distributed_c10d.ProcessGroupHccl.Options`. By setting `group_name` in this object, the communication group information can be viewed in msMonitor.
 
-For details about the new_group API, see "[Groups](https://docs.pytorch.org/docs/2.9/distributed.html#torch.distributed.new_group)".
+For a detailed introduction to the `new_group` interface, see "[Groups](https://docs.pytorch.org/docs/2.9/distributed.html#torch.distributed.new_group)".
 
 If users need to collect parallel strategy communication group information, the `group_name` parameter must be passed when torch calls `new_group`. The following uses Megatron/MindSpeed as an example:
 
