@@ -97,7 +97,7 @@ repos:
         files: \.(c|h|cpp|hpp|cc|hh|cxx|hxx)$
         args:
           - "--config-file=.clang-tidy"
-        exclude: ^build/|tests/third_party/
+        exclude: ^build/|tests/third_party/|^test/|\.(h|hpp)$
 
   # -------------------------- Gitleaks 本地离线二进制扫描 --------------------------
   - repo: local

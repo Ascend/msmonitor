@@ -18,31 +18,42 @@
 #define IPC_MONITOR_DB_BASE_H
 
 #include <unordered_map>
+
 #include "db/Connection.h"
 
-namespace dynolog_npu {
-namespace ipc_monitor {
-namespace db {
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace db
+{
 using TableColumns = std::vector<TableColumn>;
 
-class Database {
-public:
+class Database
+{
+   public:
     Database() = default;
     virtual ~Database() = default;
+    Database(const Database &) = delete;
+    Database &operator=(const Database &) = delete;
+    Database(Database &&) = delete;
+    Database &operator=(Database &&) = delete;
     void SetDBName(std::string dbName) { dbName_ = std::move(dbName); }
     std::string GetDBName() const { return dbName_; }
-    const TableColumns& GetTableCols(const std::string &tableName);
-protected:
+    const TableColumns &GetTableCols(const std::string &tableName);
+
+   protected:
     std::string dbName_;
     std::unordered_map<std::string, TableColumns> tableColumns_;
 };
 
-class MsMonitorDB : public Database {
-public:
+class MsMonitorDB : public Database
+{
+   public:
     MsMonitorDB();
 };
-} // namespace db
-} // namespace ipc_monitor
-} // namespace dynolog_npu
+}  // namespace db
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
 
-#endif // IPC_MONITOR_DB_BASE_H
+#endif  // IPC_MONITOR_DB_BASE_H

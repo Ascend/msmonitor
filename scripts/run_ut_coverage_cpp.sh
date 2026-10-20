@@ -67,14 +67,15 @@ if (( ${#LCOV_DIR_ARGS[@]} == 0 )); then
 fi
 echo "Collecting C++ coverage from $((${#LCOV_DIR_ARGS[@]} / 2)) object directories"
 
+# GCC 13 and lcov 2.0 record different exception tags for Connection.h templates.
 LCOV_ARGS=("${LCOV_DIR_ARGS[@]}" --no-recursion --base-directory "$TOP_DIR"
     --no-external --branch-coverage
-    --include "${TOP_DIR}/plugin/ipc_monitor/*" --ignore-errors unused,inconsistent)
+    --include "${TOP_DIR}/plugin/ipc_monitor/*" --ignore-errors unused,inconsistent,mismatch)
 echo "Collecting executed C++ coverage..."
 lcov --capture "${LCOV_ARGS[@]}" --output-file "${COV_DIR}/ut_report.info"
-genhtml "${COV_DIR}/ut_report.info" --branch-coverage --ignore-errors inconsistent \
+genhtml "${COV_DIR}/ut_report.info" --branch-coverage --ignore-errors inconsistent,mismatch \
     --output-directory "${COV_DIR}/result"
-lcov --summary "${COV_DIR}/ut_report.info" --branch-coverage --ignore-errors inconsistent \
+lcov --summary "${COV_DIR}/ut_report.info" --branch-coverage --ignore-errors inconsistent,mismatch \
     2>&1 | tee "${COV_DIR}/cpp_coverage_report.log"
 echo "Full C++ coverage: ${COV_DIR}/result/index.html"
 
