@@ -1,17 +1,18 @@
-# Copyright (c) 2026, Huawei Technologies Co., Ltd.
-# All rights reserved.
+# -------------------------------------------------------------------------
+# This file is part of the MindStudio project.
+# Copyright (c) 2026 Huawei Technologies Co.,Ltd.
 #
-# Licensed under the Apache License, Version 2.0  (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# MindStudio is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#          http://license.coscl.org.cn/MulanPSL2
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
+# -------------------------------------------------------------------------
 
 """Monitor Python API 单测：用假 _ipcmonitor_C 模块驱动，不依赖真实 C 扩展。
 
@@ -24,6 +25,7 @@ save() 生成 msmonitor_<pid>_<时间戳> 文件夹并导出 Excel + Chrome Trac
 # pylint: disable=no-member
 
 import enum
+import importlib.util
 import os
 import sys
 import tempfile
@@ -132,7 +134,7 @@ _pkg.__path__ = [_IPCMONITOR_DIR]
 sys.modules["IPCMonitor"] = _pkg
 sys.modules["IPCMonitor._ipcmonitor_C"] = _build_fake_c_module()
 
-from IPCMonitor.monitor import ActivityKind, DcmiLayer, Monitor  # noqa: E402
+from IPCMonitor.monitor import ActivityKind, DCMI, DcmiLayer, Monitor  # noqa: E402
 
 
 class MonitorDispatchTest(unittest.TestCase):
@@ -265,6 +267,124 @@ class MonitorDispatchTest(unittest.TestCase):
             self._monitor().save()
             save_excel.assert_not_called()
             save_trace.assert_not_called()
+
+    def test_stop_calls_native(self):
+        called = []
+        mon = sys.modules["IPCMonitor._ipcmonitor_C"].monitor
+        with mock.patch.object(mon, "stop_monitor", lambda: called.append("stop")):
+            self._monitor().stop()
+        self.assertEqual(called, ["stop"])
+
+    def test_get_result_skips_unknown_kind_and_empty_dcmi(self):
+        mon = sys.modules["IPCMonitor._ipcmonitor_C"].monitor
+        with (
+            mock.patch.object(mon, "get_kinds", return_value=["not-a-kind", ActivityKind.Kernel]),
+            mock.patch.object(mon, "get_dcmi_data", return_value=[]),
+        ):
+            result = self._monitor().get_result()
+        self.assertIn(ActivityKind.Kernel, result)
+        self.assertNotIn(DCMI, result)
+
+    def test_start_session_dir_collision_adds_suffix(self):
+        save_root = tempfile.mkdtemp()
+        collided = os.path.join(save_root, "msmonitor_%d_20260101_010203" % os.getpid())
+        os.makedirs(collided)
+        now = mock.Mock()
+        now.strftime.side_effect = ["20260101_010203", "445566"]
+        with mock.patch("IPCMonitor.monitor.datetime") as clock:
+            clock.now.return_value = now
+            self._monitor().start(kinds=[ActivityKind.Kernel], save_path=save_root)
+        session = Monitor._cls._session_dir
+        self.assertTrue(session.endswith("_445566"))
+        self.assertNotEqual(session, collided)
+        self.assertTrue(os.path.isdir(session))
+
+    def test_get_dcmi_status_failure_returns_empty(self):
+        mon = sys.modules["IPCMonitor._ipcmonitor_C"].monitor
+        with mock.patch.object(mon, "get_dcmi_status", side_effect=RuntimeError("dcmi down")):
+            self.assertEqual(self._monitor()._get_dcmi_status(), {})
+
+    def test_save_excel_writes_activity_and_dcmi_rows(self):
+        out_dir = tempfile.mkdtemp()
+        path = os.path.join(out_dir, "monitor_result.xlsx")
+        with open(path, "wb") as f:
+            f.write(b"old")
+
+        class _Activity:
+            startNs = 10
+            endNs = 30
+
+            def to_tuple(self):
+                return ("kernel", 10, 30, 0, 1, 2, "vec")
+
+        result = {
+            ActivityKind.Kernel: [_Activity()],
+            DCMI: [
+                _FakeSample(2, 2000, 0, 1.5),
+                _FakeSample(999, 1000, 1, 2.5),
+            ],
+        }
+        self._monitor()._save_excel(path, result)
+        self.assertGreater(os.path.getsize(path), 0)
+
+    def test_save_excel_reports_failure(self):
+        path = os.path.join(tempfile.mkdtemp(), "broken.xlsx")
+        with mock.patch.object(Monitor._cls, "_get_dcmi_metric_meta", side_effect=RuntimeError("meta")):
+            self._monitor()._save_excel(path, {ActivityKind.Kernel: []})
+        self.assertFalse(os.path.exists(path))
+
+    def test_save_chrome_trace_success_and_failure(self):
+        path = os.path.join(tempfile.mkdtemp(), "monitor_result.json")
+        with mock.patch("IPCMonitor.monitor.ChromeTraceExporter.export") as export:
+            self._monitor()._save_chrome_trace(path, {})
+        export.assert_called_once()
+        with mock.patch("IPCMonitor.monitor.ChromeTraceExporter.export", side_effect=RuntimeError("trace")):
+            self._monitor()._save_chrome_trace(path, {})
+
+    def test_cleanup_log_symlinks(self):
+        out_dir = tempfile.mkdtemp()
+        self._monitor()._cleanup_log_symlinks(out_dir)  # 没有 log/ 直接返回
+
+        log_dir = os.path.join(out_dir, "log")
+        os.makedirs(log_dir)
+        plain = os.path.join(log_dir, "plain.log")
+        with open(plain, "w", encoding="utf-8") as f:
+            f.write("keep")
+        link = os.path.join(log_dir, "MsMonitor.INFO")
+        os.symlink(plain, link)
+        self._monitor()._cleanup_log_symlinks(out_dir)
+        self.assertFalse(os.path.lexists(link))
+        self.assertTrue(os.path.isfile(plain))
+
+        os.symlink(plain, link)
+        with mock.patch("IPCMonitor.monitor.os.remove", side_effect=OSError("busy")):
+            self._monitor()._cleanup_log_symlinks(out_dir)
+        self.assertTrue(os.path.lexists(link))
+
+    def test_package_init_exports_public_api(self):
+        # 包入口是相对导入，按真实文件名执行才能覆盖 __init__.py
+        init_path = os.path.join(_IPCMONITOR_DIR, "__init__.py")
+        with open(init_path, encoding="utf-8") as f:
+            code = compile(f.read(), init_path, "exec")
+        namespace = {"__name__": "IPCMonitor", "__package__": "IPCMonitor", "__file__": init_path}
+        exec(code, namespace)  # pylint: disable=exec-used
+        self.assertIs(namespace["Monitor"], Monitor)
+        self.assertEqual(
+            namespace["__all__"],
+            ["PyDynamicMonitorProxy", "ActivityKind", "DcmiLayer", "Monitor"],
+        )
+
+    def test_native_loader_binds_installed_extension(self):
+        # 先放入假扩展，再执行真实 _ipcmonitor_C.py，避免去加载本机 .so
+        extension = types.ModuleType("IPCMonitor_C")
+        sys.modules["IPCMonitor_C"] = extension
+        path = os.path.join(_IPCMONITOR_DIR, "_ipcmonitor_C.py")
+        spec = importlib.util.spec_from_file_location("ipcmonitor_c_loader_under_test", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertIs(module.ipcmonitor_C_module, extension)
+        lib_dir = os.path.realpath(os.path.join(_IPCMONITOR_DIR, "lib64"))
+        self.assertIn(lib_dir, sys.path)
 
 
 if __name__ == "__main__":
