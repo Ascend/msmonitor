@@ -218,7 +218,7 @@ The inference process receives the collection configuration and enables profile 
 
 ![nputrace_vllm_collect](../figures/nputrace_vllm_collect.png)
 
-Note: Typically, the vllm model process runs as a daemon, so online parsing of profile data is not supported. Users need to manually parse the collected profile data.
+Note: Typically, the vLLM model process runs as a daemon, so online parsing of profile data is not supported. Users need to manually parse the collected profile data.
 
 ![nputrace_vllm_result](../figures/nputrace_vllm_result.png)
 
@@ -310,7 +310,7 @@ torch_npu.npu.mstx.range_end(id)
 
 After completing custom markers in the model script, you can collect marker information using the nputrace and npu-monitor subcommands of msMonitor.
 
-The nputrace subcommand requires setting the `msprof-tx` parameter, along with the `mstx_domain_include` or `mstx_domain_exclude` parameter to filter the domain of the marker data. Example:
+The nputrace subcommand requires setting the `--msprof-tx` parameter, along with the `--mstx-domain-include` or `--mstx-domain-exclude` parameter to filter the domain of the marker data. Example:
 
 ```bash
 dyno --certs-dir NO_CERTS nputrace --msprof-tx ...
@@ -356,7 +356,7 @@ Example of creating a communication group in Megatron:
 
 ![megatron_group](../figures/megatron_group.png)
 
-After completing the preceding modifications, you can view the parallel strategy communication group  information in the `profiler_metadata.json` file delivered by the nputrace subcommand. This information is also included in the jsonl file written by the npu-monitor subcommand.
+After completing the preceding modifications, you can view the parallel strategy communication group information in the `profiler_metadata.json` file delivered by the nputrace subcommand. This information is also included in the jsonl file written by the npu-monitor subcommand.
 
 ```json
 "parallel_group_info": {

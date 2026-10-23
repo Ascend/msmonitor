@@ -49,7 +49,7 @@
 - A：`--duration` 参数单位为s，支持浮点数精度（如 `--duration 0.5` 表示采集 500ms）。
   - `--duration 0`（默认值）：表示不限时采集，需通过 `--npu-monitor-stop` 手动停止。
   - `--duration N`（N>0）：采集 N 秒后自动停止并清理资源。
-  - `--duration` 支持与 `--stop` 配合使用：启动时设置较长 duration，在发现异常时通过 stop 提前终止。
+  - `--duration` 支持与 `--npu-monitor-stop` 配合使用：启动时设置较长 duration，在发现异常时通过 stop 提前终止。
   - duration 不与 filter 耦合，可叠加使用，如 `--duration 60 --filter "Kernel:Attention"`。
 
 - **Q：npu-monitor `--duration` 到期后如何重新开始采集？**

@@ -218,7 +218,7 @@ dyno --certs-dir NO_CERTS nputrace --start-step -1 --iterations 10 --with-module
 
 ![nputrace_vllm_collect](../figures/nputrace_vllm_collect.png)
 
-注意，通常 vllm 模型进程是以守护进程的形式运行的，所以无法支持在线解析性能数据，需要用户在采集完成后，手动解析性能数据。
+注意，通常 vLLM 模型进程是以守护进程的形式运行的，所以无法支持在线解析性能数据，需要用户在采集完成后，手动解析性能数据。
 
 ![nputrace_vllm_result](../figures/nputrace_vllm_result.png)
 
@@ -310,7 +310,7 @@ torch_npu.npu.mstx.range_end(id)
 
 用户在模型脚本中完成自定义打点后，即可通过 msMonitor 的 nputrace 和 npu-monitor 子命令采集打点信息。
 
-nputrace 子命令需要设置 `msprof-tx` 参数，以及 mstx_domain_include 或 mstx_domain_exclude 参数对打点数据的 domain 进行过滤，示例如下：
+nputrace 子命令需要设置 `--msprof-tx` 参数，以及 --mstx-domain-include 或 --mstx-domain-exclude 参数对打点数据的 domain 进行过滤，示例如下：
 
 ```bash
 dyno --certs-dir NO_CERTS nputrace --msprof-tx ...

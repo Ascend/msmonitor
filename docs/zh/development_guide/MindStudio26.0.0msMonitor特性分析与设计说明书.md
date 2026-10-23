@@ -1138,7 +1138,7 @@ IPC 客户端 (`IpcClient::SyncSendMessage`) 内置指数退避重试机制：
 
 - MsptiMonitor 启动/停止后通过 IPC 实时上报 `NpuStatus` 至 Dynolog Daemon。
 - `NpuStatus` 包含 `status`（运行状态）、`pid`、`jobId`、`currentStep`、`startStep`、`stopStep`。
-- mindstudio-insight 可通过查询状态感知采集器健康度。
+- Mindstudio Insight 可通过查询状态感知采集器健康度。
 
 ## 7.3可演进性
 

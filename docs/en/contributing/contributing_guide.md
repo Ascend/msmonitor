@@ -161,7 +161,7 @@ Before submitting a PR, ensure the following:
 5. **Review the code.**
 
    1. After submitting a PR, notify the relevant Reviewers and Committers to review the content.
-   2. You need to modify the code based on the review feedback and resubmit the update. This process may of multiple rounds, so remain responsive and communicative.
+   2. You need to modify the code based on the review feedback and resubmit the update. This process may have multiple rounds, so remain responsive and communicative.
 
    The PR process will prompt the relevant Reviewers and Committers. You can specify the relevant Reviewers and Committers during the PR process, or contact us via [README](../../../README_EN.md#-suggestions-and-communication).
 

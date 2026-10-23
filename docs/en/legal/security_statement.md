@@ -59,7 +59,7 @@ For details about the vulnerability mechanism, see [msMonitor Vulnerability Hand
 
 ## Build Security Statement
 
-​    msMonitor supports installation through source code compilation. During compilation, the system downloads third-party dependencies, executes shell build scripts, and generates temporary program files and compilation directories. To reduce security risks, you can perform permission control on files within the source code directory. During the build process, you can modify build scripts as needed to avoid security risks and ensure the security of the build results.
+msMonitor supports installation through source code compilation. During compilation, the system downloads third-party dependencies, executes shell build scripts, and generates temporary program files and compilation directories. To reduce security risks, you can perform permission control on files within the source code directory. During the build process, you can modify build scripts as needed to avoid security risks and ensure the security of the build results.
 
 ## Running Security Statement
 

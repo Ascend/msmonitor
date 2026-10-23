@@ -113,7 +113,7 @@ Complete the msMonitor tool installation. For details, see *[msMonitor Installat
 6. Use the `dyno` command to trigger nputrace to collect detailed trace data (the npu-monitor function must be disabled before nputrace can be triggered).
 
    ```bash
-   # Start collection from step 10, collect  framework, CANN, and device data 2 steps, automatically parse after collection, and do not perform data simplification after parsing. The output path is /tmp/profile_data.
+   # Start collection from step 10, collect framework, CANN, and device data 2 steps, automatically parse after collection, and do not perform data simplification after parsing. The output path is /tmp/profile_data.
    dyno --certs-dir NO_CERTS nputrace --start-step 10 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
    ```
 
