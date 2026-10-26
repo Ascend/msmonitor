@@ -1,5 +1,21 @@
-// Copyright (c) Meta Platforms, Inc. and affiliates.
-//
+/*
+ * -------------------------------------------------------------------------
+ * This file is part of the MindStudio project.
+ * Copyright (c) 2025 Huawei Technologies Co.,Ltd.
+ *
+ * MindStudio is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *
+ *          http://license.coscl.org.cn/MulanPSL2
+ *
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ * -------------------------------------------------------------------------
+ */
+
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
@@ -7,21 +23,21 @@
 
 #include "dynolog/src/ThreadManager.h"
 
-#include <glog/logging.h>
 #include <gflags/gflags.h>
-#include <chrono>
-#include <cstdlib>
-#include <csignal>
-#include "dynolog/src/utils.h"
-#include "dynolog/src/Logger.h"
+#include <glog/logging.h>
 
-#include "dynolog/src/PerfMonitor.h"
-#include "dynolog/src/ScubaLogger.h"
-#include "dynolog/src/KernelCollector.h"
-#include "dynolog/src/ODSJsonLogger.h"
+#include <chrono>
+#include <csignal>
+#include <cstdlib>
+
 #include "dynolog/src/CompositeLogger.h"
 #include "dynolog/src/FBRelayLogger.h"
-
+#include "dynolog/src/KernelCollector.h"
+#include "dynolog/src/Logger.h"
+#include "dynolog/src/ODSJsonLogger.h"
+#include "dynolog/src/PerfMonitor.h"
+#include "dynolog/src/ScubaLogger.h"
+#include "dynolog/src/utils.h"
 #include "hbt/src/perf_event/BuiltinMetrics.h"
 
 #ifdef USE_PROMETHEUS
@@ -32,10 +48,12 @@
 #include "dynolog/src/DynologTensorBoardLogger.h"
 #endif
 
-namespace dynolog {
+namespace dynolog
+{
 namespace hbt = facebook::hbt;
 
-namespace {
+namespace
+{
 constexpr int MS_PER_SECOND = 1000;
 
 DEFINE_int32(port, 1778, "Port for listening RPC requests.");
@@ -46,61 +64,51 @@ DEFINE_bool(use_prometheus, false, "Emit metrics to Prometheus");
 DEFINE_bool(use_fbrelay, false, "Emit metrics to FB Relay on Lab machines");
 DEFINE_bool(use_ODS, false, "Emit metrics to ODS through ODS logger");
 DEFINE_bool(use_scuba, false, "Emit metrics to Scuba through Scuba logger");
-DEFINE_int32(
-kernel_monitor_reporting_interval_s,
-60,
-"Duration in seconds to read and report metrics for kernel monitor");
-DEFINE_int32(
-perf_monitor_reporting_interval_s,
-60,
-"Duration in seconds to read and report metrics for performance monitor");
-DEFINE_int32(
-dcgm_reporting_interval_s,
-10,
-"Duration in seconds to read and report metrics for DCGM");
-DEFINE_bool(
-enable_ipc_monitor,
-false,
-"Enabled IPC monitor for on system tracing requests.");
-DEFINE_bool(
-enable_gpu_monitor,
-false,
-"Enabled GPU monitorng, currently supports NVIDIA GPUs.");
+DEFINE_int32(kernel_monitor_reporting_interval_s, 60,
+             "Duration in seconds to read and report metrics for kernel monitor");
+DEFINE_int32(perf_monitor_reporting_interval_s, 60,
+             "Duration in seconds to read and report metrics for performance monitor");
+DEFINE_int32(dcgm_reporting_interval_s, 10, "Duration in seconds to read and report metrics for DCGM");
+DEFINE_bool(enable_ipc_monitor, false, "Enabled IPC monitor for on system tracing requests.");
+DEFINE_bool(enable_gpu_monitor, false, "Enabled GPU monitorng, currently supports NVIDIA GPUs.");
 DEFINE_bool(enable_perf_monitor, false, "Enable heartbeat perf monitoring.");
 
 std::unique_ptr<Logger> getLogger(const std::string& scribe_category = "")
 {
     std::vector<std::unique_ptr<Logger>> loggers;
 #ifdef USE_PROMETHEUS
-    if (FLAGS_use_prometheus) {
+    if (FLAGS_use_prometheus)
+    {
         loggers.push_back(std::make_unique<PrometheusLogger>());
     }
 #endif
 #ifdef USE_TENSORBOARD
-    if (!FLAGS_metric_log_dir.empty()) {
+    if (!FLAGS_metric_log_dir.empty())
+    {
         loggers.push_back(std::make_unique<DynologTensorBoardLogger>(FLAGS_metric_log_dir));
     }
 #endif
-    if (FLAGS_use_fbrelay) {
+    if (FLAGS_use_fbrelay)
+    {
         loggers.push_back(std::make_unique<FBRelayLogger>());
     }
-    if (FLAGS_use_ODS) {
+    if (FLAGS_use_ODS)
+    {
         loggers.push_back(std::make_unique<ODSJsonLogger>());
     }
-    if (FLAGS_use_JSON) {
+    if (FLAGS_use_JSON)
+    {
         loggers.push_back(std::make_unique<JsonLogger>());
     }
-    if (FLAGS_use_scuba && !scribe_category.empty()) {
+    if (FLAGS_use_scuba && !scribe_category.empty())
+    {
         loggers.push_back(std::make_unique<ScubaLogger>(scribe_category));
     }
     return std::make_unique<CompositeLogger>(std::move(loggers));
 }
 
-auto next_wakeup(int sec)
-{
-    return std::chrono::steady_clock::now() + std::chrono::seconds(sec);
-}
-}
+auto next_wakeup(int sec) { return std::chrono::steady_clock::now() + std::chrono::seconds(sec); }
+}  // namespace
 
 void ThreadManager::gpu_monitor_loop()
 {
@@ -109,7 +117,8 @@ void ThreadManager::gpu_monitor_loop()
     LOG(INFO) << "Running DCGM loop : interval = " << FLAGS_dcgm_reporting_interval_s << " s.";
     LOG(INFO) << "DCGM fields: " << gpumon::FLAGS_dcgm_fields;
 
-    while (still_alive_.load()) {
+    while (still_alive_.load())
+    {
         auto wakeup_timepoint = next_wakeup(FLAGS_dcgm_reporting_interval_s);
 
         dcgm_->update();
@@ -126,7 +135,8 @@ void ThreadManager::kernel_monitor_loop()
 
     LOG(INFO) << "Running kernel monitor loop : interval = " << FLAGS_kernel_monitor_reporting_interval_s << " s.";
 
-    while (still_alive_.load()) {
+    while (still_alive_.load())
+    {
         auto logger = getLogger();
         auto wakeup_timepoint = next_wakeup(FLAGS_kernel_monitor_reporting_interval_s);
 
@@ -141,18 +151,15 @@ void ThreadManager::kernel_monitor_loop()
 
 void ThreadManager::perf_monitor_loop()
 {
-    PerfMonitor pm(
-            hbt::CpuSet::makeAllOnline(),
-            std::vector<ElemId>{"instructions", "cycles"},
-            getDefaultPmuDeviceManager(),
-            getDefaultMetrics());
+    PerfMonitor pm(hbt::CpuSet::makeAllOnline(), std::vector<ElemId>{"instructions", "cycles"},
+                   getDefaultPmuDeviceManager(), getDefaultMetrics());
 
     LOG(INFO) << "Running perf monitor loop : interval = " << FLAGS_perf_monitor_reporting_interval_s << " s.";
 
-    while (still_alive_.load()) {
+    while (still_alive_.load())
+    {
         auto logger = getLogger();
-        auto wakeup_timepoint =
-                next_wakeup(FLAGS_perf_monitor_reporting_interval_s);
+        auto wakeup_timepoint = next_wakeup(FLAGS_perf_monitor_reporting_interval_s);
 
         pm.step();
         pm.log(*logger);
@@ -165,7 +172,8 @@ void ThreadManager::perf_monitor_loop()
 
 void ThreadManager::start_threads()
 {
-    if (FLAGS_enable_ipc_monitor) {
+    if (FLAGS_enable_ipc_monitor)
+    {
         LOG(INFO) << "Starting IPC Monitor";
         ipcmon_ = std::make_shared<tracing::IPCMonitor>();
         ipcmon_->setLogger(std::move(getLogger()));
@@ -173,15 +181,17 @@ void ThreadManager::start_threads()
         data_ipcmon_thread_ = std::make_unique<std::thread>([this]() { this->ipcmon_->dataLoop(); });
     }
 
-    if (FLAGS_enable_gpu_monitor) {
-        dcgm_ = gpumon::DcgmGroupInfo::factory(gpumon::FLAGS_dcgm_fields,
-                                               FLAGS_dcgm_reporting_interval_s * MS_PER_SECOND);
+    if (FLAGS_enable_gpu_monitor)
+    {
+        dcgm_ =
+            gpumon::DcgmGroupInfo::factory(gpumon::FLAGS_dcgm_fields, FLAGS_dcgm_reporting_interval_s * MS_PER_SECOND);
         gpumon_thread_ = std::make_unique<std::thread>([this]() { this->gpu_monitor_loop(); });
     }
 
     km_thread_ = std::make_unique<std::thread>([this]() { this->kernel_monitor_loop(); });
 
-    if (FLAGS_enable_perf_monitor) {
+    if (FLAGS_enable_perf_monitor)
+    {
         pm_thread_ = std::make_unique<std::thread>([this]() { this->perf_monitor_loop(); });
     }
 
@@ -190,7 +200,8 @@ void ThreadManager::start_threads()
 
     // use simple json RPC server for now
     server_ = std::make_unique<SimpleJsonServer<ServiceHandler>>(handler, FLAGS_port);
-    if (server_) {
+    if (server_)
+    {
         std::signal(SIGPIPE, SIG_IGN);
         server_->run();
     }
@@ -202,23 +213,28 @@ void ThreadManager::run(int argc, char** argv)
     FLAGS_logtostderr = 1;
     google::InitGoogleLogging(argv[0]);
 
-    if (dynolog::IsRoot()) {
+    if (dynolog::IsRoot())
+    {
         LOG(WARNING) << "Security Warning: Do not run this tool as root. "
                      << "Running with elevated privileges may compromise system security. "
                      << "Use a regular user account.";
     }
     LOG(INFO) << "Starting Ascend Extension for dynolog, version = " DYNOLOG_VERSION
-        << ", build git-hash = " DYNOLOG_GIT_REV;
+              << ", build git-hash = " DYNOLOG_GIT_REV;
 
-    try {
+    try
+    {
         start_threads();
-    } catch (const std::exception& e) {
+    }
+    catch (const std::exception& e)
+    {
         LOG(ERROR) << "ThreadManager run failed: " << e.what();
         // to stop km_thread_, pm_thread_ and gpumon_thread_
         still_alive_.store(false);
 
         // to stop ipcmon_thread_ and data_ipcmon_thread_
-        if (ipcmon_) {
+        if (ipcmon_)
+        {
             ipcmon_->release();
         }
     }
@@ -227,29 +243,35 @@ void ThreadManager::run(int argc, char** argv)
 void ThreadManager::stop()
 {
     LOG(INFO) << "Wait for ThreadManager stop.";
-    if (km_thread_ && km_thread_->joinable()) {
+    if (km_thread_ && km_thread_->joinable())
+    {
         km_thread_->join();
     }
 
-    if (pm_thread_ && pm_thread_->joinable()) {
+    if (pm_thread_ && pm_thread_->joinable())
+    {
         pm_thread_->join();
     }
 
-    if (gpumon_thread_ && gpumon_thread_->joinable()) {
+    if (gpumon_thread_ && gpumon_thread_->joinable())
+    {
         gpumon_thread_->join();
     }
 
-    if (ipcmon_thread_ && ipcmon_thread_->joinable()) {
+    if (ipcmon_thread_ && ipcmon_thread_->joinable())
+    {
         ipcmon_thread_->join();
     }
 
-    if (data_ipcmon_thread_ && data_ipcmon_thread_->joinable()) {
+    if (data_ipcmon_thread_ && data_ipcmon_thread_->joinable())
+    {
         data_ipcmon_thread_->join();
     }
 
-    if (server_) {
+    if (server_)
+    {
         server_->stop();
     }
 }
 
-}
+}  // namespace dynolog
