@@ -49,6 +49,9 @@ const std::string PROFILER_STATUS = "profiler_status";
 const std::string CURRENT_STEP = "current_step";
 const std::string START_STEP = "start_step";
 const std::string STOP_STEP = "stop_step";
+const std::string TRACE_ID = "trace_id";
+const std::string QUEUE_DEPTH = "queue_depth";
+const std::string REJECTED = "rejected";
 
 struct NpuRequest
 {
@@ -73,6 +76,11 @@ struct NpuStatus
     int32_t stopStep = -1;
     pid_t pid = GetProcessId();
     int64_t jobId = JOB_ID;
+    char traceId[40] = "";
+    int32_t queueDepth = 0;
+    int32_t rejected = 0;
+    // Append-only; keep in sync with dynolog's LibkinetoConfigManager.h.
+    int32_t extended = 0;  // 1 when trace_id/queue_depth/rejected were reported
 };
 
 struct Metadata

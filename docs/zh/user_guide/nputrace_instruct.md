@@ -18,6 +18,8 @@ nputrace工具的作用是获取框架、CANN以及device的详细性能数据�
 
 nputrace作为dyno命令的子命令，执行命令时需配置--certs-dir参数，且--certs-dir参数配置的值须与[dyno](dyno_instruct.md)和[dynolog](dynolog_instruct.md)中的--certs-dir值保持一致。
 
+nputrace与npu-monitor共享底层Profiling资源，不支持同时采集，包括两条命令短时间内先后下发、同时处于排队或缓存中的场景。从npu-monitor切换为nputrace时，先执行`dyno npu-monitor --npu-monitor-stop`，待`dyno status`显示`npumonitor`为`Idle`后再发送nputrace。
+
 **命令格式**
 
 ```bash

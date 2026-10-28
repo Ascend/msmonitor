@@ -36,6 +36,10 @@
 
 - **Q：npu-monitor 和 nputrace 能否同时使用？**
 - A：不能。npu-monitor 和 nputrace 共享底层 Profiling 资源，存在资源冲突，必须停止一个后再启动另一个。
+  - **不支持 `npu-monitor start` 与 `nputrace` 同时发送**，包括两条命令短时间内先后下发、同时停留在 daemon 队列、插件缓存或共享内存的场景。此时两条命令可能在 npu-monitor 上报 `Running` 前均被受理，模型进程会在同一步内先启动 msPTI 监测、再启动 nputrace 采集，导致 Profiling 资源冲突。
+  - 配置缓存只保证传递顺序，不提供互斥保护；只要 npu-monitor 未停止，nputrace 仍可能启动失败或采集中断。
+  - 从 npu-monitor 切换到 nputrace 时，先执行 `dyno npu-monitor --npu-monitor-stop`，待 `dyno status` 显示 `npumonitor` 为 `Idle` 后再发送 nputrace。
+  - `dyno status` 的 `queue_depth`、`rejected` 仅统计 nputrace 配置，不包含 npu-monitor 配置，无法反映 npu-monitor 是否排队。
 
 - **Q：msMonitor 是否支持 vLLM 推理场景？**
 - A：支持，但有限制：
@@ -83,7 +87,7 @@
 ## 三、故障排查
 
 - **Q：IPC 通信失败如何排查？**
-- A：msMonitor 的 IPC 通信链路为：CLI → TCP/TLS（RPC）→ Dynolog Server → Unix Domain Socket → 训练进程。请按以下顺序排查：
+- A：msMonitor 的 IPC 通信链路为：CLI → TCP/TLS（RPC）→ Dynolog Server → Unix Domain Socket → 模型进程。请按以下顺序排查：
   1. 确认 dynolog daemon 已启动，且 `~` 目录下存在 `dynolog.sock`。
   2. 确认 CLI 与 Server 间的 RPC 端口（默认 1778）未被防火墙拦截。
   3. 检查 dynolog 日志中是否有 `ECONNREFUSED`、`EAGAIN` 等 socket 错误码。
@@ -95,7 +99,7 @@
   - 使用 filter 减少消费数据量，提升 Buffer 消费速率。
 
 - **Q：共享内存文件残留导致采集异常如何处理？**
-- A：当训练进程被 `pkill -9` 强制终止时，`/dev/shm` 目录下的 `DynamicProfileNpuShm*` 共享内存文件不会被自动清理。处理方法：
+- A：当模型进程被 `pkill -9` 强制终止时，`/dev/shm` 目录下的 `DynamicProfileNpuShm*` 共享内存文件不会被自动清理。处理方法：
 
   ```bash
   # 检查残留文件

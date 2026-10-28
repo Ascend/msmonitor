@@ -7,12 +7,16 @@
 
 #include <fmt/format.h>
 #include <glog/logging.h>
+
+#include <cstring>
 #include <nlohmann/json.hpp>
 #include <unordered_map>
+
 #include "dynolog/src/rpc/SimpleJsonServer.h"
 #include "dynolog/src/utils.h"
 
-namespace dynolog {
+namespace dynolog
+{
 
 const std::string CURRENT_STEP = "current_step";
 const std::string START_STEP = "start_step";
@@ -25,7 +29,8 @@ const std::unordered_map<int32_t, std::string> PROFILER_STATUS_MAP = {
     {2, "Ready"},
 };
 
-enum PROFILER_STATUS: int32_t {
+enum PROFILER_STATUS : int32_t
+{
     UNINITIALIZED = -1,
     IDLE = 0,
     RUNNING = 1,
@@ -33,10 +38,12 @@ enum PROFILER_STATUS: int32_t {
 };
 
 template <class TServiceHandler = ServiceHandler>
-class SimpleJsonServer : public SimpleJsonServerBase {
-public:
+class SimpleJsonServer : public SimpleJsonServerBase
+{
+   public:
     explicit SimpleJsonServer(std::shared_ptr<TServiceHandler> handler, int port)
-        : SimpleJsonServerBase(port), handler_(std::move(handler)) {
+        : SimpleJsonServerBase(port), handler_(std::move(handler))
+    {
     }
 
     ~SimpleJsonServer() {}
@@ -44,7 +51,7 @@ public:
     std::string processOneImpl(const std::string& request) override;
     nlohmann::json handleSetKinetOnDemandRequest(const nlohmann::json& request);
 
-private:
+   private:
     std::shared_ptr<TServiceHandler> handler_;
 };
 
@@ -59,30 +66,35 @@ inline nlohmann::json toJson(const std::string& message)
 {
     using json = nlohmann::json;
     json result;
-    if (message.empty()) {
+    if (message.empty())
+    {
         return result;
     }
-    try {
-        if (!(json::accept(message) && CheckJsonDepth(message))) {
+    try
+    {
+        if (!(json::accept(message) && CheckJsonDepth(message)))
+        {
             LOG(ERROR) << "Error parsing message = " << message;
             return json();
         }
         result = json::parse(message);
     }
-    catch (const std::exception& e) {
+    catch (const std::exception& e)
+    {
         LOG(ERROR) << "Error parsing message = " << message << " : " << e.what();
         return json();
     }
 
-    if (result.empty() || !result.is_object()) {
-        LOG(ERROR)
-            << "Request message should not be empty and should be json object.";
+    if (result.empty() || !result.is_object())
+    {
+        LOG(ERROR) << "Request message should not be empty and should be json object.";
         return json();
     }
 
-    if (!result.contains("fn")) {
+    if (!result.contains("fn"))
+    {
         LOG(ERROR) << "Request must contain a 'fn' field for the RPC call "
-            << " request json = " << result.dump();
+                   << " request json = " << result.dump();
         return json();
     }
 
@@ -94,20 +106,35 @@ inline std::string GetCommandStatus(const std::string& configStr)
     auto npuTraceStatus = LibkinetoConfigManager::getInstance()->getNpuTraceStatus();
     auto npuMonitorStatus = LibkinetoConfigManager::getInstance()->getNpuMonitorStatus();
     std::string prefix = "NPU_MONITOR_START";
-    if (configStr.compare(0, prefix.size(), prefix) == 0) {
-        if (npuTraceStatus.status == PROFILER_STATUS::RUNNING || npuMonitorStatus.status == PROFILER_STATUS::UNINITIALIZED) {
+    if (configStr.compare(0, prefix.size(), prefix) == 0)
+    {
+        if (npuTraceStatus.status == PROFILER_STATUS::RUNNING ||
+            npuMonitorStatus.status == PROFILER_STATUS::UNINITIALIZED)
+        {
             return "ineffective";
-        } else if (npuTraceStatus.status == PROFILER_STATUS::IDLE || npuTraceStatus.status == PROFILER_STATUS::READY) {
+        }
+        else if (npuTraceStatus.status == PROFILER_STATUS::IDLE || npuTraceStatus.status == PROFILER_STATUS::READY)
+        {
             return "effective";
-        } else {
+        }
+        else
+        {
             return "unknown";
         }
-    } else {
-        if (npuMonitorStatus.status == PROFILER_STATUS::RUNNING || npuTraceStatus.status == PROFILER_STATUS::UNINITIALIZED) {
+    }
+    else
+    {
+        if (npuMonitorStatus.status == PROFILER_STATUS::RUNNING ||
+            npuTraceStatus.status == PROFILER_STATUS::UNINITIALIZED)
+        {
             return "ineffective";
-        } else if (npuMonitorStatus.status == PROFILER_STATUS::IDLE) {
+        }
+        else if (npuMonitorStatus.status == PROFILER_STATUS::IDLE)
+        {
             return "effective";
-        } else {
+        }
+        else
+        {
             return "unknown";
         }
     }
@@ -122,17 +149,31 @@ inline nlohmann::json GetStatus()
     auto npuTraceStatus = LibkinetoConfigManager::getInstance()->getNpuTraceStatus();
     auto npuMonitorStatus = LibkinetoConfigManager::getInstance()->getNpuMonitorStatus();
     auto it = PROFILER_STATUS_MAP.find(npuTraceStatus.status);
-    if (it != PROFILER_STATUS_MAP.end()) {
+    if (it != PROFILER_STATUS_MAP.end())
+    {
         response["nputrace"] = it->second;
     }
     it = PROFILER_STATUS_MAP.find(npuMonitorStatus.status);
-    if (it != PROFILER_STATUS_MAP.end()) {
+    if (it != PROFILER_STATUS_MAP.end())
+    {
         response["npumonitor"] = it->second;
     }
     response[CURRENT_STEP] = npuTraceStatus.currentStep;
-    if (npuTraceStatus.status == PROFILER_STATUS::RUNNING || npuTraceStatus.status == PROFILER_STATUS::READY) {
+    if (npuTraceStatus.status == PROFILER_STATUS::RUNNING || npuTraceStatus.status == PROFILER_STATUS::READY)
+    {
         response[START_STEP] = npuTraceStatus.startStep;
         response[STOP_STEP] = npuTraceStatus.stopStep;
+    }
+    // Only report optional fields when the model process supplied them (missing != 0).
+    if (npuTraceStatus.extended)
+    {
+        if (npuTraceStatus.status == PROFILER_STATUS::RUNNING || npuTraceStatus.status == PROFILER_STATUS::READY)
+        {
+            response["trace_id"] =
+                std::string(npuTraceStatus.traceId, strnlen(npuTraceStatus.traceId, sizeof(npuTraceStatus.traceId)));
+            response["queue_depth"] = npuTraceStatus.queueDepth;
+        }
+        response["rejected"] = npuTraceStatus.rejected;
     }
     return response;
 }
@@ -142,22 +183,28 @@ nlohmann::json SimpleJsonServer<TServiceHandler>::handleSetKinetOnDemandRequest(
 {
     using json = nlohmann::json;
     json response;
-    if (!request.contains("config") || !request.contains("pids")) {
+    if (!request.contains("config") || !request.contains("pids"))
+    {
         response["status"] = "failed";
         return response;
     }
-    try {
+    try
+    {
         std::string config = request.value("config", "");
         std::vector<int> pids = request.at("pids").get<std::vector<int>>();
-        std::set<int> pids_set{ pids.begin(), pids.end() };
+        std::set<int> pids_set{pids.begin(), pids.end()};
         int job_id = request.value("job_id", 0);
         int process_limit = request.value("process_limit", 1000);
         auto commandStatus = GetCommandStatus(config);
-        if (commandStatus == "effective") {
+        if (commandStatus == "effective")
+        {
             auto result = handler_->setKinetOnDemandRequest(job_id, pids_set, config, process_limit);
-            if (result.processesMatched.empty()) {
+            if (result.processesMatched.empty())
+            {
                 commandStatus = "ineffective";
-            } else {
+            }
+            else
+            {
                 response["processesMatched"] = result.processesMatched;
                 response["eventProfilersTriggered"] = result.eventProfilersTriggered;
                 response["activityProfilersTriggered"] = result.activityProfilersTriggered;
@@ -167,13 +214,13 @@ nlohmann::json SimpleJsonServer<TServiceHandler>::handleSetKinetOnDemandRequest(
         }
         response["commandStatus"] = commandStatus;
     }
-    catch (const std::exception& ex) {
+    catch (const std::exception& ex)
+    {
         LOG(ERROR) << "setKinetOnDemandRequest: parsing exception = " << ex.what();
         response["status"] = fmt::format("failed with exception = {}", ex.what());
     }
     return response;
 }
-
 
 template <class TServiceHandler>
 std::string SimpleJsonServer<TServiceHandler>::processOneImpl(const std::string& request_str)
@@ -182,22 +229,30 @@ std::string SimpleJsonServer<TServiceHandler>::processOneImpl(const std::string&
     json request = toJson(request_str);
     json response;
 
-    if (request.empty()) {
+    if (request.empty())
+    {
         LOG(ERROR) << "Failed parsing request, continuing ...";
         return "";
     }
 
-    if (request["fn"] == "getStatus") {
+    if (request["fn"] == "getStatus")
+    {
         response = GetStatus();
-    } else if (request["fn"] == "getVersion") {
+    }
+    else if (request["fn"] == "getVersion")
+    {
         response["version"] = handler_->getVersion();
-    } else if (request["fn"] == "setKinetOnDemandRequest") {
+    }
+    else if (request["fn"] == "setKinetOnDemandRequest")
+    {
         response = handleSetKinetOnDemandRequest(request);
-    } else {
+    }
+    else
+    {
         LOG(ERROR) << "Unknown RPC call = " << request["fn"];
         return "";
     }
 
     return response.dump();
 }
-} // namespace dynolog
+}  // namespace dynolog
