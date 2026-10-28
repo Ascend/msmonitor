@@ -8,9 +8,9 @@ Provides inter-process communication (IPC) interfaces and the capability of inde
 2. IPC data channel: msPTI Monitor sends profile data to the dynolog daemon.
 3. Lightweight profile data collection
 
-  * Starts or stops msPTI Monitor to collect data.
-  * Obtains the profile data collected by msPTI Monitor online.
-  * Export profile data collected by msPTI Monitor to the local host in Excel and Chrome Trace JSON formats
+    * Starts or stops msPTI Monitor to collect data.
+    * Obtains the profile data collected by msPTI Monitor online.
+    * Export profile data collected by msPTI Monitor to the local host in Excel and Chrome Trace JSON formats
 
 ### PyDynamicMonitorProxy API
 
@@ -22,7 +22,7 @@ Communicates with the dynolog daemon through IPC, and sends registration request
 * `poll_dyno` obtains profiler control parameters from the dynolog daemon.
   * Input: None
   * Return: str, control parameter.
-* `enable_dyno_npu_monitor` enables MSPTI monitoring.
+* `enable_dyno_npu_monitor` enables msPTI monitoring.
   * Input: cfg_map(Dict[str,str]) parameter configuration
   * Return: None
 * `finalize_dyno` releases resources and threads in mindstudio_monitor.
@@ -73,7 +73,7 @@ This enumeration class defines the types of the data can be collected by msPTI M
 
 Defines the hardware layers collected by DCMI, as the configuration unit of `start(dcmi_layers=...)` (corresponding one-to-one with the layered presentation of Chrome Trace). Selecting a layer collects all available metrics of that layer:
 
-* `DcmiLayer.DEVICE`: Device-level metrics Power (W) and Temp (℃)
+* `DcmiLayer.DEVICE`: Device-level metrics Power (W) and Temp (°C)
 * `DcmiLayer.AICORE`: AI Core current/rated frequency (MHz) and AI Core/AI Cube/Vector Core/NPU utilization (%)
 * `DcmiLayer.AICPU`: AI CPU maximum running frequency (MHz), current frequency (MHz), and utilization (%)
 * `DcmiLayer.HBM`: On-chip memory frequency (MHz), total capacity (MB), used memory (MB), bandwidth utilization (%), and temperature (℃)

@@ -100,7 +100,7 @@ If the output has no error and displays 'All is OK', the installation is success
 
 ## 3. Uninstallation
 
-You can perform uninstallation  by following these steps:
+You can perform uninstallation by following these steps:
 
 1. Download the script.
 
@@ -131,7 +131,7 @@ If the uninstallation is successful, the following information is printed:
 
 Upgrading means "uninstalling first and then installing". Run the install command directly. The tool will automatically remove any older version and guide you through a clean reinstallation.
 
-You can use the `dyno --version` command to view the version information of the current environment and then select the version to upgrade to. When upgrading the version, pay attention to the version compatibility relationship. See *[Release Notes](https://gitcode.com/Ascend/release-management/blob/master/MindStudio/26.2.0/release_notes.md)*.
+You can use the `dyno --version` command to view the version information of the current environment and then select the version to upgrade to. When upgrading the version, pay attention to the version compatibility relationship. See *[Release Notes](https://gitcode.com/Ascend/release-management/blob/master/MindStudio/26.2.0/release_notes_en.md)*.
 
 ## 5. Installing openssl (RPC TLS Authentication) and Generating Certificate Keys
 

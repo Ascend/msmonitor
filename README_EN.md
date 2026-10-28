@@ -109,7 +109,6 @@ You are cordially invited to participate in the [satisfaction survey](https://rd
 
 ## 🙏 Acknowledgments
 
-This tool is jointly contributed by the following departments of Huawei:<br>
-🔹 Ascend Computing MindStudio Development Department<br>
-🔹 2012 Euler Laboratory<br>
-Thanks to every PR from the community. Contributions are welcome!
+This tool is jointly contributed by Huawei Technologies Co., Ltd. and developers.
+
+Thank you for every PR from the community. Contributions are welcome!

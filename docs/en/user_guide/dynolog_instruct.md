@@ -10,7 +10,7 @@ dynolog is responsible for receiving RPC requests from dyno CLI and triggering n
 
 | Name                  | Type   | Description                                                    | Mandatory |
 |---------------------|--------|-------------------------------------------------------|:----:|
-| --enable-ipc-monitor | action | Whether to enable  Inter-Process Communication (IPC) monitoring for communication with dyno. Configuring this parameter enables it. Disabled by default. |  N   |
+| --enable-ipc-monitor | action | Whether to enable Inter-Process Communication (IPC) monitoring for communication with dyno. Configuring this parameter enables it. Disabled by default. |  N   |
 | --port              |  i32   | Port number that the dynolog daemon process listens on. Default value: `1778`.                   |  N   |
 | --certs-dir         | String | Path to TLS certificates for RPC communication between dyno and dynolog. When the value is `NO_CERTS`, certificate verification is not used. Default value: `NO_CERTS`. |  N   |
 | --metric_log_dir    | String | Disk storage path for metric data.                                     |  N   |

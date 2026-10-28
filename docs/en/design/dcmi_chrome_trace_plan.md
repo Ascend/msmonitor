@@ -332,7 +332,7 @@ flowchart LR
 | `dcmi_get_device_temperature` | `(card, dev, int *temp)` | ℃ | Consistent across three generations |
 | `dcmi_get_device_aicore_info` | `struct {freq, cur_freq}` | MHz | Consistent across three generations |
 | `dcmi_get_device_aicpu_info` | `struct {max_freq, cur_freq, aicpu_num, util_rate[]}` | MHz | Consistent across three generations |
-| `dcmi_get_device_hbm_info` | `struct {memory_size, freq, memory_usage, temp, bandwith_util_rate}` | MB/MHz/%/℃ | Consistent across three generations |
+| `dcmi_get_device_hbm_info` | `struct {memory_size, freq, memory_usage, temp, bandwidth_util_rate}` | MB/MHz/%/℃ | Consistent across three generations |
 | `dcmi_get_device_multi_utilization_rate` | `struct {aic_util, aiv_util, aicore_util, npu_util}` | % | Consistent across three generations |
 | `dcmi_get_device_utilization_rate` | `(card, dev, type, unsigned int*)` | % | A2/A3 support 2,3,4,6,10,12,13,14; A5 supports 1,2,3,4,5,6,10 |
 | `dcmi_get_device_id_in_card` | `(card, &device_id_max, &mcu_id, &cpu_id)` | - | **A2/A5 have 1 NPU per card, A3 has 2 NPUs per card** |
@@ -552,7 +552,7 @@ Updated within existing manuals (not as a separate document):
 | Term | Description |
 |---|---|
 | DCMI | Device Control Management Interface, the Ascend device management interface |
-| DCMI v1 / v2 | v1=(card_id, device_id) dual-parameter model; v2=flat dev_id single-parameter model (990 and other new generations) |
+| DCMI v1 / v2 | v1=(card_id, device_id) dual-parameter model; v2=flat dev_id single-parameter model (950 and other new generations) |
 | mspti | MindStudio Performance Tracing Interface, an operator-level performance collection interface |
 | Chrome Trace / Perfetto | Trace visualization frontends (`chrome://tracing` / `ui.perfetto.dev`) |
 | X event / C event | Chrome Trace complete event (duration bar) / counter event (curve) |

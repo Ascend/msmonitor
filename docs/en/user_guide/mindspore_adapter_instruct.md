@@ -53,7 +53,7 @@ The msMonitor component is used with the MindSpore framework to monitor performa
 
 
     def generator_net():
-        for_ in range(2):
+        for _ in range(2):
             yield np.ones([2, 2]).astype(np.float32), np.ones([2]).astype(np.int32)
 
 

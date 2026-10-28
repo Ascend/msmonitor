@@ -45,11 +45,11 @@
 
 ## 2. Parameter Configuration
 
-- **Q: How is npu-monitor `--duration`  used? What does `duration=0` mean?**
+- **Q: How is npu-monitor `--duration` used? What does `duration=0` mean?**
 - A: The `--duration` parameter is in seconds and supports floating-point precision (for example, `--duration 0.5` means collecting for 500 ms).
   - `--duration 0` (default): Indicates unlimited collection, which must be stopped manually via `--npu-monitor-stop`.
   - `--duration N` (N > 0): Automatically stops and cleans up resources after N seconds of collection.
-  - `--duration` used together with `--stop`: Sets a longer duration at startup, and terminates early via `stop` when an anomaly is detected.
+  - `--duration` used together with `--npu-monitor-stop`: Sets a longer duration at startup, and terminates early via `stop` when an anomaly is detected.
   - `duration` is not coupled with `filter` and can be used in combination, for example, `--duration 60 --filter "Kernel:Attention"`.
 
 - **Q: How Do I restart collection after the npu-monitor `--duration` expires?**
@@ -157,7 +157,7 @@ It is recommended to write the cleanup command into the startup script before la
      ```bash
      # Debian/Ubuntu:
      sudo dpkg -r dynolog
-     sudo dpkg -i dynolog_{version}_{arch}.deb --ignore-depends
+     sudo dpkg -i --force-depends dynolog_{version}_{arch}.deb
 
      # CentOS/RHEL/OpenSUSE:
      sudo rpm -e dynolog
@@ -192,7 +192,7 @@ It is recommended to write the cleanup command into the startup script before la
   In environments without network access (such as containers), ensure that the above dependencies are already installed; otherwise, msMonitor may fail to run properly.
 
 - **Q: After upgrading to the new version, do existing collection scripts need to be modified?**
-- A: No.  `--duration`, `--filter`, and `--async-mode` are all optional and have reasonable default values:
+- A: No. `--duration`, `--filter`, and `--async-mode` are all optional and have reasonable default values:
   - `duration` defaults to `0.0` (unlimited duration, behavior same as previous versions)
   - `filter` defaults to an empty string (no filtering, behavior same as previous)
   - `async-mode` defaults to `false` (synchronous mode, behavior same as previous)

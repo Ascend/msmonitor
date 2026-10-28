@@ -175,7 +175,7 @@ If this change involves Python APIs or common capabilities:
 
 The repository provides a unified build script `scripts/build.sh`. This script performs the following operations:
 
-1. Check the gcc and Rust versions.
+1. Check the GCC and Rust versions.
 2. Initialize and switch the `third_party/dynolog` submodule to the specified commit.
 3. Generate and apply Ascend-related patches.
 4. Build dyno and dynolog, or package them into deb/rpm.

@@ -1138,7 +1138,7 @@ The system defines a unified `ErrCode` enumeration (`utils.h`) covering 13 error
 
 - After MsptiMonitor starts or stops, `NpuStatus` is reported in real time to the Dynolog Daemon via IPC.
 - `NpuStatus` includes `status` (running status), `pid`, `jobId`, `currentStep`, `startStep`, and `stopStep`.
-- mindstudio-insight can perceive the health status of the collector by querying the status.
+- Mindstudio Insight can perceive the health status of the collector by querying the status.
 
 ## 7.3 Evolvability
 
