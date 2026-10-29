@@ -16,11 +16,14 @@ if(PACKAGE STREQUAL "ut")
     include(utils)
     find_package(glog MODULE REQUIRED)
     find_package(googletest MODULE REQUIRED)
+    find_package(fmt MODULE REQUIRED)
     find_package(nlohmannjson MODULE REQUIRED)
     find_package(sqlite3 MODULE REQUIRED)
     find_package(boost MODULE REQUIRED)
     find_package(mockcpp MODULE REQUIRED)
 
     add_subdirectory(ut/plugin/ipc_monitor)
+
+    add_subdirectory(ut/dynolog)
 
 endif()
