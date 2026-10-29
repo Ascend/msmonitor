@@ -1,7 +1,5 @@
 # Public Network Address
 
-<!-- md-trans-meta sourceCommit=845bd5a45297b1ae7db96428ff0e56fe89cd6f97 translatedAt=2026-08-12T07:36:23.117Z pushedAt=2026-08-12T07:36:51.698Z -->
-
 | Type     | Open-Source Code Address | File Name                                                       | Public IP Address/Public URL/Domain Name/Email Address                                                                                                                 | Usage Description                                   |
 | -------- |--------| ------------------------------------------------------------ |----------------------------------------------------------------------------------------------------------------------------------------| ------------------------------------------ |
 | Open-source software | -      | All files                                                      | <http://www.apache.org/licenses/LICENSE-2.0>                                                                                             | License information description in file headers  |

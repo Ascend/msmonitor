@@ -1,85 +1,109 @@
-# Development Guide
+# msMonitor Development Guide
 
-<!-- md-trans-meta sourceCommit=76329dd28bc91c4378603d72fe34ab47b750c710 translatedAt=2026-08-14T01:54:04.785Z pushedAt=2026-08-14T01:55:14.971Z -->
+<br>
 
-## 1. MindStudio Monitor Development Software
+This document describes how to set up a development environment, build msMonitor, and run unit tests (UTs).
 
-| Software Name | Purpose |
-| --- | --- |
-| CLion (recommended) / VS Code | Write and debug the `dynolog_npu` C++ code. |
-| PyCharm (recommended) / VS Code | Write and debug the Python/CMake code under `plugin.` |
-| Git | Pull, manage, and commit code. |
-| CMake / Ninja | Local build and debugging. |
-| Python virtual environment tool (venv) | Isolate Python dependencies. |
+## 1. Preparing the Build Environment
 
-## 2. Development Environment Configuration
+### 1.1 Option 1: One-Click devcontainer Environment (Recommended)
 
-| Software Name | Version Requirement | Purpose |
-| --- | --- | --- |
-| gcc | 8.5.0 and above | Compilation of `dynolog_npu` |
-| Rust | 1.81 and above | Compilation of dynolog-related dependencies |
-| protobuf | 3.12 and above | dynolog / TensorBoard-related dependencies |
-| Python | Matching the target .whl installation environment | Compilation and installation of `mindstudio_monitor` |
-| pybind11 | Latest stable | Building the `plugin` Python extension |
-| CMake | Latest stable | CMake build |
-| Ninja | Latest stable | Local build tool |
+msmonitor ships with a built-in [devcontainer](https://containers.dev/) development environment configuration. After opening the repository in VS Code, developers can enter a standardized container with one click and do not need to install any dependencies manually. The container performs the following preparations automatically:
 
-### 2.1 Dependency Preparation
+- Python 3 environment and build toolchain (GCC 11.2.0, CMake 3.16 or later)
+- System dependency installation (python3-devel, and pip packages including pre-commit and bandit)
+- pre-commit enabled automatically (including gitleaks secret scanning)
+- clangd C++ language service ready
+- Git identity synchronization
 
-According to the current installation guide, the compilation environment is recommended to prepare at least the following dependencies:
+**Prerequisites:**
 
-```bash
-# Debian/Ubuntu
-sudo apt-get install -y cmake ninja-build
-sudo apt install -y protobuf-compiler libprotobuf-dev
+| Environment | Requirement |
+|------|------|
+| PC | VS Code with the Dev Containers and Remote-SSH extensions installed |
+| Linux server | Docker service running |
 
-# Python
-pip install pybind11 wheel protobuf
-```
+**Steps:**
 
-Rust is recommended to be installed using the official `rustup`:
+1. Clone the msmonitor repository to the Linux server.
+2. Connect VS Code to the server over Remote-SSH and open the repository directory.
+3. VS Code detects the `.devcontainer` configuration automatically. Click **Reopen in Container** in the lower-left corner.
+4. After the container starts, `post-create.sh` runs automatically to complete initialization (about 1 minute).
+5. Press `Ctrl+Shift+P` → `Tasks: Run Task` and select a build task.
 
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source $HOME/.cargo/env
-```
+**Built-in VS Code tasks:**
 
-### 2.2 TLS Certificate Environment
+| Task | Shortcut | Description |
+|------|--------|------|
+| `Build: Release Mode` | `Ctrl+Shift+B` | Builds the whl and the rpm/deb packages in one step |
+| `Build: Debug Mode` | — | Builds the C++ plugin in debug mode (with debug symbols) |
+| `Test: Run Unit Tests` | — | Runs the full unit test suite |
+| `Clean: All Workspace` | — | Cleans all build artifacts (plugin/build, dist/, artifacts/, third_party/dynolog/, and so on) |
 
-If the development and test scenarios require verifying TLS communication between dyno CLI and dynolog daemon, additional client and server certificate directories need to be prepared. For directory specifications, see [*Installation Guide*](../install_guide/msmonitor_install_guide.md).
+**Code intelligence:**
+
+- C++: after a build, clangd provides cross-file navigation (F12), find references (Shift+F12), and code completion.
+- Python: Pylance provides semantic navigation and type inference.
+
+**Graphical debugging:**
+
+- Open a Python source file and press `F5`, then select `Python: Debug Active File` to start debugging with debugpy.
+- Breakpoints, variable inspection, call stacks, and other features all work as expected.
+
+### 1.2 Option 2: Manual Environment Setup
+
+Set up the build and test environment by following the *[msMonitor Installation Guide — Environment Preparation](../install_guide/msmonitor_install_guide.md#231-environment-preparation)* section.
+
+> **Note:** How to build the environment image and which software versions to pair with it are maintained by the unified MindStudio image creation guide and are not redefined in this repository.
+
+**Tools additionally required for a manual environment:**
+
+A manual environment does not go through the automatic initialization performed by `post-create.sh` in the devcontainer, so you must make sure the following tools are available on `PATH`:
+
+| Tool | Installation | Description |
+|------|---------|------|
+| gitleaks | Download the binary from [GitHub Releases](https://github.com/gitleaks/gitleaks/releases) and put it on `PATH`, or run `go install github.com/gitleaks/gitleaks/v8@latest` | Required for pre-commit secret scanning. If it is missing, `git commit` fails with `gitleaks: command not found`. |
+| pre-commit | `pip install pre-commit && pre-commit install` | Runs checks automatically before each commit. Run `pre-commit install` in the repository root to install the hook. |
+| clangd | `dnf install clang-tools-extra` or `apt-get install clangd` | C++ code navigation and completion (optional) |
+
+## 2. TLS Certificate Environment Configuration
+
+If the development and test scenarios need to verify TLS communication between the dyno CLI and the dynolog daemon, client and server certificate directories must be prepared in addition. For the directory conventions, see section 5 of the [Installation Guide](../install_guide/msmonitor_install_guide.md).
 
 ## 3. Development Steps
 
-### 3.1 Code Download
+### 3.1 Obtaining the Code
+
+After entering the interactive container shell opened by `ctr_in.py`, run the following commands to clone this repository:
 
 ```bash
 git clone https://gitcode.com/Ascend/msmonitor.git
 cd msmonitor
 ```
 
-### 3.2 Project Structure Description
+### 3.2 Project Structure
 
-The current repository mainly consists of the following modules:
+The repository currently consists of the following modules:
 
 | Directory | Description |
 | --- | --- |
 | `dynolog_npu` | Source code directory of the dynolog_npu module |
 | `dynolog_npu/cli` | Source code of the dyno client |
 | `dynolog_npu/dynolog` | Source code of the dynolog server |
-| `plugin` | Code related to Python plugins and IPCMonitor |
+| `plugin` | Python plugin and IPCMonitor related code |
 | `plugin/ipc_monitor` | Core code of IPCMonitor |
 | `plugin/IPCMonitor` | Python package directory |
-| `scripts` | Scripts for build, patch, UT, and ST |
+| `scripts` | Build, patch, UT, and ST scripts |
 | `test/ut` | Unit tests |
 | `test/st` | System tests |
 | `third_party/dynolog` | dynolog submodule and third-party dependencies |
-| `docs/en` | Documentation |
+| `docs/en` | English documentation |
 
 ### 3.3 `dynolog_npu` Development
 
-`dynolog_npu` is primarily responsible for two capabilities: the dyno CLI and the dynolog daemon.
+`dynolog_npu` is mainly responsible for two parts: the dyno CLI and the dynolog daemon.
 
-Key focus during development:
+Key areas during development:
 
 | Path | Description |
 | --- | --- |
@@ -90,90 +114,73 @@ Key focus during development:
 
 Applicable scenarios:
 
-1. Add or modify dyno subcommands.
-
-2. Extend the request processing logic of the dynolog daemon.
-
-3. Adjust the daemon reporting, collection, and display logic.
-
-4. Adjust the deb/rpm packaging logic.
+1. Adding or modifying dyno subcommands.
+2. Extending the request handling logic of the dynolog daemon.
+3. Adjusting the daemon reporting, collection, and display logic.
+4. Adjusting the deb/rpm packaging logic.
 
 ### 3.4 `plugin` Development
 
-The `plugin` module provides the `mindstudio_monitor` .whl package, IPCMonitor, and msPTI Monitor common capabilities.
+The `plugin` module provides the `mindstudio_monitor` whl package, IPCMonitor, and common msPTI Monitor capabilities.
 
-Key focus during development:
+Key areas during development:
 
 | Path | Description |
 | --- | --- |
-| `plugin/setup.py` | .whl build entry |
+| `plugin/setup.py` | whl build entry |
 | `plugin/CMakeLists.txt` | CMake build for the plugin module |
 | `plugin/bindings.cpp` | Python extension binding entry |
-| `plugin/ipc_monitor` | IPCMonitor core code |
+| `plugin/ipc_monitor` | Core code of IPCMonitor |
 | `plugin/IPCMonitor` | Python package content |
 | `plugin/stub` | Scripts and code related to building the stub |
 
 Applicable scenarios:
 
-1. Extend IPCMonitor capabilities.
-
-2. Add Python interfaces or common modules.
-
-3. Adjust pybind11 extension bindings.
-
-4. Adjust the whl packaging content.
+1. Extending IPCMonitor capabilities.
+2. Adding Python APIs or common modules.
+3. Adjusting pybind11 extension bindings.
+4. Adjusting the whl packaging content.
 
 ### 3.5 Common Development Scenarios
 
 #### 3.5.1 Developing `npu-monitor`
 
-If this change involves `npu-monitor`:
+If the change involves `npu-monitor`:
 
 1. Focus on dyno CLI parameter handling.
-
 2. Focus on the monitoring request dispatch and background collection logic of the dynolog daemon.
-
-3. For msPTI-side data processing, the `plugin` module needs to be linked.
-
-4. Synchronously update `docs/en/user_guide/npumonitor_instruct.md`.
+3. If msPTI-side data processing is involved, the `plugin` module must be updated as well.
+4. Update `docs/en/user_guide/npumonitor_instruct.md` accordingly.
 
 #### 3.5.2 Developing `nputrace`
 
-If this change involves `nputrace`:
+If the change involves `nputrace`:
 
-1. Focus on the dyno request parameters and daemon trigger logic.
+1. Focus on the dyno request parameters and the daemon trigger logic.
+2. Check the linkage with the framework Profiler, CANN, and Device-side data collection.
+3. If logs, output paths, offline parsing, or display are involved, verify the end-to-end flow as well.
+4. Update `docs/en/user_guide/nputrace_instruct.md` accordingly.
 
-2. Verify the linkage logic with the framework Profiler, CANN, and Device-side data collection.
+#### 3.5.3 Developing Monitor APIs
 
-3. If logs, output paths, offline parsing, or display are involved, verify the end-to-end process synchronously.
+If the change involves Python APIs or common capabilities:
 
-4. Synchronously update `docs/en/user_guide/nputrace_instruct.md`.
+1. Focus on `plugin/IPCMonitor` and `plugin/ipc_monitor` first.
+2. If extension modules are exposed, check `bindings.cpp` and `setup.py` as well.
+3. Update `docs/en/advanced_features/monitor_feature.md` and `docs/en/advanced_features/mindstudio_monitor_api_reference.md` accordingly.
 
-#### 3.5.3 Developing Monitor API
-
-If this change involves Python APIs or common capabilities:
-
-1. Prioritize `plugin/IPCMonitor` and `plugin/ipc_monitor`.
-
-2. If the change involves exposing extension modules, check `bindings.cpp` and `setup.py` synchronously.
-
-3. Synchronously update `docs/en/advanced_features/monitor_feature.md` and `docs/en/advanced_features/mindstudio_monitor_api_reference.md`.
-
-## 4. Build and Installation
+## 4. Building and Installing
 
 ### 4.1 Building dynolog
 
-The repository provides a unified build script `scripts/build.sh`. This script performs the following operations:
+The repository provides a unified build script `scripts/build.sh`, which performs the following operations:
 
-1. Check the gcc and Rust versions.
+1. Checks the GCC and Rust versions.
+2. Initializes the `third_party/dynolog` submodule and switches it to the specified commit.
+3. Generates and applies Ascend-related patches.
+4. Builds dyno and dynolog, or packages them into deb/rpm.
 
-2. Initialize and switch the `third_party/dynolog` submodule to the specified commit.
-
-3. Generate and apply Ascend-related patches.
-
-4. Build dyno and dynolog, or package them into deb/rpm.
-
-Common commands are as follows:
+Common commands:
 
 ```bash
 # Build the dyno and dynolog binaries
@@ -188,14 +195,14 @@ bash scripts/build.sh -t rpm
 
 ### 4.2 Building and Installing `mindstudio_monitor`
 
-#### Method 1: One-Click Installation
+#### Option 1: One-Click Installation
 
 ```bash
 chmod +x plugin/build.sh
 ./plugin/build.sh
 ```
 
-#### Method 2: Manually Build the .whl
+#### Option 2: Manually Building the whl
 
 ```bash
 cd plugin
@@ -203,7 +210,7 @@ bash ./stub/build_stub.sh
 python3 setup.py bdist_wheel
 ```
 
-After the build is complete, a .whl package is generated under `plugin/dist`. Then run the following commands:
+After the build is complete, the whl package is generated under `plugin/dist`. Then run:
 
 ```bash
 cd plugin/dist
@@ -227,9 +234,9 @@ dyno --certs-dir /home/ssl_certs nputrace --start-step 10 --iterations 2 --activ
 
 ## 5. Testing and Verification
 
-### 5.1 Unit Test
+### 5.1 Unit Tests
 
-Language-specific scripts run each UT suite. `scripts/run_ut.sh` runs C++ UTs followed by Python UTs.
+The repository provides unit test scripts by language. `scripts/run_ut.sh` runs the C++ UTs and then the Python UTs.
 
 ```bash
 bash scripts/run_ut.sh
@@ -237,9 +244,9 @@ bash scripts/run_ut_cpp.sh
 bash scripts/run_ut_python.sh
 ```
 
-C++ UTs build with CMake under `test/build_llt` and run with CTest. Python UTs run tests under `test/ut/python` with unittest. For coverage commands, see [Code Testing in the contributing guide](../contributing/contributing_guide.md#code-testing).
+C++ UTs are built with CMake under `test/build_llt` and run with CTest. Python UTs run the tests under `test/ut/python` with unittest. For coverage usage, see the [Code Testing section of the contributing guide](../contributing/contributing_guide.md#code-testing).
 
-### 5.2 System Test
+### 5.2 System Tests
 
 The repository provides `scripts/run_st.sh` as the system test entry point.
 
@@ -247,11 +254,11 @@ The repository provides `scripts/run_st.sh` as the system test entry point.
 bash scripts/run_st.sh
 ```
 
-The current system tests mainly execute:
+The current system tests mainly run:
 
 - `test/st/test_dynolog_build.py`
 
-and other Python test files in the `test/st` directory that comply with the rules.
+as well as other Python test files in the `test/st` directory that meet the rules.
 
 ### 5.3 Common Test Resources
 
@@ -259,34 +266,29 @@ The test directories are as follows:
 
 | Directory | Description |
 | --- | --- |
-| `test/ut/plugin/ipc_monitor` | IPCMonitor unit test |
-| `test/st` | System test |
+| `test/ut/plugin/ipc_monitor` | IPCMonitor unit tests |
+| `test/st` | System tests |
 | `test/st/gen_tls_certs.sh` | Test certificate generation script |
 
-## 6. Document Synchronization Update
+## 6. Documentation Synchronization
 
-After feature development is completed, if the change affects user behavior, deployment methods, or interface definitions, the documentation must be synchronized and updated.
+After feature development is complete, if the change affects user behavior, deployment methods, or interface definitions, the documentation must be updated accordingly.
 
-| Change Type | Documents to Be Synchronized and Updated |
+| Change Type | Documents to Update |
 | --- | --- |
 | Installation, compilation, upgrade, uninstallation | `docs/en/install_guide/msmonitor_install_guide.md` |
-| Quick experience process | `docs/en/quick_start/npumonitor_quick_start.md` |
+| Quick start flow | `docs/en/quick_start/msmonitor_quick_start.md` |
 | dynolog server | `docs/en/user_guide/dynolog_instruct.md` |
 | dyno client | `docs/en/user_guide/dyno_instruct.md` |
-| npu-monitor features | `docs/en/user_guide/npumonitor_instruct.md` |
-| nputrace features | `docs/en/user_guide/nputrace_instruct.md` |
-| Monitor API | `docs/en/advanced_features/monitor_feature.md` |
+| npu-monitor feature | `docs/en/user_guide/npumonitor_instruct.md` |
+| nputrace feature | `docs/en/user_guide/nputrace_instruct.md` |
+| Monitor APIs | `docs/en/advanced_features/monitor_feature.md` |
 | API reference | `docs/en/advanced_features/mindstudio_monitor_api_reference.md` |
-| Version release information | `docs/en/release_notes/release_notes.md` |
 
-## 7. Submission Process Recommendations
+## 7. Recommended Submission Workflow
 
-1. After feature development is complete, perform local build verification first.
-
-2. If the change involves dynolog patches or packaging logic, verify `scripts/build.sh` at least once.
-
-3. If the change involves plugin modifications, verify the .whl build and installation at least once.
-
-4. Execute the relevant Unit Tests at least, and supplement System Tests when necessary.
-
-5. If user-visible behavior changes are involved, the documentation and example commands need to be updated.
+1. After feature development is complete, verify the local build first.
+2. If dynolog patches or packaging logic are involved, verify `scripts/build.sh` at least once.
+3. If plugin changes are involved, verify the whl build and installation at least once.
+4. Run the relevant UTs at a minimum, and add STs when necessary.
+5. If user-visible behavior changes, update the documentation and example commands accordingly.

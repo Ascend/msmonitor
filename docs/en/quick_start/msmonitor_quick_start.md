@@ -1,11 +1,8 @@
 # msMonitor Quick Start
 
-<!-- md-trans-meta sourceCommit=4222e88544e08580745f0b6eec2d1d22cda8f31b translatedAt=2026-08-12T07:48:10.212Z pushedAt=2026-08-12T07:49:07.091Z -->
-
 The following introduces the msMonitor quick start through common usage scenarios.
 
 1. Use the npu-monitor function to obtain the latency of key operators.
-
 2. When critical operator latency degradation is detected, use nputrace to collect detailed performance data for analysis.
 
 **Prerequisites**
@@ -117,7 +114,7 @@ Complete the msMonitor tool installation. For details, see *[msMonitor Installat
 6. Use the `dyno` command to trigger nputrace to collect detailed trace data (the npu-monitor function must be disabled before nputrace can be triggered).
 
    ```bash
-   # Start collection from step 10, collect  framework, CANN, and device data 2 steps, automatically parse after collection, and do not perform data simplification after parsing. The output path is /tmp/profile_data.
+   # Start collection from step 10 and collect for 2 steps, gathering framework, CANN, and device data; automatically parse after collection and do not perform data simplification after parsing. The output path is /tmp/profile_data.
    dyno --certs-dir NO_CERTS nputrace --start-step 10 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
    ```
 

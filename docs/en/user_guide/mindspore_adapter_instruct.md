@@ -1,7 +1,5 @@
 # Using msMonitor with the MindSpore Framework
 
-<!-- md-trans-meta sourceCommit=76329dd28bc91c4378603d72fe34ab47b750c710 translatedAt=2026-08-12T08:30:55.025Z pushedAt=2026-08-12T08:32:50.337Z -->
-
 ## Introduction
 
 The msMonitor component is used with the MindSpore framework to monitor performance metrics during the training of MindSpore models. It supports dynamic profiling in both custom for loop mode and callback mode.
@@ -23,7 +21,7 @@ The msMonitor component is used with the MindSpore framework to monitor performa
     export MSMONITOR_USE_DAEMON=1
     ```
 
-3. (Optional) Configure the msMonitor log path. The default path is msmonitor_log in the current directory.
+3. (Optional) Configure the msMonitor log path. When `MSMONITOR_LOG_PATH` is set explicitly, its value is used directly as the glog log directory (the Python API is automatically pointed by `start()` to the `log/` directory of the session directory). When it is not set, the default is `msmonitor_log_<device ID>` under the process working directory (`msmonitor_log` when the device ID cannot be obtained).
 
     ```bash
     export MSMONITOR_LOG_PATH=<LOG PATH>
@@ -53,10 +51,10 @@ The msMonitor component is used with the MindSpore framework to monitor performa
 
         def construct(self, x):
             return self.fc(x)
-    
+
 
     def generator_net():
-        for_ in range(2):
+        for _ in range(2):
             yield np.ones([2, 2]).astype(np.float32), np.ones([2]).astype(np.int32)
 
     def train(test_net):
@@ -65,7 +63,7 @@ The msMonitor component is used with the MindSpore framework to monitor performa
         data = ds.GeneratorDataset(generator_net(), ["data", "label"])
         model = mindspore.train.Model(test_net, loss, optimizer)
         model.train(1, data)
-    
+
     if __name__ == '__main__':
         dp = DynamicProfilerMonitor()
         step_num = 100
@@ -90,7 +88,7 @@ The msMonitor component is used with the MindSpore framework to monitor performa
 
 ### 2. Dynamic Profiling Callback Mode
 
-This enabling method is consistent with the dynamic profiling custom for loop mode, with the only difference being that the <code>step()</code> method is adapted into the <code>step_begin</code> and <code>step_end</code> callback functions.
+This enabling method is consistent with the dynamic profiling custom for loop mode, with the only difference being that the `step()` method is adapted into the `step_begin` and `step_end` callback functions.
 
 The sample code is as follows:
 
