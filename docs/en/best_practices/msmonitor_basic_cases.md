@@ -1,7 +1,5 @@
 # msMonitor Use Cases
 
-<!-- md-trans-meta sourceCommit=4222e88544e08580745f0b6eec2d1d22cda8f31b translatedAt=2026-08-12T05:52:20.319Z pushedAt=2026-08-12T05:53:20.728Z -->
-
 ## Overview
 
 This document introduces how to use msMonitor in training and inference scenarios through simple examples.
@@ -10,7 +8,7 @@ This document introduces how to use msMonitor in training and inference scenario
 
 Software package release page: [msMonitor Releases](https://gitcode.com/Ascend/msmonitor/releases).
 
-For detailed installation instructions, see [msMonitor Tool Installation Guide](../install_guide/msmonitor_install_guide.md).
+For detailed installation instructions, see [msMonitor Installation Guide](../install_guide/msmonitor_install_guide.md).
 
 ## Case 1: Training Scenario Megatron (MindSpeed)
 
@@ -59,7 +57,7 @@ Launch the Megatron training model.
 Send the nputrace subcommand to collect profile data. For detailed parameter descriptions, refer to [nputrace Subcommand](../user_guide/nputrace_instruct.md).
 
 ```bash
-# Start collection from the next step, collect framework, CANN, and Device data in 2 steps. Then the collected data is auto‑parsed with no data simplification. The output path is /tmp/profile_data.
+# Start collection from the next step, collecting framework, CANN, and Device data for 2 steps. Then the collected data is auto-parsed with no data simplification. The dump path is /tmp/profile_data.
 dyno --certs-dir NO_CERTS nputrace --start-step -1 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
 ```
 
@@ -67,7 +65,7 @@ The training process receives the collection configuration and enables profile d
 
 ![nputrace](../figures/nputrace_collect.png)
 
-For the collected results, the on-disk data format and deliverables are described in [Ascend PyTorch Profiler Output File Description](https://gitcode.com/Ascend/pytorch/blob/master/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md#output-result-file-description-3)
+For the collected results, the on-disk data format and deliverables are described in [Ascend PyTorch Profiler Output Result File Description](https://gitcode.com/Ascend/pytorch/blob/master/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md#output-result-file-description-3).
 
 ![nputrace_result](../figures/nputrace_result.png)
 
@@ -104,7 +102,7 @@ After collecting for a period of time, send a command to stop the collection.
 dyno --certs-dir NO_CERTS npu-monitor --npu-monitor-stop
 ```
 
-The collected profile data files are saved in the user‑specified dump path in JSONL format, with each line containing one performance record for ease of subsequent analysis.
+The collected profile data files are saved in the user-specified dump path in JSONL format, with each line containing one performance record for ease of subsequent analysis.
 
 ![npu-monitor_result](../figures/npumonitor_result.png)
 
@@ -126,7 +124,7 @@ Communication data includes information such as the execution latency of communi
 
 ### Prerequisites
 
-In inference scenarios, only the forward execution of the model is typically involved, without optimizer calls. Therefore, users need to manually invoke the `torch_npu.profiler.dynamic_profile.step` method during inference iterations, usually before each model forward call, to define the interval boundaries of inference iterations. In vLLM 0.11.0 and later versions, msMonitor supports automatically invoking the `torch_npu.profiler.dynamic_profile.step` method within the model's forward method, eliminating the need for manual invocation. Previous versions require manual execution by the user.
+In inference scenarios, only the forward execution of the model is typically involved, without optimizer calls. Therefore, users need to manually invoke the `torch_npu.profiler.dynamic_profile.step` method during inference iterations, usually on each model forward call, to define the interval boundaries of inference iterations. In vLLM 0.11.0 and later versions, msMonitor supports automatically invoking the `torch_npu.profiler.dynamic_profile.step` method within the model's forward method, eliminating the need for manual invocation. Previous versions require manual execution by the user.
 
 Refer to the vllm-ascend modification PR: https://github.com/vllm-project/vllm-ascend/pull/3123
 
@@ -214,7 +212,7 @@ done
 Send the nputrace subcommand to collect profile data. For detailed parameter descriptions, refer to [nputrace Subcommand](../user_guide/nputrace_instruct.md).
 
 ```bash
-# Start collection from the next step, collect framework, CANN, and Device data in 10 steps, and set the storage path to /tmp/profile_data_vllm.
+# Start collection from the next step, collecting framework, CANN, and Device data for 10 steps, and set the dump path to /tmp/profile_data_vllm.
 dyno --certs-dir NO_CERTS nputrace --start-step -1 --iterations 10 --with-modules --activities CPU,NPU --log-file /tmp/profile_data_vllm
 ```
 
@@ -243,7 +241,7 @@ Use the [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/do
 
 > [!NOTE]
 >
-> The npu-monitor subcommand relies on the [msPTI](https://gitcode.com/Ascend/mspti/tree/master) interface at the underlying layer to implement lightweight data collection. Due to changes in the msPTI implementation mechanism, for versions earlier than CANN 9.0.0,  set the `LD_PRELOAD` environment variable to point to the msPTI library path before starting training. The following is an example. CANN 9.0.0 and later versions do not require this setting.
+> The npu-monitor subcommand relies on the [msPTI](https://gitcode.com/Ascend/mspti/tree/master) interface at the underlying layer to implement lightweight data collection. Due to changes in the msPTI implementation mechanism, for versions earlier than CANN 9.0.0, set the `LD_PRELOAD` environment variable to point to the msPTI library path before starting training. The following is an example. CANN 9.0.0 and later versions do not require this setting.
 
 ```bash
 # export LD_PRELOAD=<CANN Toolkit installation path>/cann/lib64/libmspti.so
@@ -268,7 +266,7 @@ After collecting for a period of time, send the command to stop the collection.
 dyno --certs-dir NO_CERTS npu-monitor --npu-monitor-stop
 ```
 
-The collected performance data files are saved in the user‑specified dump path in JSONL format, with each line containing one performance record for ease of subsequent analysis.
+The collected profile data files are saved in the user-specified dump path in JSONL format, with each line containing one performance record for ease of subsequent analysis.
 
 ![npu-monitor_vllm_result](../figures/npumonitor_vllm_result.png)
 
@@ -329,7 +327,7 @@ dyno --certs-dir NO_CERTS npu-monitor --npu-monitor-start --mspti-activity-kind 
 
 ### Obtaining Parallel Strategy Communication Group Information
 
-In multi-rank model scenarios, parallel strategy communication group information is typically required to correctly analyze communication performance issues.
+In multi-card (multi-device) model scenarios, parallel strategy communication group information is typically required to correctly analyze communication performance issues.
 
 When torch calls the `new_group` interface to create a communication group, user-defined information such as `group_name` and `hccl_buffer_size` can be passed through the `pg_options` parameter. In TorchNPU, the object corresponding to the `pg_options` parameter is `torch_npu._C_.distributed_c10d.ProcessGroupHccl.Options`. By setting `group_name` in this object, the communication group information can be viewed in msMonitor.
 
@@ -361,7 +359,7 @@ Example of creating a communication group in Megatron:
 
 ![megatron_group](../figures/megatron_group.png)
 
-After completing the preceding modifications, you can view the parallel strategy communication group  information in the `profiler_metadata.json` file delivered by the nputrace subcommand. This information is also included in the jsonl file written by the npu-monitor subcommand.
+After completing the preceding modifications, you can view the parallel strategy communication group information in the `profiler_metadata.json` file delivered by the nputrace subcommand. This information is also included in the jsonl file written by the npu-monitor subcommand.
 
 ```json
 "parallel_group_info": {

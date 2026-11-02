@@ -2,19 +2,21 @@
 
 ## System Security Hardening
 
-You are advised to enable the `address space layout randomization` (ASLR) (level 2) in the system. Run the following command to enable it:
+You are advised to enable the `address space layout randomization` (ASLR) (level 2), also known as **full address space layout randomization**, in the system. Run the following command to enable it:
 
     echo 2 > /proc/sys/kernel/randomize_va_space
 
 ## User Account Recommendations
 
- 1. Use the principle of least privilege. For example, prevent other users from writing data by disabling permissions like `666` and `777`.
+ 1. Use the principle of least privilege. For example, prevent other users from having write access; a common practice is to avoid permissions such as `666` and `777`.
 
  2. Before installing or using the tools, ensure the user's `umask` is set to `0027` or a more restrictive value. Otherwise, issues may occur, such as source code compilation failures, configuration file read failures, or excessive permissions for generated directories and files.
 
- 3. All tools in this repository are designed to run with minimal permissions. For security reasons, do not use `root` or other privileged accounts. Always install and execute tools as a regular user.
+ 3. All tools in this repository are designed to run with minimal permissions. For security reasons, do not use `root` or other privileged accounts; it is recommended to install and run the tools as a regular user.
 
- 4. If a tool depends on CANN, use the CANN package installed by the same non-privileged user. After running the `source` command, do not modify environment variables in `set_env.sh`.
+ 4. If a tool depends on CANN, use the CANN package installed by the same non-privileged user. After running the `source` command, do not arbitrarily modify the environment variables in `set_env.sh`.
+
+ 5. This repository provides reference vscode and devcontainer configurations for development and debugging. They are intended only for developing and debugging this repository in a secure debugging environment. Check the security of the configurations yourself and adjust them as needed.
 
 ## File Permission Control
 
@@ -57,7 +59,7 @@ For details about the vulnerability mechanism, see [msMonitor Vulnerability Hand
 
 ## Build Security Statement
 
-​    msMonitor supports installation through source code compilation. During compilation, the system downloads third-party dependencies, executes shell build scripts, and generates temporary program files and compilation directories. To reduce security risks, you can perform permission control on files within the source code directory. During the build process, you can modify build scripts as needed to avoid security risks and ensure the security of the build results.
+msMonitor supports installation through source code compilation. During compilation, the system downloads third-party dependencies, executes shell build scripts, and generates temporary program files and compilation directories. To reduce security risks, you can perform permission control on files within the source code directory. During the build process, you can modify build scripts as needed to avoid security risks and ensure the security of the build results.
 
 ## Running Security Statement
 
@@ -83,11 +85,11 @@ While unsafe functions are not forcibly disabled, you are advised to use their s
 
 **1. Security risks of the native dynolog all-zero listening**
 
-**Background**: msMonitor introduces the open-source third-party library dynolog. msMonitor is adapted to dynolog. The `msmonitor/dynolog_npu/dynolog/src/rpc/SimpleJsonServer.cpp` file introduced by the adaptation contains all-zero listening code. To ensure the tool functions and usability, the native dynolog all-zero listening is not modified.
+**Background**: msMonitor introduces the open-source third-party library dynolog. msMonitor has adapted dynolog for NPUs. The `msmonitor/dynolog_npu/dynolog/src/rpc/SimpleJsonServer.cpp` file introduced by the adaptation contains all-zero listening code. To ensure the tool functions and usability, the native dynolog all-zero listening is not modified.
 
 **Risk**: The `dynolog/src/rpc/SimpleJsonServer.cpp` file of the library contains the all-zero listening function (bind to in6addr_any). The connection requests are processed through the IPv6 socket. By default, both IPv4 and IPv6 protocols are supported, which may cause network risks. The security risk comes from the dynolog open-source third-party library.
 
-**Risk mitigation measures**: In the default security mode, the root certificate, server certificate, server private key file, client certificate, client private key file, and CRL file must be provided. You need to ensure the validity of the provided certificate files, and ensure that the permission on the directory where the certificates are located is `700` and the permission on the certificate file is `600`. You are advised to configure the iptables firewall mechanism to restrict the network access to the RPC port. To restrict the access to the dynolog service through IPv4, run the `echo 1 > /proc/sys/net/ipv6/bindv6only` command to ensure that the service can be accessed only using IPv6.
+**Risk mitigation measures**: In the default security mode, the root certificate, server certificate, server private key file, client certificate, client private key file, and CRL file must be provided. You need to ensure the validity and legitimacy of the provided certificate files, and ensure that the permission on the directory where the certificates are located is `700` and the permission on the certificate file is `600`. You are advised to configure the iptables firewall mechanism to restrict the network access to the RPC port. To restrict the access to the dynolog service through IPv4, run the `echo 1 > /proc/sys/net/ipv6/bindv6only` command to ensure that the service can be accessed only using IPv6.
 
 ## Communication Matrix
 

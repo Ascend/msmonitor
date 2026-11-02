@@ -1,7 +1,5 @@
 # Overview
 
-<!-- md-trans-meta sourceCommit=4222e88544e08580745f0b6eec2d1d22cda8f31b translatedAt=2026-08-12T09:13:44.330Z pushedAt=2026-08-12T09:14:55.154Z -->
-
 ## ℹ️ Introduction
 
 MindStudio Monitor (msMonitor) is an online performance monitoring and dynamic collection tool for Ascend cluster scenarios. Built on [dynolog](https://github.com/facebookincubator/dynolog) (Meta CPU-GPU monitoring system) and [msPTI](https://gitcode.com/Ascend/mspti/blob/master/docs/en/quick_start/mspti_quick_start.md) (MindStudio Profiler Tools Interface), it supports capabilities such as `npu-monitor`, `nputrace`, and `Monitor API`.
@@ -22,16 +20,26 @@ As shown in the preceding figure, the core components of msMonitor are described
 
 > [!NOTE]
 >
-> For specific Ascend product models, see *[Ascend Product Models](https://www.hiascend.com/document/detail/en/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)*.
+> For specific Ascend product models, see *[Ascend Product Models](https://www.hiascend.com/document/detail/en/Glossary/gls/gls_0001.html)*.
 
-| Product Type                                    | Whether Supported |
-| ----------------------------------------------- | :---------------: |
-| Atlas 350 Accelerator Card                      |         √         |
-| Atlas A3 Training Series/Atlas A3 Inference Series |         √         |
-| Atlas A2 Training Series/Atlas A2 Inference Series |         √         |
-| Atlas 200I/500 A2 Inference Product              |         √         |
-| Atlas Inference Series                          |         ×         |
-| Atlas Training Series                           |         ×         |
+<!-- npu="950" id1 -->
+- Ascend 950PR&950DT products: Supported
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
+- Atlas A3 products: Supported
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
+- Atlas A2 products: Supported
+<!-- end id3 -->
+<!-- npu="310b" id4 -->
+- Atlas 200I/500 A2 inference products: Supported
+<!-- end id4 -->
+<!-- npu="310p" id5 -->
+- Atlas inference products: Not supported
+<!-- end id5 -->
+<!-- npu="910" id6 -->
+- Atlas training products: Not supported
+<!-- end id6 -->
 
 ## ⚙️ Features
 

@@ -277,14 +277,13 @@ bash scripts/run_st.sh
 | 改动类型 | 需同步更新的文档 |
 | --- | --- |
 | 安装、编译、升级、卸载 | `docs/zh/install_guide/msmonitor_install_guide.md` |
-| 快速体验流程 | `docs/zh/quick_start/quick_start.md` |
+| 快速体验流程 | `docs/zh/quick_start/msmonitor_quick_start.md` |
 | dynolog 服务端 | `docs/zh/user_guide/dynolog_instruct.md` |
 | dyno 客户端 | `docs/zh/user_guide/dyno_instruct.md` |
 | npu-monitor 功能 | `docs/zh/user_guide/npumonitor_instruct.md` |
 | nputrace 功能 | `docs/zh/user_guide/nputrace_instruct.md` |
 | Monitor API | `docs/zh/advanced_features/monitor_feature.md` |
 | API 参考 | `docs/zh/advanced_features/mindstudio_monitor_api_reference.md` |
-| 版本发布信息 | `docs/zh/release_notes/release_notes.md` |
 
 ## 7. 提交流程建议
 
