@@ -283,14 +283,13 @@ After feature development is completed, if the change affects user behavior, dep
 | Change Type | Documents to Be Synchronized and Updated |
 | --- | --- |
 | Installation, compilation, upgrade, uninstallation | `docs/en/install_guide/msmonitor_install_guide.md` |
-| Quick experience process | `docs/en/quick_start/npumonitor_quick_start.md` |
+| Quick experience process | `docs/en/quick_start/msmonitor_quick_start.md` |
 | dynolog server | `docs/en/user_guide/dynolog_instruct.md` |
 | dyno client | `docs/en/user_guide/dyno_instruct.md` |
 | npu-monitor features | `docs/en/user_guide/npumonitor_instruct.md` |
 | nputrace features | `docs/en/user_guide/nputrace_instruct.md` |
 | Monitor API | `docs/en/advanced_features/monitor_feature.md` |
 | API reference | `docs/en/advanced_features/mindstudio_monitor_api_reference.md` |
-| Version release information | `docs/en/release_notes/release_notes.md` |
 
 ## 7. Submission Process Recommendations
 
