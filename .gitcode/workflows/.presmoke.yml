@@ -28,8 +28,6 @@ on:
 jobs:
   JOB_smoke:
     name: JOB_smoke
-    # l0_ascend_msmonitor_communication 用例需要双卡 NPU，单卡 runner 上失败属环境限制，不阻断流水线
-    continue-on-error: true
     env:
       ARTIFACT_NAME_WHL: ${{ format('{0}-whl-{1}', inputs.ARTIFACT_NAME, atomgit.run_number) }}
       ARTIFACT_NAME_DYNO: ${{ format('{0}-dyno-{1}', inputs.ARTIFACT_NAME, atomgit.run_number) }}
