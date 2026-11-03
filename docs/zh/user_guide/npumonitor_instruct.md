@@ -86,7 +86,7 @@ npu-monitor的 options 功能参数如下。
 5. 启动训练或推理任务。
 
    ```bash
-   # 训练任务中需要使用pytorch的优化器/继承原生优化器
+   # 训练任务中需要使用PyTorch的优化器/继承原生优化器
    bash train.sh
    ```
 
