@@ -16,6 +16,8 @@
  * -------------------------------------------------------------------------
  */
 
+// Copyright (c) Meta Platforms, Inc. and affiliates.
+//
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
@@ -23,8 +25,11 @@
 
 #include <fmt/core.h>
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 #include <glog/logging.h>
 
+#include <array>
+#include <atomic>
 #include <exception>
 #include <fstream>
 #include <iterator>
@@ -32,6 +37,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "dynolog/src/ipcfabric/FabricManager.h"
 #include "hbt/src/common/System.h"
 #ifdef __linux__
 #include <sys/prctl.h>
@@ -45,6 +51,7 @@ namespace
 
 const int VerboseLevel = 2;
 constexpr int kMaxRegisterCount = 50;
+constexpr size_t kMaxPendingActivityConfigs = 32;  // bounds per-process memory and backlog drain time
 constexpr std::chrono::seconds kKeepAliveTimeSecs(60);
 constexpr char kConfigFile[] = "/etc/libkineto.conf";
 
@@ -75,9 +82,136 @@ static std::string generateTraceId(int32_t pid)
 {
     // Hostname + PID + timestamp should be a unique trace id in the context
     // of this code's execution
-    std::string str_trace_id = fmt::format("{}:{}:{}", facebook::hbt::getHostName(), pid, std::time(nullptr));
+    static std::atomic_uint64_t counter{0};
+    std::string str_trace_id =
+        fmt::format("{}:{}:{}:{}", facebook::hbt::getHostName(), pid, std::time(nullptr), counter.fetch_add(1));
     std::size_t hashed_trace_id = std::hash<std::string>{}(str_trace_id);
     return std::to_string(hashed_trace_id);
+}
+
+// Batch framing: latest config + DYNO_* keys + 0x1e + payload (legacy head kept).
+constexpr char kConfigRecordSeparator = '\x1e';
+constexpr char kConfigCountKey[] = "DYNO_BATCH_COUNT";
+constexpr char kConfigLenKey[] = "DYNO_BATCH_LEN";
+constexpr char kConfigSumKey[] = "DYNO_BATCH_SUM";
+
+static uint64_t fnv1a64(const std::string& data)
+{
+    uint64_t hash = 0xcbf29ce484222325ULL;
+    for (const unsigned char byte : data)
+    {
+        hash ^= byte;
+        hash *= 0x100000001b3ULL;
+    }
+    return hash;
+}
+
+static std::string fnv1a64Hex(uint64_t value)
+{
+    static const char* kHexDigits = "0123456789abcdef";
+    std::string out(16, '0');
+    for (int i = 15; i >= 0; --i)
+    {
+        out[i] = kHexDigits[value & 0xF];
+        value >>= 4;
+    }
+    return out;
+}
+
+static std::string trimLineHead(const std::string& line)
+{
+    const size_t start = line.find_first_not_of(" \t\r");
+    return start == std::string::npos ? std::string() : line.substr(start);
+}
+
+static bool isReservedFramingLine(const std::string& line)
+{
+    const std::string head = trimLineHead(line);
+    static const char* kReservedKeys[] = {kConfigCountKey, kConfigLenKey, kConfigSumKey};
+    for (const char* key : kReservedKeys)
+    {
+        const std::string prefix = std::string(key) + "=";
+        if (head.compare(0, prefix.size(), prefix) == 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool isValidActivityConfig(const std::string& config)
+{
+    if (config.empty() || config.find(kConfigRecordSeparator) != std::string::npos)
+    {
+        return false;
+    }
+    size_t pos = 0;
+    while (pos <= config.size())
+    {
+        const size_t lineEnd = config.find('\n', pos);
+        const std::string line = lineEnd == std::string::npos ? config.substr(pos) : config.substr(pos, lineEnd - pos);
+        if (isReservedFramingLine(line))
+        {
+            return false;
+        }
+        if (lineEnd == std::string::npos)
+        {
+            break;
+        }
+        pos = lineEnd + 1;
+    }
+    return true;
+}
+
+// IPC wire payload limit for dynolog -> plugin replies. The effective receiver
+// is the ipc_monitor plugin (plugin/ipc_monitor/NpuIpcClient.h:
+// MAX_IPC_MESSAGE_SIZE); keep this aligned with it. ipcfabric::MAX_MSG_SIZE is
+// the server-side receive cap and currently shares the same value.
+constexpr size_t kMaxIpcMessageBytes = 4096;
+static_assert(kMaxIpcMessageBytes == ipcfabric::MAX_MSG_SIZE,
+              "update together with plugin MAX_IPC_MESSAGE_SIZE when changing the IPC limit");
+constexpr size_t kIpcHeaderReserve = 196;  // safety margin for IPC bookkeeping
+constexpr size_t kMaxBatchFrameBytes = kMaxIpcMessageBytes - kIpcHeaderReserve;
+constexpr size_t kFrameOverheadBytes = 256;
+// The legacy head and the batched payload both carry the newest config.
+constexpr size_t kLatestConfigCopies = 2;
+
+static std::string buildActivityFrame(const std::vector<std::string>& configs, size_t count)
+{
+    std::string payload;
+    for (size_t i = 0; i < count; ++i)
+    {
+        if (i)
+        {
+            payload += kConfigRecordSeparator;
+        }
+        payload += configs[i];
+    }
+    std::string frame = configs[count - 1];
+    frame += "\n" + std::string(kConfigCountKey) + "=" + std::to_string(count);
+    frame += "\n" + std::string(kConfigLenKey) + "=" + std::to_string(payload.size());
+    frame += "\n" + std::string(kConfigSumKey) + "=" + fnv1a64Hex(fnv1a64(payload));
+    frame += kConfigRecordSeparator;
+    frame += payload;
+    return frame;
+}
+
+// Returns as many queued configs as fit in maxBytes; empty means retry later.
+static std::string serializeActivityProfilerConfigs(const std::vector<std::string>& configs, size_t maxBytes,
+                                                    size_t* sentCount)
+{
+    *sentCount = 0;
+    for (size_t count = configs.size(); count > 0; --count)
+    {
+        std::string frame = buildActivityFrame(configs, count);
+        if (frame.size() <= maxBytes)
+        {
+            *sentCount = count;
+            return frame;
+        }
+    }
+    LOG(WARNING) << "IPC message budget exhausted by the event config, activity configs deferred.";
+    return "";
 }
 
 LibkinetoConfigManager::LibkinetoConfigManager() { managerThread_ = std::thread(&LibkinetoConfigManager::start, this); }
@@ -209,11 +343,11 @@ int32_t LibkinetoConfigManager::registerLibkinetoContext(const std::string& jobI
 // This is how we keep track of running instances of libkineto.
 // LibkinetoConfigManager::run() periodically scans the table
 // for processes no longer calling this function and removes them.
-std::string LibkinetoConfigManager::obtainOnDemandConfig(const std::string& jobId, const std::vector<int32_t>& pids,
-                                                         int32_t configType)
+OnDemandBatch LibkinetoConfigManager::obtainOnDemandBatch(const std::string& jobId, const std::vector<int32_t>& pids,
+                                                          int32_t configType)
 {
-    VLOG(VerboseLevel) << fmt::format("obtainOnDemandConfig({}, ({}), {})", jobId, fmt::join(pids, ","), configType);
-    std::string ret;
+    VLOG(VerboseLevel) << fmt::format("obtainOnDemandBatch({}, ({}), {})", jobId, fmt::join(pids, ","), configType);
+    OnDemandBatch batch;
     std::set<int32_t> pids_set(pids.begin(), pids.end());
     std::lock_guard<std::mutex> guard(mutex_);
 
@@ -234,21 +368,68 @@ std::string LibkinetoConfigManager::obtainOnDemandConfig(const std::string& jobI
 
         onRegisterProcess(pids_set);
     }
+
     if ((configType & int(LibkinetoConfigType::EVENTS)) && !process.eventProfilerConfig.empty())
     {
-        ret += process.eventProfilerConfig + "\n";
-        process.eventProfilerConfig.clear();
+        batch.payload += process.eventProfilerConfig + "\n";
+        batch.eventIncluded = true;
     }
 
-    if ((configType & int(LibkinetoConfigType::ACTIVITIES)) && !process.activityProfilerConfig.empty())
+    if ((configType & int(LibkinetoConfigType::ACTIVITIES)) && !process.activityProfilerConfigs.empty())
     {
-        ret += process.activityProfilerConfig + "\n";
-        process.activityProfilerConfig.clear();
+        // Event section first; the activity frame gets the remaining budget.
+        const size_t usedBytes = batch.payload.size();
+        const size_t remainingBytes = usedBytes < kMaxBatchFrameBytes ? kMaxBatchFrameBytes - usedBytes : 0;
+        size_t sentCount = 0;
+        const std::string frame =
+            serializeActivityProfilerConfigs(process.activityProfilerConfigs, remainingBytes, &sentCount);
+        if (sentCount > 0)
+        {
+            batch.payload += frame;
+            batch.activityCount = sentCount;
+            // Same base for every peek until an ack advances the cursor, so
+            // repeated polls stay retryable and duplicate acks are harmless.
+            batch.seq = process.ackedActivityCount;
+        }
     }
     // Track last request time so we know which libkineto instances
     // are currently active.
     process.lastRequestTime = std::chrono::system_clock::now();
-    return ret;
+    return batch;
+}
+
+bool LibkinetoConfigManager::ackOnDemandBatch(const std::string& jobId, const std::vector<int32_t>& pids,
+                                              int32_t configType, const OnDemandBatch& batch)
+{
+    std::lock_guard<std::mutex> guard(mutex_);
+    auto job_it = jobs_.find(jobId);
+    if (job_it == jobs_.end())
+    {
+        return false;
+    }
+    auto proc_it = job_it->second.find(std::set<int32_t>(pids.begin(), pids.end()));
+    if (proc_it == job_it->second.end())
+    {
+        return false;
+    }
+    LibkinetoProcess& process = proc_it->second;
+    if (batch.activityCount > 0 &&
+        (batch.seq != process.ackedActivityCount || batch.activityCount > process.activityProfilerConfigs.size()))
+    {
+        VLOG(VerboseLevel) << "Ignore stale on-demand config ack for PID: " << process.pid;
+        return false;
+    }
+    if ((configType & int(LibkinetoConfigType::EVENTS)) && batch.eventIncluded)
+    {
+        process.eventProfilerConfig.clear();
+    }
+    if (batch.activityCount > 0)
+    {
+        process.activityProfilerConfigs.erase(process.activityProfilerConfigs.begin(),
+                                              process.activityProfilerConfigs.begin() + batch.activityCount);
+        process.ackedActivityCount += batch.activityCount;
+    }
+    return true;
 }
 
 void LibkinetoConfigManager::setOnDemandConfigForProcess(GpuProfilerResult& res, LibkinetoProcess& process,
@@ -257,9 +438,16 @@ void LibkinetoConfigManager::setOnDemandConfigForProcess(GpuProfilerResult& res,
 {
     res.processesMatched.push_back(process.pid);
 
-    if (res.eventProfilersTriggered.size() < limit && (configType & int(LibkinetoConfigType::EVENTS)))
+    const bool eventsRequested = (configType & int(LibkinetoConfigType::EVENTS)) != 0;
+    if (res.eventProfilersTriggered.size() < limit && eventsRequested)
     {
-        if (process.eventProfilerConfig.empty())
+        if (config.size() + 1 > kMaxBatchFrameBytes)
+        {
+            res.eventProfilersBusy++;
+            LOG(ERROR) << "Event config for PID " << process.pid
+                       << " is too large for one IPC message, request rejected.";
+        }
+        else if (process.eventProfilerConfig.empty())
         {
             process.eventProfilerConfig = config;
             res.eventProfilersTriggered.push_back(process.pid);
@@ -269,26 +457,39 @@ void LibkinetoConfigManager::setOnDemandConfigForProcess(GpuProfilerResult& res,
             res.eventProfilersBusy++;
         }
     }
-    if (res.activityProfilersTriggered.size() < limit && (configType & int(LibkinetoConfigType::ACTIVITIES)))
+    if (!(configType & int(LibkinetoConfigType::ACTIVITIES)) || res.activityProfilersTriggered.size() >= limit)
     {
-        if (process.activityProfilerConfig.empty())
-        {
-            preCheckOnDemandConfig(process);
-
-            std::string trace_id = generateTraceId(process.pid);
-            std::string updatedConfig = addTraceIdToConfigString(trace_id, config);
-
-            res.activityProfilersTriggered.push_back(process.pid);
-            process.activityProfilerConfig = updatedConfig;
-            res.traceIds.push_back(trace_id);
-
-            LOG(INFO) << " PID: " << process.pid << ", Trace Id: " << trace_id;
-        }
-        else
-        {
-            res.activityProfilersBusy++;
-        }
+        return;
     }
+    if (process.activityProfilerConfigs.size() >= kMaxPendingActivityConfigs)
+    {
+        res.activityProfilersBusy++;
+        LOG(WARNING) << "Activity profiler queue full for PID: " << process.pid << ", request rejected as busy.";
+        return;
+    }
+
+    const std::string trace_id = generateTraceId(process.pid);
+    const std::string updatedConfig = addTraceIdToConfigString(trace_id, config);
+    // The newest config is duplicated in the legacy head and the batched payload.
+    size_t estimatedBytes = kLatestConfigCopies * updatedConfig.size() + kFrameOverheadBytes;
+    if (!process.eventProfilerConfig.empty())
+    {
+        // Any pending event config is prepended to the same poll reply.
+        estimatedBytes += process.eventProfilerConfig.size() + 1;
+    }
+    if (estimatedBytes > kMaxBatchFrameBytes)
+    {
+        res.activityProfilersBusy++;
+        LOG(ERROR) << "Activity config for PID " << process.pid
+                   << " is too large for one IPC message, request rejected.";
+        return;
+    }
+
+    preCheckOnDemandConfig(process);
+    process.activityProfilerConfigs.push_back(updatedConfig);
+    res.activityProfilersTriggered.push_back(process.pid);
+    res.traceIds.push_back(trace_id);
+    LOG(INFO) << " PID: " << process.pid << ", Trace Id: " << trace_id;
 }
 
 // Called by clients to control one or more libkineto instances.
@@ -310,6 +511,14 @@ GpuProfilerResult LibkinetoConfigManager::setOnDemandConfig(const std::string& j
     GpuProfilerResult res;
     res.activityProfilersBusy = 0;
     res.eventProfilersBusy = 0;
+
+    if ((configType & int(LibkinetoConfigType::ACTIVITIES)) && !isValidActivityConfig(config))
+    {
+        LOG(ERROR) << "Reject activity config for job " << jobId
+                   << ": it must be non-empty, must not contain the record separator (0x1e) and must not use "
+                      "reserved DYNO_* framing keys.";
+        return res;
+    }
 
     size_t nPids = pids.size();
     // For backwards compatibility with older versions of the dyno CLI,

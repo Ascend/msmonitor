@@ -5,34 +5,38 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <deque>
 #include <exception>
 #include <mutex>
-#include <algorithm>
+
 #include "dynolog/src/ipcfabric/Endpoint.h"
-#include "dynolog/src/ipcfabric/Utils.h"
 
 // If building inside Kineto, use its logger, otherwise use glog
 #if defined USE_GOOGLE_LOG
 #include <glog/logging.h>
-#endif // USE_GOOGLE_LOG
+#endif  // USE_GOOGLE_LOG
 
-namespace dynolog::ipcfabric {
+namespace dynolog::ipcfabric
+{
 
 constexpr size_t TYPE_SIZE = 32;
 constexpr size_t MAX_MSG_SIZE = 4096;
 
-struct Metadata {
+struct Metadata
+{
     size_t size = 0;
     char type[TYPE_SIZE] = "";
 };
 
-struct Message {
+struct Message
+{
     template <class T>
     static std::unique_ptr<Message> constructMessage(const T &data, const std::string &type)
     {
-        if (type.size() >= TYPE_SIZE) {
+        if (type.size() >= TYPE_SIZE)
+        {
             LOG(ERROR) << "type size exceeds TYPE_SIZE: " << type;
             return nullptr;
         }
@@ -52,7 +56,7 @@ struct Message {
             static_assert(std::is_trivially_copyable<T>::value);
             msg->metadata.size = sizeof(data);
             msg->buf = std::make_unique<unsigned char[]>(msg->metadata.size);
-            std::copy_n((const unsigned char*)&data, msg->metadata.size, msg->buf.get());
+            std::copy_n((const unsigned char *)&data, msg->metadata.size, msg->buf.get());
 #if __cplusplus >= 201703L
         }
 #endif
@@ -62,7 +66,8 @@ struct Message {
     template <class T, class U>
     static std::unique_ptr<Message> constructMessage(const T &data, const std::string &type, int n)
     {
-        if (type.size() >= TYPE_SIZE) {
+        if (type.size() >= TYPE_SIZE)
+        {
             LOG(ERROR) << "type size exceeds TYPE_SIZE: " << type;
             return nullptr;
         }
@@ -73,7 +78,7 @@ struct Message {
         static_assert(std::is_trivially_copyable<U>::value);
         msg->metadata.size = sizeof(data) + sizeof(U) * n;
         msg->buf = std::make_unique<unsigned char[]>(msg->metadata.size);
-        std::copy_n((const unsigned char*)&data, msg->metadata.size, msg->buf.get());
+        std::copy_n((const unsigned char *)&data, msg->metadata.size, msg->buf.get());
         return msg;
     }
 
@@ -83,17 +88,21 @@ struct Message {
     std::string src;
 };
 
-class FabricManager {
-public:
+class FabricManager
+{
+   public:
     explicit FabricManager(std::string endpoint_name = "") : ep_{std::move(endpoint_name)} {}
     FabricManager(const FabricManager &) = delete;
     FabricManager &operator=(const FabricManager &) = delete;
 
     static std::unique_ptr<FabricManager> factory(std::string endpoint_name = "")
     {
-        try {
+        try
+        {
             return std::make_unique<FabricManager>(endpoint_name);
-        } catch (std::exception &e) {
+        }
+        catch (std::exception &e)
+        {
             LOG(ERROR) << "Error when initializing FabricManager: " << e.what();
         }
         return nullptr;
@@ -101,22 +110,19 @@ public:
 
     // warning: this will block for user passed in time with exponential increase
     // if send keeps failing
-    bool sync_send(
-        const Message &msg,
-        const std::string &dest_name,
-        int num_retries = 10,
-        int sleep_time_us = 10000)
+    bool sync_send(const Message &msg, const std::string &dest_name, int num_retries = 10, int sleep_time_us = 10000)
     {
-        if (dest_name.empty()) {
+        if (dest_name.empty())
+        {
             LOG(ERROR) << "Cannot send to empty socket name";
             return false;
         }
 
-        std::vector<Payload> payload{
-            Payload(sizeof(struct Metadata), (void *)&msg.metadata),
-            Payload(msg.metadata.size, msg.buf.get())};
+        std::vector<Payload> payload{Payload(sizeof(struct Metadata), (void *)&msg.metadata),
+                                     Payload(msg.metadata.size, msg.buf.get())};
         int i = 0;
-        try {
+        try
+        {
             auto ctxt = ep_.buildSendCtxt(dest_name, payload);
             while (!ep_.trySendMsg(*ctxt) && i < num_retries)
             {
@@ -125,7 +131,9 @@ public:
                 usleep(sleep_time_us);
                 sleep_time_us += sleep_time_us;
             }
-        } catch (std::exception &e) {
+        }
+        catch (std::exception &e)
+        {
             LOG(ERROR) << "Error when sync_send(): " << e.what();
             return false;
         }
@@ -134,7 +142,8 @@ public:
 
     bool recv()
     {
-        try {
+        try
+        {
             Metadata receive_metadata;
             std::vector<Payload> peek_payload{Payload(sizeof(struct Metadata), &receive_metadata)};
             auto peek_ctxt = ep_.buildRcvCtxt(peek_payload);
@@ -146,48 +155,61 @@ public:
             //   4) use metadata to find the desired size for the buffer to allocate.
             //   5) read metadata + data with allocated buffer
             bool success{false};
-            try {
+            try
+            {
                 success = ep_.tryPeekMsg(*peek_ctxt);
-            } catch (std::exception &e) {
+            }
+            catch (std::exception &e)
+            {
                 LOG(ERROR) << "Error when tryPeekMsg(): " << e.what();
                 return false;
             }
-            if (success) {
+            if (success)
+            {
                 receive_metadata.size = std::min(receive_metadata.size, MAX_MSG_SIZE);
                 std::unique_ptr<Message> msg = std::make_unique<Message>(Message());
                 msg->metadata = receive_metadata;
                 msg->buf = std::make_unique<unsigned char[]>(receive_metadata.size);
                 auto src = ep_.getName(*peek_ctxt, true);
-                if (src == nullptr) {
+                if (src == nullptr)
+                {
                     LOG(ERROR) << "Failed to get source name from peek context";
                     return false;
                 }
                 msg->src = std::string(src);
                 std::vector<Payload> payload{Payload(sizeof(struct Metadata), (void *)&msg->metadata),
-                    Payload(receive_metadata.size, msg->buf.get())};
+                                             Payload(receive_metadata.size, msg->buf.get())};
                 auto recv_ctxt = ep_.buildRcvCtxt(payload);
-                try {
+                try
+                {
                     success = ep_.tryRcvMsg(*recv_ctxt);
-                } catch (std::exception &e) {
+                }
+                catch (std::exception &e)
+                {
                     LOG(ERROR) << "Error when tryRcvMsg(): " << e.what();
                     return false;
                 }
-                if (recv_ctxt->msghdr.msg_flags & MSG_CTRUNC) {
+                if (recv_ctxt->msghdr.msg_flags & MSG_CTRUNC)
+                {
                     LOG(ERROR) << "Received message with truncated data, message will be ingored.";
                     return false;
                 }
-                if (msg->metadata.size > MAX_MSG_SIZE) {
+                if (msg->metadata.size > MAX_MSG_SIZE)
+                {
                     LOG(ERROR) << "Received message size: " << msg->metadata.size
                                << ", exceeds max size, message will be ingored.";
                     return false;
                 }
-                if (success) {
+                if (success)
+                {
                     std::lock_guard<std::mutex> wguard(dequeLock_);
                     message_deque_.emplace_back(std::move(msg));
                     return true;
                 }
             }
-        } catch (std::exception &e) {
+        }
+        catch (std::exception &e)
+        {
             LOG(ERROR) << "Error in recv(): " << e.what();
         }
         return false;
@@ -196,7 +218,8 @@ public:
     std::unique_ptr<Message> retrieve_msg()
     {
         std::lock_guard<std::mutex> wguard(dequeLock_);
-        if (message_deque_.empty()) {
+        if (message_deque_.empty())
+        {
             return nullptr;
         }
         std::unique_ptr<Message> msg = std::move(message_deque_.front());
@@ -206,8 +229,10 @@ public:
 
     std::unique_ptr<Message> poll_recv(int max_retries, int sleep_time_us)
     {
-        for (int i = 0; i < max_retries; i++) {
-            if (recv()) {
+        for (int i = 0; i < max_retries; i++)
+        {
+            if (recv())
+            {
                 return retrieve_msg();
             }
             /* sleep override */
@@ -216,10 +241,10 @@ public:
         return nullptr;
     }
 
-private:
+   private:
     // message LIFO deque with oldest message at front
     std::deque<std::unique_ptr<Message>> message_deque_;
     EndPoint ep_;
     std::mutex dequeLock_;
 };
-} // namespace dynolog::ipcfabric
+}  // namespace dynolog::ipcfabric

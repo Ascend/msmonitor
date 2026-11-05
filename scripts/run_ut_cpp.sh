@@ -36,11 +36,12 @@ if [[ "$UT_COVERAGE" == "ON" ]]; then
     find "$BUILD_DIR" -name '*.gcda' -type f -delete
 fi
 
-TEST_DIR="${BUILD_DIR}/ut/plugin/ipc_monitor"
-if [[ ! -d "$TEST_DIR" ]] || [[ -z "$(find "$TEST_DIR" -name 'test_*' -type f -executable -print -quit)" ]]; then
-    echo "ERROR: No C++ test executables found under $TEST_DIR" >&2
-    exit 1
-fi
+for TEST_DIR in "${BUILD_DIR}/ut/plugin/ipc_monitor" "${BUILD_DIR}/ut/dynolog"; do
+    if [[ ! -d "$TEST_DIR" ]] || [[ -z "$(find "$TEST_DIR" -name 'test_*' -type f -executable -print -quit)" ]]; then
+        echo "ERROR: No C++ test executables found under $TEST_DIR" >&2
+        exit 1
+    fi
+done
 
 # CMake registers each UT with add_test(); preserve the existing serial execution.
 cd "$BUILD_DIR"

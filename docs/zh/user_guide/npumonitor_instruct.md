@@ -25,6 +25,10 @@ dyno --certs-dir <CERT_DIR> npu-monitor [options]
 
 开启npu-monitor性能监测。
 
+**注意事项**
+
+npu-monitor与nputrace共享底层Profiling资源，不支持同时采集，包括两条命令短时间内先后下发、同时处于排队或缓存中的场景。切换为nputrace时，先执行`dyno npu-monitor --npu-monitor-stop`，待`dyno status`显示`npumonitor`为`Idle`后再发送nputrace。
+
 **命令格式**
 
 ```bash

@@ -47,8 +47,20 @@ dyno status
 命令执行后会输出一段 JSON 字符串示例：
 
 ```json
-{"current_step":1,"npumonitor":"Idle","nputrace":"Ready","start_step":5,"stop_step":10}
+{"current_step":1,"npumonitor":"Idle","nputrace":"Ready","start_step":5,"stop_step":10,"trace_id":"123456789","queue_depth":2,"rejected":0}
 ```
+
+### 字段说明
+
+| 字段 | 说明 |
+| --- | --- |
+| `nputrace` | nputrace 采集状态，取值见[状态释义](#状态释义)。 |
+| `npumonitor` | npu-monitor 采集状态，取值见[状态释义](#状态释义)。 |
+| `current_step` | 当前执行到的步数，默认初始值为 `-1`。 |
+| `start_step` / `stop_step` | 采集步数区间边界，仅当 `nputrace` 为 `Ready` 或 `Running` 时展示。 |
+| `trace_id` | 当前正在采集、或下一个将在 `start_step` 启动的采集配置的 trace id。仅当 `nputrace` 为 `Ready` 或 `Running` 且模型进程支持上报时展示。 |
+| `queue_depth` | 排队等待启动的采集配置数量（`Running` 时不含正在执行的配置）。仅当 `nputrace` 为 `Ready` 或 `Running` 且模型进程支持上报时展示。 |
+| `rejected` | 模型进程累计拒绝的采集配置数量（如配置队列已满），模型进程支持上报时展示。 |
 
 ### 状态释义
 
@@ -68,3 +80,8 @@ dyno status
 3. 仅当 `nputrace` 状态为 `Ready` 或 `Running` 时，结果中才会展示 `start_step`、`stop_step` 字段。
 4. `current_step` 默认初始值为 `-1`。
 5. MindSpore 框架下，`nputrace` 不存在 `Ready` 状态。
+6. `trace_id`、`queue_depth`、`rejected` 由模型进程上报，仅新版模型进程/插件提供：
+   - `trace_id`、`queue_depth` 仅在 `nputrace` 为 `Ready` 或 `Running` 时展示；
+   - `rejected` 在模型进程支持上报时展示；
+   - 模型进程不支持上报时，结果中不出现对应字段，避免将“未上报”误读为 `0`。
+7. 多个模型进程同时上报时，以最后一次上报为准。

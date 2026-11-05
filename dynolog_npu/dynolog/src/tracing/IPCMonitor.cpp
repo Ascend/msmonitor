@@ -16,6 +16,8 @@
  * -------------------------------------------------------------------------
  */
 
+// Copyright (c) Meta Platforms, Inc. and affiliates.
+//
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
@@ -35,6 +37,7 @@
 
 #include "dynolog/src/LibkinetoConfigManager.h"
 #include "dynolog/src/ipcfabric/Utils.h"
+#include "dynolog/src/tracing/NpuStatusMessage.h"
 #include "dynolog/src/utils.h"
 
 namespace dynolog
@@ -232,18 +235,18 @@ void IPCMonitor::getLibkinetoOnDemandRequest(std::unique_ptr<ipcfabric::Message>
         return;
     }
     std::vector<int32_t> pids(req->pids, req->pids + pid_num);
-    std::string ret_config = "";
+    const std::string job_id = std::to_string(req->jobid);
+    dynolog::OnDemandBatch batch;
     try
     {
-        ret_config =
-            LibkinetoConfigManager::getInstance()->obtainOnDemandConfig(std::to_string(req->jobid), pids, req->type);
+        batch = LibkinetoConfigManager::getInstance()->obtainOnDemandBatch(job_id, pids, req->type);
     }
     catch (const std::runtime_error& ex)
     {
         LOG(ERROR) << "Kineto config manager exception : " << ex.what();
     }
     std::unique_ptr<ipcfabric::Message> ret =
-        ipcfabric::Message::constructMessage<decltype(ret_config)>(ret_config, kLibkinetoRequest);
+        ipcfabric::Message::constructMessage<decltype(batch.payload)>(batch.payload, kLibkinetoRequest);
     if (!ret)
     {
         LOG(ERROR) << "Failed to construct message for config: IPC sync_send fail";
@@ -252,6 +255,13 @@ void IPCMonitor::getLibkinetoOnDemandRequest(std::unique_ptr<ipcfabric::Message>
     if (!ipc_manager_->sync_send(*ret, msg->src))
     {
         LOG(ERROR) << "Failed to return config to libkineto: IPC sync_send fail";
+        return;
+    }
+    // Ack only after a successful send; otherwise the configs are retried.
+    if (!batch.payload.empty() &&
+        !LibkinetoConfigManager::getInstance()->ackOnDemandBatch(job_id, pids, req->type, batch))
+    {
+        LOG(WARNING) << "On-demand config batch ack failed, it will be offered again";
     }
     return;
 }
@@ -301,18 +311,15 @@ void IPCMonitor::registerLibkinetoContext(std::unique_ptr<ipcfabric::Message> ms
 
 void IPCMonitor::updateLibkinetoStatus(std::unique_ptr<ipcfabric::Message> msg, const std::string& msgType)
 {
-    if (msg->metadata.size < sizeof(NpuStatus))
+    NpuStatus status{};
+    if (!decodeNpuStatus(msg->buf.get(), msg->metadata.size, status))
     {
         LOG(ERROR) << msgType << " receive message size is invalid: " << msg->metadata.size;
         return;
     }
-    NpuStatus* status = (NpuStatus*)msg->buf.get();
     try
     {
-        if (status != nullptr)
-        {
-            LibkinetoConfigManager::getInstance()->updateNpuStatus(*status, msgType);
-        }
+        LibkinetoConfigManager::getInstance()->updateNpuStatus(status, msgType);
     }
     catch (const std::runtime_error& ex)
     {
