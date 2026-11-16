@@ -2,7 +2,7 @@
 
 ## ℹ️ Introduction
 
-MindStudio Monitor (msMonitor) is an online performance monitoring and dynamic collection tool for Ascend cluster scenarios. Built on [dynolog](https://github.com/facebookincubator/dynolog) (Meta CPU-GPU monitoring system) and [msPTI](https://gitcode.com/Ascend/mspti/blob/master/docs/en/quick_start/mspti_quick_start.md) (MindStudio Profiler Tools Interface), it supports capabilities such as `npu-monitor`, `nputrace`, and `Monitor API`.
+MindStudio Monitor (msMonitor) is an online performance monitoring and dynamic collection tool for Ascend cluster scenarios. It is built on [dynolog](https://github.com/facebookincubator/dynolog) (Meta CPU-GPU monitoring system) and [msPTI](https://gitcode.com/Ascend/mspti/blob/master/docs/en/quick_start/mspti_quick_start.md) (MindStudio Profiler Tools Interface), and supports capabilities such as `npu-monitor`, `nputrace`, and `Monitor API`.
 
 Supported framework Profiler tools: [Ascend PyTorch Profiler](https://gitcode.com/Ascend/pytorch/blob/master/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md) and [MindSpore Profiler](https://gitcode.com/Ascend/docs/blob/master/MindStudio/master/en/menu/mindspore_profiler_user_guide.md)
 
@@ -19,8 +19,7 @@ As shown in the preceding figure, the core components of msMonitor are described
 ## Product Support
 
 > [!NOTE]
->
-> For specific Ascend product models, see *[Ascend Product Models](https://www.hiascend.com/document/detail/en/Glossary/gls/gls_0001.html)*.
+> For specific Ascend product models, see *[Ascend Product Models](https://www.hiascend.com/document/detail/en/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)*.
 
 <!-- npu="950" id1 -->
 - Ascend 950PR&950DT products: Supported
@@ -47,7 +46,7 @@ msMonitor provides the following core features:
 
 | Feature Name        | Feature Description                                                     | Documentation                                                  |
 | --------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
-| **npu-monitor** | A lightweight resident daemon that continuously monitors the latency of key operators, suitable for online observation of performance fluctuations.   | [npu-monitor](./user_guide/npumonitor_instruct.md)    |
+| **npu-monitor** | A lightweight resident daemon that continuously monitors the duration of key operators, suitable for online observation of performance fluctuations.   | [npu-monitor](./user_guide/npumonitor_instruct.md)    |
 | **nputrace**    | Dynamically triggers performance data collection and parsing on the framework, CANN, and Device sides without interrupting running tasks. | [nputrace](./user_guide/nputrace_instruct.md)         |
 | **Monitor API** | Provides Python APIs for collecting performance data such as compute operators, communication operators, APIs, Runtime APIs, and Mstx. | [Monitor API](./advanced_features/monitor_feature.md) |
 

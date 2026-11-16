@@ -1,5 +1,7 @@
 # msMonitor Installation Guide
 
+<br>
+
 ## 1. Installation Notes
 
 The msMonitor tool is supported only on Linux systems, compatible with both aarch64 and x86 CPU architectures. This tool supports three installation methods: [Online Installation](#21-online-installation), [Offline Installation](#22-offline-installation), and [Source Installation](#23-source-installation). Please select the most suitable option based on your actual environment.
@@ -16,18 +18,18 @@ For devices in environments without external network access, such as enterprise 
 
 ### 2.3 Source Installation
 
-If you need the features of the latest code, or want to modify the source code to enhance functionality, you can download the code from this repository, compile and package the tool yourself, and complete the installation.
+If you need the features of the latest code, or want to modify the source code to enhance functionality, you can download the code of this repository, compile and package the tool yourself, and complete the installation.
 
 #### 2.3.1 Environment Preparation
 
-Source code compilation uses the MindStudio standard build environment.
+Source code compilation uniformly uses the MindStudio standard build environment.
 
-- For daily development or when using a released image, see the *[MindStudio Tool Development Environment Setup Guide](https://gitcode.com/Ascend/msot/blob/master/docs/en/common/dev_env_setup.md)*.
-- To reproduce the environment from a base OS, or to perform source build verification or unit test verification, you must refer to the *[MindStudio Tool Unified Build Image Creation Guide](https://gitcode.com/Ascend/msot/blob/master/docs/en/common/docker_image_build_guide.md)* and build the environment image on-site from the openEuler base image.
+- For daily development or when using a released image, see *[MindStudio Tool Development Environment Installation Guide](https://gitcode.com/Ascend/msot/blob/master/docs/en/common/dev_env_setup.md)*.
+- When you need to reproduce the environment from the base OS, perform source code build verification, or perform unit test verification, you must refer to the *[MindStudio Unified Build Image Creation Guide](https://gitcode.com/Ascend/msot/blob/master/docs/en/common/docker_image_build_guide.md)* and build the environment image on site from the openEuler base image.
 
-All source compilation and unit test commands in this document are run in the container of the image specified above or built on-site. The CANN package version, GCC version, and Python version are subject to the unified image creation guide; this repository does not maintain them separately.
+The source code compilation and unit test commands in the rest of this document are all executed in the container of the specified image above or the environment image built on site. The CANN software package version, GCC version, and Python version are subject to the unified image creation guide and are not maintained repeatedly in this repository.
 
-After the image is built, you must use the `ctr_in.py` command provided in Chapter 7 of the unified image creation guide to start and enter the container in an interactive terminal. Do not use plain `docker run` to create a container, and do not use `docker exec <container_name> bash -c '<command>'` as a substitute for an interactive environment; otherwise, Python, GCC, and CANN environment initialization may be skipped.
+After the image is built, you must use the `ctr_in.py` command given in Chapter 7 of the unified image creation guide to start and enter the container in an interactive terminal. Do not use a normal `docker run` to create a container, and do not use `docker exec <container name> bash -c '<command>'` to replace the interactive environment; otherwise, the initialization of the Python, GCC, and CANN environments may be skipped.
 
 After entering the interactive container shell opened by `ctr_in.py`, run the following command to clone this repository:
 
@@ -36,11 +38,11 @@ cd ~
 git clone https://gitcode.com/Ascend/msmonitor.git -b master
 ```
 
-> Optional: To install OpenSSL (RPC TLS authentication) and generate a certificate key, see [Section 5](#5-installing-openssl-rpc-tls-authentication-and-generating-certificate-keys).
+> Optional: If you need to install openssl (RPC TLS authentication) and generate a certificate key, see [Section 5](#5-installing-openssl-rpc-tls-authentication-and-generating-certificate-keys).
 
 #### 2.3.2 Compiling and Installing dynolog
 
-Stay in the same interactive container shell opened by `ctr_in.py`, and run the following command in the repository root directory to automatically download dependencies and build:
+Staying in the same interactive container shell opened by `ctr_in.py`, run the following command in the repository root directory to automatically complete dependency download and build:
 
 ```bash
 cd ~/msmonitor
@@ -49,30 +51,30 @@ python3 build.py -e dynolog=true
 
 After a successful build, the installation package is generated in the `artifacts/` directory.
 
-To install dynolog, choose the method based on your system:
+To install dynolog, select the corresponding method based on the system:
 
 ```bash
 cd ~/msmonitor/artifacts
-# Debian/Ubuntu and similar systems
+# Systems such as Debian/Ubuntu
 dpkg -i --force-overwrite dynolog*.deb --ignore-depends
-# RedHat/Fedora/openSUSE and similar systems
+# Systems such as RedHat/Fedora/openSUSE
 rpm -ivh dynolog*.rpm --nodeps
 ```
 
-Verify that dynolog is installed successfully:
+Verify whether dynolog is installed successfully:
 
 ```bash
 dyno --help
 dynolog --help
 ```
 
-If the commands do not report errors and the help information is displayed, the installation is successful.
+If the output does not report an error and the help information is displayed, the installation is successful.
 
 #### 2.3.3 Compiling and Installing mindstudio_monitor
 
-The mindstudio_monitor `.whl` package provides common capabilities such as IPCMonitor and MsptiMonitor. This `.whl` package must be installed before using the nputrace and npu-monitor features.
+The mindstudio_monitor .whl package provides common capabilities such as IPCMonitor and MsptiMonitor. This .whl package must be installed before using the nputrace and npu-monitor features.
 
-Stay in the same interactive container shell opened by `ctr_in.py`, and run the following command in the repository root directory to automatically download dependencies and build:
+Staying in the same interactive container shell opened by `ctr_in.py`, run the following command in the repository root directory to automatically complete dependency download and build:
 
 ```bash
 cd ~/msmonitor
@@ -88,13 +90,13 @@ cd ~/msmonitor/artifacts
 pip install mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{system_architecture}.whl
 ```
 
-Verify the installation:
+Verify whether the installation is successful:
 
 ```bash
 python3 -c "import msmonitor; print('All is OK')"
 ```
 
-If the command does not report errors and prints 'All is OK', the installation is successful.
+If the output has no error and displays 'All is OK', the installation is successful.
 
 ## 3. Uninstallation
 
@@ -108,7 +110,7 @@ You can perform uninstallation by following these steps:
 
    > [!NOTE]
    >
-   > - An internet connection is required for downloading. If the environment does not allow internet access or is offline, download the script in an environment with internet access first and then copy it to the target device.
+   > - A networked environment is required for the download. If the environment does not allow networking or is offline, download the script in a networked environment first and then copy it to the target device.
    > - If the command does not respond or errors such as connection failure or SSL certificate errors occur, see [FAQs](https://www.hiascend.com/developer/blog/details/02176213671719317003).
 
 2. Perform the uninstallation.
@@ -117,9 +119,9 @@ You can perform uninstallation by following these steps:
    python ms_install.py uninstall {tools_name}
    ```
 
-   Where `{tools_name}` is the name of the tool to be uninstalled. You can query it with the `python ms_install.py help` command; the tool name is displayed under the `Available Tools` field in the printed information.
+   Where `{tools_name}` is configured as the name of the tool to be uninstalled. You can query it by running the `python ms_install.py help` command. The tool name is displayed under the `Available Tools` field in the printed information.
 
-   If the uninstallation is successful, the following information is printed:
+If the uninstallation is successful, the following information is printed:
 
    ```text
    Successfully uninstalled 1 tool ({tools_name})
@@ -127,32 +129,32 @@ You can perform uninstallation by following these steps:
 
 ## 4. Upgrade
 
-Upgrading means "uninstalling first and then installing". Run the install command directly. The tool automatically uninstalls the old version and guides you through the overwrite installation.
+Upgrading means "uninstalling first and then installing". Run the install command directly. The tool will automatically remove any older version and guide you through a clean reinstallation.
 
-You can run the `dyno --version` command to view the version information of the current environment, and then select the version to upgrade to. Pay attention to version compatibility when upgrading. See [Release Notes](https://gitcode.com/Ascend/release-management/blob/master/MindStudio/master/release_notes_en.md).
+You can use the `dyno --version` command to view the version information of the current environment and then select the version to upgrade to. When upgrading the version, pay attention to the version compatibility relationship. See *[Release Notes](https://gitcode.com/Ascend/release-management/blob/master/MindStudio/master/release_notes_en.md)*.
 
-## 5. Installing OpenSSL (RPC TLS Authentication) and Generating Certificate Keys
+## 5. Installing openssl (RPC TLS Authentication) and Generating Certificate Keys
 
-The RPC communication between the dyno CLI and the dynolog daemon is encrypted using TLS certificate keys. When starting the dyno and dynolog binaries, you can specify the path where the certificate keys are stored. The directory must have the following structure and names.
+The RPC communication between the dyno CLI and the dynolog daemon is encrypted using TLS certificate keys. When starting the dyno and dynolog binaries, you can specify the path where the certificate keys are stored. The structure and names under the path must meet the following requirements.
 
-Users should use key generation and storage mechanisms that match their own requirements, and ensure key security and confidentiality. Currently, only the RSA-SHA256 and RSA-SHA512 certificate signature algorithms are supported.
+Users should use a key generation and storage mechanism that matches their own needs and ensure the security and confidentiality of the keys. Currently, only the RSA-SHA256 and RSA-SHA512 certificate signature algorithms are supported.
 
 Server certificate directory structure:
 
 ```text
 ssl_certs
-├── ca.crt (Root CA certificate, used to verify the validity of other certificates. Required)
-├── server.crt (Server certificate, used to prove the server identity to clients. Required)
-├── server.key (Server private key file, used in pair with server.crt. Encryption is supported. Required)
-└── ca.crl (Certificate revocation list, containing information about revoked certificates. Optional)
+├── ca.crt (Root certificate, used to verify the legitimacy of other certificates, mandatory)
+├── server.crt (Server-side certificate, used to prove the server identity to the client, mandatory)
+├── server.key (Server-side private key file, used in pair with server.crt, encryption supported, mandatory)
+└── ca.crl (Certificate revocation list, containing information about revoked certificates, optional)
 ```
 
 Client certificate directory structure:
 
 ```text
 ssl_certs
-├── ca.crt (Root CA certificate, used to verify the validity of other certificates. Required)
-├── client.crt (Client certificate, used to prove the client identity to the server. Required)
-├── client.key (Client private key file, used in pair with client.crt. Encryption is supported. Required)
-└── ca.crl (Certificate revocation list, containing information about revoked certificates. Optional)
+├── ca.crt (Root certificate, used to verify the legitimacy of other certificates, mandatory)
+├── client.crt (Client certificate, used to prove the client identity to the server, mandatory)
+├── client.key (Client-side private key file, used in pair with client.crt, encryption supported, mandatory)
+└── ca.crl (Certificate revocation list, containing information about revoked certificates, optional)
 ```

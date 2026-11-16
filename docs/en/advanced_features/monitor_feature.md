@@ -2,25 +2,25 @@
 
 ## Overview
 
-Monitor is a set of APIs built into MindStudio Monitor. You can call these APIs to start and stop performance monitoring and to obtain the collected data.
+Monitor is a set of APIs integrated in MindStudio Monitor. You can call these APIs to start and stop performance monitoring and obtain monitoring data.
 
 ## Preparations
 
-Install msMonitor. For details, see the *[msMonitor Installation Guide](../install_guide/msmonitor_install_guide.md)*. Downloading the software package is the recommended installation method.
+Install msMonitor. For details, see [msMonitor Installation Guide](../install_guide/msmonitor_install_guide.md). You are advised to download the software package for installation.
 
 ## Monitor Functions
 
 **Function**
 
-Monitor provides easy-to-use APIs that collect profile data for compute operators, communication operators, APIs, Runtime APIs, and mstx markers, and you can select which data to collect as needed. In addition, Monitor can collect device-level metrics of an NPU card (power and temperature) and metrics for each hardware layer through the DCMI interface, covering AICore frequency and utilization, AICPU maximum and current frequency and utilization, and HBM on-chip memory frequency, capacity, usage, bandwidth, and temperature. The results can be exported in Chrome Trace JSON format, so that you can analyze them by hardware layer in `chrome://tracing` or Perfetto, using duration bars for operators together with counter lines for device metric trends.
+Provides simple and easy-to-use interfaces for collecting performance data such as compute operators, communication operators, APIs, Runtime APIs, and Mstx. You can select the metrics to collect as needed. In addition, it supports collecting device-level metrics (Power, Temp) of the NPU card and metrics of each hardware layer (AICore frequency/utilization, AICPU maximum/current frequency and utilization, HBM on-chip memory frequency/capacity/usage/bandwidth/temperature, etc.) through the DCMI interface, and supports exporting the results in Chrome Trace JSON format for visualization and analysis by hardware layer in the form of timeline bar charts (operator duration) plus curves (device metric change trends) in `chrome://tracing` or Perfetto.
 
 **API Description**
 
-For details, see [Monitor Feature APIs](./mindstudio_monitor_api_reference.md#monitor-feature-apis) of mindstudio_monitor.
+For details, see [Monitor Feature APIs](./mindstudio_monitor_api_reference.md#monitor-feature-apis) for mindstudio_monitor.
 
 **Example**
 
-1. Import the Monitor APIs in the model Python script.
+1. Import the Monitor APIs into the model Python script.
 
    ```python
    from msmonitor import Monitor, ActivityKind, DcmiLayer
@@ -48,9 +48,8 @@ For details, see [Monitor Feature APIs](./mindstudio_monitor_api_reference.md#mo
 
    from msmonitor import Monitor, ActivityKind, DcmiLayer
 
-   # Start performance monitoring: operator data plus DCMI device metrics.
-   # DCMI is configured per hardware layer: selecting a layer collects every
-   # metric available for that layer, with no need to enumerate them one by one.
+   # Enable performance monitoring: operator-type data + DCMI device metrics
+   # DCMI is configured by hardware layer: selecting a layer collects all available metrics of that layer (no need to enumerate them one by one).
    monitor = Monitor()
    monitor.start(
        kinds=[
@@ -64,7 +63,7 @@ For details, see [Monitor Feature APIs](./mindstudio_monitor_api_reference.md#mo
            DcmiLayer.AICPU,    # AICPU maximum/current frequency, utilization
            DcmiLayer.HBM,      # On-chip memory frequency/capacity/usage/bandwidth/temperature
        ],
-       dcmi_interval_ms=10,    # DCMI sampling interval, 10 ms by default
+       dcmi_interval_ms=10,    # DCMI sampling interval, default 10ms
    )
 
    # Run the model.
@@ -87,89 +86,89 @@ For details, see [Monitor Feature APIs](./mindstudio_monitor_api_reference.md#mo
    # Stop performance monitoring.
    monitor.stop()
 
-   # (Optional) Obtain the profile data online. See step 3.
+   # (Optional) Obtain profile data online. For details, see step 3.
    result = monitor.get_result()
 
-   # (Optional) Save the profile data locally. start has already fixed the output
-   # directory, and the argument-free save exports xlsx/json/log. See step 4.
+   # (Optional) Save performance data to the local host (the output directory has been specified in start; save exports xlsx/json/log without parameters); see step 4
    monitor.save()
    ```
 
-3. (Optional) Obtain the profile data online. For the returned data structure, see [ActivityData Data Structure](./mindstudio_monitor_api_reference.md#activitydata-data-structure). The keys of the returned dictionary are the enabled `ActivityKind` values plus a DCMI sample list, which is always keyed `DCMI`; each element is a `DcmiSample` whose fields are the metric kind, timestamp, device ID, and value.
+3. (Optional) Performance data can be obtained online. For the returned data structure, see [ActivityData Data Structure](./mindstudio_monitor_api_reference.md#activitydata-data-structure). The keys of the returned dictionary include the enabled `ActivityKind` and a DCMI sample list (uniformly using `DCMI` as the key, with elements of `DcmiSample`, whose fields include the metric kind, timestamp, device ID, and value).
 
    ```python
-   # Obtain and print the profile data.
+   # Obtain and print profile data.
    result = monitor.get_result()
    for kind, data in result.items():
        for item in data:
            print(f"kind: {kind}, name: {item.name}, durationNs: {item.endNs-item.startNs}")
    ```
 
-4. (Optional) Save the profile data locally. `save()` takes no arguments and exports to the output directory that was already fixed by `start(save_path=...)`: `start` creates the session directory `msmonitor_<pid>_<timestamp>/` under that path, glog writes directly into its `log/` from the very beginning, and `save` only adds the xlsx and json files without moving or copying anything:
+4. (Optional) Save performance data to the local host: `save()` exports without parameters, and the output directory is already determined when `start(save_path=...)` is called — start creates the `msmonitor_<pid>_<timestamp>/` session directory under it, glog writes directly into its `log/` from the beginning, and save only supplements xlsx/json, with no moving or copying at all:
 
    ```python
-   # Specify the output directory at start (the session directory is created directly under it).
+   # Specify the output directory at start (the session directory is created directly under it)
    monitor.start(..., save_path="./out")
    # Export: ./out/msmonitor_<pid>_<timestamp>/monitor_result.xlsx + monitor_result.json + log/
    monitor.save()
    ```
 
-   > Omit `save_path` when the data is only to be obtained online, without writing to disk: `start(..., save_path=None)` creates no session directory and writes no log file, and the data is read from memory through `get_result()`. Calling `save()` in this case reports that no session directory exists.
+   > When only obtaining data online (without persistence), omit `save_path`: `start(..., save_path=None)` does not create a session directory
+   > and does not save log files; obtain data directly through `get_result()` in memory. In this case, calling `save()` prompts that there is no session directory.
 
-   - `monitor_result.xlsx`: An Excel workbook with multiple sheets, including sheets for operator durations and for DCMI metrics.
-   - `monitor_result.json`: Chrome Trace JSON that can be opened in `chrome://tracing` or Perfetto. Operator durations are rendered as bars (X events) and DCMI metrics as counter lines (C counter events), presented per hardware layer in separate processes.
-   - `log/` subdirectory: The C++ glog runtime log of the current process. glog writes into it from the moment `start()` is called; there is no outer temporary log directory.
+   - `monitor_result.xlsx`: Excel (multiple sheets, including operator duration and DCMI metric sheets).
+   - `monitor_result.json`: Chrome Trace JSON, which can be opened in `chrome://tracing` or Perfetto. Operator durations are presented as bar charts (X events) and DCMI metrics as curves (C counter events), by hardware layer in separate processes.
+   - `log/` subdirectory: C++ glog running logs of the current process. From `start()`, glog writes into it (there is no outer temporary log directory).
 
-   > For an end-to-end example, see the system test [`test/st/test_dcmi_fa_comm_multistream.py`](../../../test/st/test_dcmi_fa_comm_multistream.py) (multi-stream FA compute + DCMI collection + export verification).
+   > For an end-to-end running example, see the system test case [`test/st/test_dcmi_fa_comm_multistream.py`](../../../test/st/test_dcmi_fa_comm_multistream.py) (FA multi-stream computation + DCMI collection + export verification).
 
 ## Output File Description
 
-The Excel file written to disk contains multiple sheets, and each sheet corresponds to one collected data type, such as API, Kernel, or Marker. You can inspect the different sheets to analyze the execution duration of operators and APIs.
+The output Excel file contains multiple sheets. Each sheet corresponds to a data type, such as API, kernel, and marker. You can view different sheets to analyze the execution time of operators and APIs.
 
 See the following figure.
 
-![Monitor output data](../figures/monitor_feature_result.png)
+![Monitor data written to disk](../figures/monitor_feature_result.png)
 
-The fields of each sheet are described as follows:
+The fields on each sheet are described as follows:
 
 ### Marker
 
-* `Name`: Content of the mstx marker message
-* `SourceKind`: Message source type, either `Host` or `Device`
-* `Domain`: Name of the domain to which the message belongs
-* `ID`: Message ID
+* `Name`: mstx marker message content
+* `SourceKind`: message source type, either `Host` or `Device`
+* `Domain`: name of the domain to which the message belongs
+* `ID`: message ID
 * `Start(us)`: mstx marker start time, in microseconds
 * `End(us)`: mstx marker end time, in microseconds
-* `Pid`: Process ID when `SourceKind` is `Host`, or `0` when `SourceKind` is `Device`
-* `Tid`: Thread ID when `SourceKind` is `Host`, or `0` when `SourceKind` is `Device`
+* `Pid`: process ID when `SourceKind` is `Host`, and `0` when `SourceKind` is `Device`
+* `Tid`: thread ID when `SourceKind` is `Host`, and `0` when `SourceKind` is `Device`
 * `Device ID`: ID of the device to which the marker belongs when `SourceKind` is `Device`, or `0` when `SourceKind` is `Host`
 * `Stream ID`: ID of the stream to which the marker belongs when `SourceKind` is `Device`, or `0` when `SourceKind` is `Host`
-* `Duration(us)`: Duration of the mstx marker, in microseconds
+* `Duration(us)`: mstx marker duration, in microseconds
 
 ### Kernel
 
-* `Name`: Name of the compute operator
-* `Start(us)`: Operator execution start time, in microseconds
-* `End(us)`: Operator execution end time, in microseconds
+* `Name`: name of a compute operator
+* `Start(us)`: operator execution start time, in microseconds
+* `End(us)`: operator execution end time, in microseconds
 * `Device ID`: ID of the device where the operator is executed
 * `Stream ID`: ID of the stream where the operator is executed
-* `Correlation ID`: Operator correlation ID, used to associate the operator with API data
-* `Type`: Operator type, for example, `KERNEL_AICORE`, `KERNEL_AIVEC`, or `KERNEL_AICPU`
-* `Duration(us)`: Operator execution duration, in microseconds
+* `Correlation ID`: operator execution correlation ID, which is used to associate with API data
+* `Type`: operator type, for example, `KERNEL_AICORE`, `KERNEL_AIVEC`, or `KERNEL_AICPU`
+* `Duration(us)`: operator execution time, in microseconds
 
 ### Communication
 
-* `Name`: Name of the communication operator
-* `Start(us)`: Operator execution start time, in microseconds
-* `End(us)`: Operator execution end time, in microseconds
+* `Name`: name of a communication operator
+* `Start(us)`: operator execution start time, in microseconds
+* `End(us)`: operator execution end time, in microseconds
 * `Device ID`: ID of the device where the operator is executed
 * `Stream ID`: ID of the stream where the operator is executed
-* `Count`: Volume of data transferred by the operator
-* `DataType`: Data type transferred by the operator, for example, `FP32` or `INT8`
-* `CommName`: Name of the communication domain to which the operator belongs
-* `AlgType`: Communication algorithm used by the operator, for example, `RING` or `MESH`
-* `Correlation ID`: Operator correlation ID, used to associate the operator with API data
-* `Duration(us)`: Operator execution duration, in microseconds
+* `Count`: data volume transmitted by the operator
+* `DataType`: data type transmitted by the operator, for example, `FP32` or `INT8`
+* `CommName`: name of the communicator to which the operator belongs
+* `AlgType`: communication algorithm type of the operator, for example, `RING` or `MESH`
+* `Correlation ID`: operator execution correlation ID, which is used to associate with API data
+* `Duration(us)`: operator execution time, in microseconds
 
 ### API, AclAPI, NodeAPI, and RuntimeAPI
 
@@ -178,33 +177,33 @@ The fields of each sheet are described as follows:
 * `End(us)`: API call end time, in microseconds
 * `Pid`: ID of the process that calls the API
 * `Tid`: ID of the thread that calls the API
-* `Correlation ID`: API call correlation ID, used to associate the API with Kernel/Communication data
+* `Correlation ID`: API call correlation ID, which is used to associate with kernel/communication data
 * `Duration(us)`: API call duration, in microseconds
 
 ### DCMI
 
-When `dcmi_layers` is specified in `start`, the workbook gains an additional `DCMI` sheet.
+When `dcmi_layers` is specified in `start`, the Excel file has an additional `DCMI` sheet.
 
-Each row of the `DCMI` sheet corresponds to one DCMI sample, with all devices and all metrics flattened:
+Each row of the `DCMI` sheet corresponds to one DCMI sampling sample (all devices x all metrics arranged in a flat manner):
 
-* `Layer`: Hardware layer to which the metric belongs, one of `DEVICE`, `AICORE`, `AICPU`, or `HBM`
+* `Layer`: Hardware layer to which the metric belongs, with values `DEVICE` / `AICORE` / `AICPU` / `HBM`
 * `Metric`: Metric name, such as `Power`, `AICore Freq`, `AICPU Max Freq`, or `HBM Memory Used`
 * `Unit`: Metric unit, such as `W`, `MHz`, `%`, `MB`, or `℃`
-* `Timestamp(us)`: Sampling timestamp, in microseconds
-* `Device ID`: Device ID (flattened index)
-* `Value`: Sampled value
+* `Timestamp(us)`: Sampling timestamp, unit: us
+* `Device ID`: Device ID (flat index)
+* `Value`: Sampling value
 
 ### Chrome Trace (.json)
 
-The Chrome Trace JSON produced by `save()` (inside the `out/msmonitor_<pid>_<timestamp>/` folder fixed by `start(save_path)`) can be opened in `chrome://tracing` or Perfetto (`ui.perfetto.dev`). Events are presented per hardware layer in separate processes, with six processes per device and process names such as `Device 0 · Ascend Hardware`:
+The Chrome Trace JSON generated by `save()` (located in the `out/msmonitor_<pid>_<timestamp>/` folder determined by `start(save_path)`) can be opened in `chrome://tracing` or Perfetto (`ui.perfetto.dev`). Events are presented by hardware layer in separate processes (6 processes per device, with process names such as `Device 0 · Ascend Hardware`):
 
 | Layer | Content | Presentation |
 |---|---|---|
-| Ascend Hardware | Kernel/Communication duration bars collected by mspti, one lane per stream | Bars (X events) |
-| Power/Temp | DEVICE-layer metrics (power and temperature) | Lines (C events) |
-| AICore | AICore current and rated frequency, and utilization (including AI Cube, Vector Core, and NPU utilization) | Lines |
-| AICPU | AICPU maximum and current operating frequency, and utilization | Lines |
-| HBM | On-chip memory frequency, total capacity, used memory, bandwidth utilization, and temperature | Lines |
+| Ascend Hardware | Kernel / Communication duration bars collected by mspti, one lane per stream | Bar chart (X events) |
+| Power/Temp | DEVICE layer metrics (Power/Temp) curves | Curves (C events) |
+| AICore | AICore current/rated frequency and utilization (including AI Cube / Vector Core / NPU utilization) | Curves |
+| AICPU | AICPU maximum/current running frequency and utilization | Curves |
+| HBM | On-chip memory frequency, total capacity, used memory, bandwidth utilization, temperature | Curves |
 | Overlap Analysis | One lane per device: Computing / Communication (Overlapped / Not Overlapped) / Free | Duration bars |
 
-DCMI collection runs in a dedicated C++ thread and does not block the training main flow. The default sampling interval is 10 ms, and samples are held in a bounded ring buffer with a cap of 1,000,000 entries that overwrites the oldest entry once the cap is exceeded. If `libdcmi.so` is unavailable or an interface is not supported, the corresponding metrics are skipped automatically without affecting operator data collection. DFX information about loading, enabling, and failures is printed to the startup log and also written to the trace metadata (visible after the Chrome Trace is opened) for troubleshooting.
+DCMI collection is executed in an independent C++ thread and does not block the main training process. The default sampling interval is 10ms, and samples use a bounded ring buffer (with an upper limit of 1 million entries, overwriting the oldest when exceeded). When `libdcmi.so` is unavailable or the interface is not supported, the corresponding metrics are automatically skipped without affecting operator-type data collection. DFX information about loading, enabling, and failures is printed in the startup log and written into the trace metadata (viewable after the Chrome Trace is opened) for problem localization.

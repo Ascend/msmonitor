@@ -2,8 +2,8 @@
 
 The following introduces the msMonitor quick start through common usage scenarios.
 
-1. Use the npu-monitor function to obtain the latency of key operators.
-2. When critical operator latency degradation is detected, use nputrace to collect detailed performance data for analysis.
+1. First, use the npu-monitor function to obtain the duration of key operators.
+2. When key operator duration degradation is detected, use the nputrace function to collect detailed performance data for analysis.
 
 **Prerequisites**
 
@@ -23,8 +23,7 @@ Complete the msMonitor tool installation. For details, see *[msMonitor Installat
    dynolog --certs-dir NO_CERTS --enable-ipc-monitor --metric_log_dir /tmp/metric_log_dir    # The log path of the dynolog daemon is: /var/log/dynolog.log
    ```
 
-   > [!NOTE]
-   > 
+   > [!NOTE] Note
    > `--certs-dir NO_CERTS` indicates that certificate verification is not used. This is intended for test environments only, and the same applies below. In production environments, certificate verification is recommended to ensure data transmission security. For details, see [dynolog_instruct](../user_guide/dynolog_instruct.md).
 
 2. Configure the msMonitor environment variables.
@@ -99,7 +98,7 @@ Complete the msMonitor tool installation. For details, see *[msMonitor Installat
 
    > If you use PyTorch native optimizers (such as `torch.optim.SGD` or `torch.optim.Adam`), msMonitor can automatically identify training iteration boundaries without requiring additional code modifications.
 
-5. Use the `dyno` command to trigger npu-monitor to monitor the latency of key operators.
+5. Use the `dyno` command to trigger npu-monitor to monitor the duration of key operators.
 
    ```bash
    # Start npu-monitor with a reporting interval of 30s and the reporting data type set to Kernel
@@ -109,13 +108,13 @@ Complete the msMonitor tool installation. For details, see *[msMonitor Installat
    dyno --certs-dir NO_CERTS npu-monitor --npu-monitor-stop
    ```
 
-   For detailed description of the npu-monitor feature and collection results, see [npumonitor_instruct](../user_guide/npumonitor_instruct.md).
+   For a detailed description of the npu-monitor feature and collection results, see [npumonitor_instruct](../user_guide/npumonitor_instruct.md).
 
 6. Use the `dyno` command to trigger nputrace to collect detailed trace data (the npu-monitor function must be disabled before nputrace can be triggered).
 
    ```bash
-   # Start collection from step 10 and collect for 2 steps, gathering framework, CANN, and device data; automatically parse after collection and do not perform data simplification after parsing. The output path is /tmp/profile_data.
+   # Start collection from step 10, collect framework, CANN, and device data for 2 steps, automatically parse after collection, and do not perform data simplification after parsing. The output path is /tmp/profile_data.
    dyno --certs-dir NO_CERTS nputrace --start-step 10 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
    ```
 
-   For detailed description of the nputrace feature and collection results, see [nputrace_instruct](../user_guide/nputrace_instruct.md).
+   For a detailed description of the nputrace feature and collection results, see [nputrace_instruct](../user_guide/nputrace_instruct.md).

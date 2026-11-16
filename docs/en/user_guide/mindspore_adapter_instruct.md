@@ -6,7 +6,7 @@ The msMonitor component is used with the MindSpore framework to monitor performa
 
 ## Feature Introduction
 
-### 1. Dynamic Profiling Custom Loop Mode
+### 1. Dynamic Profiling Custom for Loop Mode
 
 1. Start the dynolog daemon process. For details, see [dynolog](./dynolog_instruct.md).
 
@@ -21,7 +21,7 @@ The msMonitor component is used with the MindSpore framework to monitor performa
     export MSMONITOR_USE_DAEMON=1
     ```
 
-3. (Optional) Configure the msMonitor log path. When `MSMONITOR_LOG_PATH` is set explicitly, its value is used directly as the glog log directory (the Python API is automatically pointed by `start()` to the `log/` directory of the session directory). When it is not set, the default is `msmonitor_log_<device ID>` under the process working directory (`msmonitor_log` when the device ID cannot be obtained).
+3. (Optional) Configure the msMonitor log path. When `MSMONITOR_LOG_PATH` is explicitly set, it is directly used as the glog log directory (the Python API is automatically pointed to the `log/` directory of the session directory by `start()`). When it is not set, the default is `msmonitor_log_<device ID>` under the process cwd (or msmonitor_log when the device cannot be obtained).
 
     ```bash
     export MSMONITOR_LOG_PATH=<LOG PATH>
@@ -29,9 +29,8 @@ The msMonitor component is used with the MindSpore framework to monitor performa
     export MSMONITOR_LOG_PATH=/tmp/msmonitor_log
     ```
 
-    > [!NOTE]
-    > 
-    > For steps 1 through 3 and step 5, see the usage examples in [npu-monitor](./npumonitor_instruct.md) or [nputrace](./nputrace_instruct.md).
+    > [!NOTE] Note
+    For the operations in the first 3 steps and step 5, see the usage examples in [npu-monitor](./npumonitor_instruct.md) or [nputrace](./nputrace_instruct.md).
 
 4. Start the training task, instantiate the `DynamicProfilerMonitor` object in the training task, and call the `step()` method after each training iteration.
 
@@ -56,6 +55,7 @@ The msMonitor component is used with the MindSpore framework to monitor performa
     def generator_net():
         for _ in range(2):
             yield np.ones([2, 2]).astype(np.float32), np.ones([2]).astype(np.int32)
+
 
     def train(test_net):
         optimizer = nn.Momentum(test_net.trainable_params(), 1, 0.9)
@@ -88,7 +88,7 @@ The msMonitor component is used with the MindSpore framework to monitor performa
 
 ### 2. Dynamic Profiling Callback Mode
 
-This enabling method is consistent with the dynamic profiling custom for loop mode, with the only difference being that the `step()` method is adapted into the `step_begin` and `step_end` callback functions.
+This enabling method is consistent with the dynamic profiling custom for loop mode, with the only difference being that the <code>step()</code> method is adapted into the <code>step_begin</code> and <code>step_end</code> callback functions.
 
 The sample code is as follows:
 

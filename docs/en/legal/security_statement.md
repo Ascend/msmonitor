@@ -2,21 +2,21 @@
 
 ## System Security Hardening
 
-You are advised to enable the `address space layout randomization` (ASLR) (level 2), also known as **full address space layout randomization**, in the system. Run the following command to enable it:
+You are advised to enable `address space layout randomization` (ASLR) (level 2), also known as **full address space layout randomization**, in the system. Run the following command to enable it:
 
     echo 2 > /proc/sys/kernel/randomize_va_space
 
 ## User Account Recommendations
 
- 1. Use the principle of least privilege. For example, prevent other users from having write access; a common practice is to avoid permissions such as `666` and `777`.
+ 1. Use the principle of least privilege. For example, prevent other users from writing data by disabling permissions like `666` and `777`.
 
  2. Before installing or using the tools, ensure the user's `umask` is set to `0027` or a more restrictive value. Otherwise, issues may occur, such as source code compilation failures, configuration file read failures, or excessive permissions for generated directories and files.
 
- 3. All tools in this repository are designed to run with minimal permissions. For security reasons, do not use `root` or other privileged accounts; it is recommended to install and run the tools as a regular user.
+ 3. All tools in this repository are designed to run with minimal permissions. For security reasons, do not use `root` or other privileged accounts. Always install and execute tools as a regular user.
 
- 4. If a tool depends on CANN, use the CANN package installed by the same non-privileged user. After running the `source` command, do not arbitrarily modify the environment variables in `set_env.sh`.
+ 4. If a tool depends on CANN, use the CANN package installed by the same non-privileged user. After running the `source` command, do not modify environment variables in `set_env.sh`.
 
- 5. This repository provides reference vscode and devcontainer configurations for development and debugging. They are intended only for developing and debugging this repository in a secure debugging environment. Check the security of the configurations yourself and adjust them as needed.
+ 5. This repository provides reference configurations for vscode and devcontainer for convenience of development and debugging. They are only for development and debugging of this repository in a secure debugging environment. In addition, please check the configuration security by yourself and adjust it according to actual requirements.
 
 ## File Permission Control
 
@@ -63,7 +63,7 @@ msMonitor supports installation through source code compilation. During compilat
 
 ## Running Security Statement
 
-1. When loading a dataset that exceeds available memory, or when monitoring runs too long and generated data fills the available drive space, the tool may exit unexpectedly.
+1. When loading a dataset, if the memory required exceeds the memory capacity limit, an error may occur and the process may exit unexpectedly; when collection runs too long and the generated data exceeds the remaining disk space, the tool may exit abnormally.
 
 2. If an exception occurs during operation, the tool will exit the process and print error messages. This is expected behavior. You are advised to locate the specific cause of the error based on the error prompts, such as by viewing log files or result files generated during the collection and parsing process.
 
@@ -89,7 +89,7 @@ While unsafe functions are not forcibly disabled, you are advised to use their s
 
 **Risk**: The `dynolog/src/rpc/SimpleJsonServer.cpp` file of the library contains the all-zero listening function (bind to in6addr_any). The connection requests are processed through the IPv6 socket. By default, both IPv4 and IPv6 protocols are supported, which may cause network risks. The security risk comes from the dynolog open-source third-party library.
 
-**Risk mitigation measures**: In the default security mode, the root certificate, server certificate, server private key file, client certificate, client private key file, and CRL file must be provided. You need to ensure the validity and legitimacy of the provided certificate files, and ensure that the permission on the directory where the certificates are located is `700` and the permission on the certificate file is `600`. You are advised to configure the iptables firewall mechanism to restrict the network access to the RPC port. To restrict the access to the dynolog service through IPv4, run the `echo 1 > /proc/sys/net/ipv6/bindv6only` command to ensure that the service can be accessed only using IPv6.
+**Risk mitigation measures**: In the default security mode, the root certificate, server certificate, server private key file, client certificate, client private key file, and CRL file must be provided. You need to ensure the validity of the provided certificate files, and ensure that the permission on the directory where the certificates are located is `700` and the permission on the certificate file is `600`. You are advised to configure the iptables firewall mechanism to restrict the network access to the RPC port. To restrict the access to the dynolog service through IPv4, run the `echo 1 > /proc/sys/net/ipv6/bindv6only` command to ensure that the service can be accessed only using IPv6.
 
 ## Communication Matrix
 
