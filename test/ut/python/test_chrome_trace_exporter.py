@@ -244,5 +244,135 @@ class ChromeTraceExporterTest(unittest.TestCase):
         self.assertEqual(data["traceEvents"], [])
 
 
+def _api_row(name, start_ns, end_ns, pid_, tid_, corr=5):
+    # API.to_tuple = (name, start_us, end_us, pid, tid, correlationId)
+    t = (name, start_ns / 1000.0, end_ns / 1000.0, pid_, tid_, corr)
+    return FakeActivityRow(t, start_ns, end_ns)
+
+
+def _marker_row(name, start_ns, end_ns, source, pid_, tid_, dev, stream, mark_id=1):
+    # Marker.to_tuple = (name, sourceKind, domain, id, start_us, end_us, pid, tid, deviceId, streamId)
+    t = (name, source, "default", mark_id, start_ns / 1000.0, end_ns / 1000.0, pid_, tid_, dev, stream)
+    return FakeActivityRow(t, start_ns, end_ns)
+
+
+class ChromeTraceExporterCoverageTest(unittest.TestCase):
+    """补充覆盖 export 的参数防御、API/设备 Marker 事件、异常分支与区间边界（增量覆盖）。"""
+
+    def _export_raw(self, path, result, meta="unset", status=None):
+        exporter = chrome_trace_exporter.ChromeTraceExporter
+        if meta == "unset":
+            exporter.export(path, result, None, status)
+        else:
+            exporter.export(path, result, meta or META, status)
+
+    def test_invalid_path_rejected(self):
+        # 覆盖 export 的非法路径分支：空串/非字符串直接返回
+        exporter = chrome_trace_exporter.ChromeTraceExporter
+        with mock.patch("builtins.print") as fake_print:
+            exporter.export("", {"Kernel": []})
+            exporter.export(None, {})
+            exporter.export(123, {})
+        joined = " ".join(str(c) for c in fake_print.call_args_list)
+        self.assertIn("Invalid chrome trace file path", joined)
+
+    def test_appends_json_suffix_and_overwrites(self):
+        # 覆盖后缀补全与已存在覆盖告警分支
+        with tempfile.TemporaryDirectory() as base:
+            path = os.path.join(base, "trace")  # 无 .json 后缀
+            self._export_raw(path, {})
+            self.assertTrue(os.path.exists(path + ".json"))
+            with open(path + ".json", "r", encoding="utf-8") as f:
+                self.assertIn("traceEvents", json.load(f))
+            with mock.patch("builtins.print") as fake_print:
+                self._export_raw(path + ".json", {})  # 已存在：打印覆盖告警
+            joined = " ".join(str(c) for c in fake_print.call_args_list)
+            self.assertIn("will be overwritten", joined)
+
+    def test_export_to_directory_prints_error(self):
+        # 覆盖 export 的异常分支：目标为同名 .json 目录时 open 失败，打印错误且不抛出
+        with tempfile.TemporaryDirectory() as base:
+            target = os.path.join(base, "sub.json")
+            os.mkdir(target)
+            with mock.patch("builtins.print") as fake_print:
+                self._export_raw(target, {})
+            joined = " ".join(str(c) for c in fake_print.call_args_list)
+            self.assertIn("[ERROR] Failed to save chrome trace", joined)
+
+    def test_empty_data_and_none_timestamp_row(self):
+        # 覆盖 _is_dcmi_data/_base_timestamp_ns 的空数据分支与 ts 为 None 的跳过分支；
+        # 坏行在事件生成阶段抛 TypeError，被 export 捕获打印错误
+        with tempfile.TemporaryDirectory() as base:
+            path = os.path.join(base, "trace.json")
+            with mock.patch("builtins.print") as fake_print:
+                self._export_raw(path, {"Kernel": [], "DCMI": [FakeDcmiRow(0, None, 0, 1.0)]})
+            joined = " ".join(str(c) for c in fake_print.call_args_list)
+            self.assertIn("[ERROR] Failed to save chrome trace", joined)
+
+    def test_api_events_and_device_marker_pid(self):
+        # 覆盖 api_like 事件分支、设备来源 Marker 的 pid/tid 映射与未知 kind 行跳过分支
+        api = _api_row("acl_launch", 1_000_000, 2_000_000, 2111616, 2112642)
+        dev_marker = _marker_row("dev_mark", 1_000_000, 2_000_000, "Device", 0, 0, 3, 7)
+        hccl = FakeActivityRow(("hccl_op", 1_000, 2_000, 0, 0), 1_000_000, 2_000_000)
+        fd, path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        os.unlink(path)
+        result = {"API": [api], "Marker": [dev_marker], "Hccl": [hccl]}
+        chrome_trace_exporter.ChromeTraceExporter.export(path, result, META, None)
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        os.unlink(path)
+        api_ev = [e for e in data["traceEvents"] if e.get("cat") == "API"]
+        self.assertEqual(len(api_ev), 1)
+        self.assertEqual(api_ev[0]["pid"], 2111616)
+        self.assertEqual(api_ev[0]["tid"], 2112642)
+        self.assertEqual(api_ev[0]["args"]["correlationId"], 5)
+        marker_ev = [e for e in data["traceEvents"] if e.get("cat") == "Marker"]
+        self.assertEqual(len(marker_ev), 1)
+        self.assertEqual(marker_ev[0]["pid"], PID_BASE + 3 * PPD)
+        self.assertEqual(marker_ev[0]["tid"], 7)
+        self.assertEqual(marker_ev[0]["args"]["sourceKind"], "Device")
+        # 未知 kind（Hccl）行不产出任何事件
+        self.assertNotIn("Hccl", {e.get("cat") for e in data["traceEvents"]})
+
+    def test_intersect_break_and_leading_comm_not_overlapped(self):
+        # 覆盖 _intersects 的 break 分支：通信区间在全部计算区间之前
+        k = _kernel_row("k0", 100_000_000, 200_000_000, 0, 0, 1)
+        comm = _comm_row("c0", 0, 50_000_000, 0, 0)
+        fd, path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        os.unlink(path)
+        chrome_trace_exporter.ChromeTraceExporter.export(path, {"Kernel": [k], "Communication": [comm]}, META, None)
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        os.unlink(path)
+        oa_pid = PID_BASE + 5
+        not_over = [
+            e for e in data["traceEvents"] if e["pid"] == oa_pid and e["name"] == "Communication(Not Overlapped)"
+        ]
+        self.assertEqual(len(not_over), 1)
+        self.assertAlmostEqual(not_over[0]["ts"], 0.0)
+        self.assertAlmostEqual(not_over[0]["dur"], 50_000.0)
+        free_ev = [e for e in data["traceEvents"] if e["pid"] == oa_pid and e["name"] == "Free"]
+        self.assertTrue(free_ev)  # 通信结束(50ms)到计算开始(100ms)的间隙
+        self.assertAlmostEqual(free_ev[0]["ts"], 50_000.0)
+        self.assertAlmostEqual(free_ev[0]["dur"], 50_000.0)
+
+    def test_dcmi_default_naming_without_meta(self):
+        # 覆盖缺省元数据命名分支：metric{kind} 且无单位后缀
+        row = FakeDcmiRow(9, 1_000_000, 1, 12.5)
+        fd, path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        os.unlink(path)
+        chrome_trace_exporter.ChromeTraceExporter.export(path, {"DCMI": [row]}, None, None)
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        os.unlink(path)
+        dcmi_ev = [e for e in data["traceEvents"] if e.get("cat") == "DCMI"]
+        self.assertEqual(len(dcmi_ev), 1)
+        self.assertEqual(dcmi_ev[0]["name"], "metric9")
+        self.assertEqual(dcmi_ev[0]["args"]["value"], 12.5)
+
+
 if __name__ == "__main__":
     unittest.main()

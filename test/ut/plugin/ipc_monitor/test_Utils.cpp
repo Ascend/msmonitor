@@ -16,6 +16,7 @@
  * -------------------------------------------------------------------------
  */
 
+#include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <linux/limits.h>
 #include <unistd.h>
@@ -194,6 +195,23 @@ TEST(UtilsTest, PathHelpers)
     unsetenv("MSMONITOR_LOG_PATH");
     std::string fromCwd;
     EXPECT_TRUE(CreateMsmonitorLogPath(fromCwd));
+}
+
+// InitMsMonitorLog 的失败分支：日志路径为普通文件时不初始化 glog；合法目录则完成初始化
+TEST(UtilsTest, InitMsMonitorLogFailureBranch)
+{
+    TempDir tmp;
+    const std::string file = tmp.Path() + "/plain.txt";
+    ASSERT_TRUE(PathUtils::CreateFile(file));
+
+    ASSERT_EQ(setenv("MSMONITOR_LOG_PATH", file.c_str(), 1), 0);
+    InitMsMonitorLog();  // 路径校验失败：打印错误且 glog 保持未初始化
+    EXPECT_FALSE(google::IsGoogleLoggingInitialized());
+
+    ASSERT_EQ(setenv("MSMONITOR_LOG_PATH", (tmp.Path() + "/logs").c_str(), 1), 0);
+    InitMsMonitorLog();  // 合法目录：初始化 glog
+    EXPECT_TRUE(google::IsGoogleLoggingInitialized());
+    unsetenv("MSMONITOR_LOG_PATH");
 }
 
 int main(int argc, char **argv)
