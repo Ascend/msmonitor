@@ -10,10 +10,16 @@
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/un.h>
 #include <unistd.h>
 
+#include <cstring>
 #include <mockcpp/mockcpp.hpp>
+#include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "plugin/ipc_monitor/NpuIpcClient.h"
 #include "plugin/ipc_monitor/utils/utils.h"
@@ -281,6 +287,122 @@ TEST_F(NpuIpcClientTest, IpcClientNpuConfig_BeforeInit_SendsToConstructorIpcName
     IpcClient client;
     EXPECT_EQ(client.IpcClientNpuConfig(), "");
     EXPECT_EQ(capturedDest_, DYNO_IPC_NAME + std::string("_555"));
+    GlobalMockObject::verify();
+}
+
+// 8. Message 构造模板：3 个重载的载荷/元数据正确性与超长类型异常分支（此前未覆盖）
+TEST_F(NpuIpcClientTest, ConstructMessagePayloadsAndTypeLimit)
+{
+    NpuStatus status{};
+    status.status = 7;
+    auto msg = Message::ConstructMessage(status, MSG_TYPE_MONITOR_STATUS);
+    EXPECT_EQ(msg->metadata.size, sizeof(status));
+    EXPECT_STREQ(msg->metadata.type, "npuMonitorStatus");
+    EXPECT_EQ(memcmp(msg->buf.get(), &status, sizeof(status)), 0);
+
+    auto strMsg = Message::ConstructStrMessage("hello", MSG_TYPE_DATA);
+    EXPECT_EQ(strMsg->metadata.size, 5u);
+    EXPECT_STREQ(strMsg->metadata.type, "data");
+    EXPECT_EQ(memcmp(strMsg->buf.get(), "hello", 5), 0);
+
+    NpuContext ctxt{};
+    ctxt.npu = 3;
+    auto arrMsg = Message::ConstructMessage<NpuContext, int32_t>(ctxt, MSG_TYPE_CONTEXT, 2);
+    EXPECT_EQ(arrMsg->metadata.size, sizeof(NpuContext) + sizeof(int32_t) * 2);
+
+    // 类型串超出 metadata.type 容量：三个重载均抛 runtime_error
+    // （模板实参中的逗号需加括号，否则会被 EXPECT_THROW 视为宏参数分隔）
+    const std::string tooLong(TYPE_SIZE, 'x');
+    EXPECT_THROW(Message::ConstructMessage(status, tooLong), std::runtime_error);
+    EXPECT_THROW(Message::ConstructStrMessage("data", tooLong), std::runtime_error);
+    EXPECT_THROW((Message::ConstructMessage<NpuContext, int32_t>(ctxt, tooLong, 2)), std::runtime_error);
+}
+
+// 9. 真实 IPC 往返：文件系统 socket 服务端接收注册/状态，并预投递配置回复，
+// 解锁 SyncSendMessage/RegisterInstance/SendNpuStatus 成功路径与
+// IpcClientNpuConfig → Recv → PollRecvMessage 全链路（此前仅 mock 或失败路径）
+TEST_F(NpuIpcClientTest, RealSocketRegisterStatusAndConfigRoundTrip)
+{
+    MOCKER_CPP(&GetHostUid).stubs().will(returnValue(std::string("42123")));
+
+    // 服务端绑定客户端目标文件系统路径：<home>/dynolog_42123.sock
+    const std::string home = GetCurrentUserHomePath();
+    ASSERT_FALSE(home.empty());
+    const std::string sockPath = home + "/dynolog_42123.sock";
+    int serverFd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    ASSERT_GE(serverFd, 0);
+    struct sockaddr_un serverAddr
+    {
+    };
+    serverAddr.sun_family = AF_UNIX;
+    ASSERT_LT(sockPath.size(), sizeof(serverAddr.sun_path));
+    strncpy(serverAddr.sun_path, sockPath.c_str(), sizeof(serverAddr.sun_path) - 1);
+    unlink(sockPath.c_str());
+    ASSERT_EQ(bind(serverFd, reinterpret_cast<struct sockaddr *>(&serverAddr), sizeof(serverAddr)), 0);
+    chmod(sockPath.c_str(), 0600);
+
+    auto recvMessage = [&serverFd](std::vector<char> &buf, struct sockaddr_un &from)
+    {
+        buf.assign(sizeof(Metadata) + sizeof(NpuStatus), '\0');
+        struct iovec iov
+        {
+            buf.data(), buf.size()
+        };
+        struct msghdr mh
+        {
+        };
+        mh.msg_name = &from;
+        mh.msg_namelen = sizeof(from);
+        mh.msg_iov = &iov;
+        mh.msg_iovlen = 1;
+        return recvmsg(serverFd, &mh, 0);
+    };
+
+    IpcClient client;
+    EXPECT_TRUE(client.Init());
+    EXPECT_TRUE(client.RegisterInstance(0));  // 真实 sendmsg 成功分支
+
+    std::vector<char> buf;
+    struct sockaddr_un clientAddr
+    {
+    };
+    ASSERT_GT(recvMessage(buf, clientAddr), 0);
+    auto *registerMeta = reinterpret_cast<Metadata *>(buf.data());
+    EXPECT_EQ(registerMeta->size, sizeof(NpuContext));
+    EXPECT_STREQ(registerMeta->type, "ctxt");
+    auto *context = reinterpret_cast<NpuContext *>(buf.data() + sizeof(Metadata));
+    EXPECT_EQ(context->npu, 0);
+    EXPECT_EQ(context->pid, getpid());
+    // 客户端来源为抽象地址（dynoconfigclient_<uuid>）
+    ASSERT_EQ(clientAddr.sun_path[0], '\0');
+    EXPECT_EQ(std::string(clientAddr.sun_path + 1).substr(0, 16), "dynoconfigclient");
+
+    NpuStatus status{};
+    status.status = 1;
+    EXPECT_TRUE(client.SendNpuStatus(status, MSG_TYPE_MONITOR_STATUS));
+    ASSERT_GT(recvMessage(buf, clientAddr), 0);
+    EXPECT_STREQ(registerMeta->type, "npuMonitorStatus");
+
+    // 按 Message 布局预投递配置回复：[Metadata][payload]，发往客户端抽象地址
+    const std::string reply = "ok_config";
+    Metadata replyMeta{};
+    replyMeta.size = reply.size();
+    memcpy(replyMeta.type, MSG_TYPE_DATA.c_str(), MSG_TYPE_DATA.size() + 1);
+    struct iovec replyIov[2] = {{&replyMeta, sizeof(Metadata)}, {const_cast<char *>(reply.data()), reply.size()}};
+    struct msghdr replyMh
+    {
+    };
+    replyMh.msg_name = &clientAddr;
+    replyMh.msg_namelen = sizeof(sa_family_t) + std::string(clientAddr.sun_path + 1).size() + 2;
+    replyMh.msg_iov = replyIov;
+    replyMh.msg_iovlen = 2;
+    ASSERT_EQ(sendmsg(serverFd, &replyMh, 0), static_cast<ssize_t>(sizeof(Metadata) + reply.size()));
+
+    // 发送请求后立即从队列取到预投回复：覆盖 Recv/TryPeek/TryRcv/GetName 成功链路
+    EXPECT_EQ(client.IpcClientNpuConfig(), reply);
+
+    close(serverFd);
+    unlink(sockPath.c_str());
     GlobalMockObject::verify();
 }
 
