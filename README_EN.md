@@ -1,7 +1,4 @@
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-10-26T08:48:40.746Z pushedAt=2026-10-26T09:45:02.214Z -->
-
 <h1 align="center">MindStudio Monitor</h1>
-
 <div align="center">
   <p><b>Online performance monitoring and dynamic collection tool for Ascend clusters</b></p>
 
@@ -14,7 +11,7 @@
 
 </div>
 
-[English](./README_EN.md) | [简体中文](./README.md)
+English | [简体中文](./README.md)
 
 ## ✨ Latest News
 
@@ -43,7 +40,7 @@ msMonitor provides the following core capabilities:
 
 | Feature Name | Description | Documentation |
 | --- | --- | --- |
-| **npu-monitor** | A lightweight resident background process that continuously monitors the latency of key operators, suitable for observing performance fluctuations online. | [npu-monitor](./docs/en/user_guide/npumonitor_instruct.md) |
+| **npu-monitor** | A lightweight resident background process that continuously monitors the duration of key operators, suitable for observing performance fluctuations online. | [npu-monitor](./docs/en/user_guide/npumonitor_instruct.md) |
 | **nputrace** | Dynamically triggers the collection and parsing of performance data from the framework, CANN, and Device sides without interrupting running tasks. | [nputrace](./docs/en/user_guide/nputrace_instruct.md) |
 | **Monitor API** | Provides Python interfaces for collecting performance data such as compute operators, communication operators, APIs, Runtime APIs, and Mstx. | [Monitor API](./docs/en/advanced_features/monitor_feature.md) |
 
@@ -74,11 +71,11 @@ The msMonitor tool provides the following core capabilities: **npu-monitor**, **
 
 ## 💡 Typical Cases
 
-For usage cases of msMonitor in large model training and inference scenarios, see [msMonitor Usage Cases](./docs/en/best_practices/msmonitor_basic_cases.md).
+For usage cases of msMonitor in large model training and inference scenarios, See Also *[msMonitor Usage Cases](./docs/en/best_practices/msmonitor_basic_cases.md)*.
 
-## ❓ FAQ
+## ❓ FAQs
 
-For common issues and solutions, see *[msMonitor FAQ](./docs/en/support/faq.md)*.
+For common issues and solutions, See Also *[msMonitor FAQs](./docs/en/support/faq.md)*.
 
 ## 🌌 Intelligent Search
 
@@ -90,7 +87,7 @@ To improve document lookup efficiency, we provide multiple efficient search meth
 
 ## 🛠️ Contribution Guide
 
-You are welcome to contribute to the project. See the [Contribution Guide](./docs/en/contributing/contributing_guide.md).
+You are welcome to contribute to the project. See Also *[Contribution Guide](./docs/en/contributing/contributing_guide.md)*.
 
 ## ⚖️ Related Notes
 
@@ -107,7 +104,7 @@ You are cordially invited to participate in the [satisfaction survey](https://rd
 
 | 💬 Instant Interaction (WeChat Group) | 📢 Official News (Official Account) | In-depth Support (Assistant/Forum) |
 | :---: | :---: | :--- |
-| <img src="./docs/en/figures/qr_code_wechat_work.png" width="120"><br><sub>*Scan the code to join the technical exchange group*</sub> | <img src="./docs/en/figures/qr_code_wechat_official_account.png" width="120"><br><sub>*Scan the code to follow and get the latest updates*</sub> |Scan the code to join the group and follow the official account to reach the fastest communication platform for MindStudio users and developers:<br> **Quick Questions:** Discuss technical issues with community members in real time<br>**Stay Updated:** Get version release and feature update notifications as soon as possible<br> **Experience Sharing:** Exchange best practices and hands-on insights with developers  <br>🛠️ **More Support Channels**:👉 Ascend Assistant: [![WeChat](https://img.shields.io/badge/WeChat-07C160?style=flat-square&logo=wechat&logoColor=white)](https://gitcode.com/Ascend/msit/blob/master/docs/zh/figures/readme/xiaozhushou.png)👉 Ascend Forum: [![Website](https://img.shields.io/badge/Website-%231e37ff?style=flat-square&logo=RSS&logoColor=white)](https://www.hiascend.com/forum/) |
+| <img src="./docs/en/figures/qr_code_wechat_work.png" width="120"><br><sub>*Scan the code to join the technical exchange group*</sub> | <img src="./docs/en/figures/qr_code_wechat_official_account.png" width="120"><br><sub>*Scan the code to follow and get the latest updates*</sub> |Scan the code to join the group and follow the official account to reach the fastest communication platform for MindStudio users and developers:<br> **Quick Questions:** Discuss technical issues with community members in real time<br>**Stay Updated:** Get version release and feature update notifications as soon as possible<br> **Experience Sharing:** Exchange best practices and hands-on insights with developers  <br>🛠️ **More Support Channels**:👉 Ascend Assistant: [![WeChat](https://img.shields.io/badge/WeChat-07C160?style=flat-square&logo=wechat&logoColor=white)](https://gitcode.com/Ascend/msit/blob/master/docs/en/figures/readme/xiaozhushou.png)👉 Ascend Forum: [![Website](https://img.shields.io/badge/Website-%231e37ff?style=flat-square&logo=RSS&logoColor=white)](https://www.hiascend.com/forum/) |
 
 ## 🙏 Acknowledgments
 

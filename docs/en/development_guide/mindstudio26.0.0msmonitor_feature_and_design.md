@@ -31,7 +31,7 @@ The full text of CC BY-SA 4.0 is available at the following URL: <https://creati
         <th>Revision Version</th>
         <th>Revision Description</th>
         <th>Author</th>
-        <th>Reviewed</th>
+        <th>Reviewer</th>
     </tr>
     <tr>
         <td>2026-01-21</td>
@@ -85,7 +85,7 @@ Table 1: Feature Requirement List
 
 ## 2.1 Feature Requirement Sources and Value Overview
 
-The basic capabilities of msMonitor are improved and enhanced to support fine-grained control over the scope of collected data. This enables control over the volume of data collection while supporting custom data processing, delivering greater flexibility and ease of use.
+The basic capabilities of msMonitor are being improved and enhanced to support fine-grained control over the scope of collected data. This enables control over the volume of data collection while supporting custom data processing, delivering greater flexibility and ease of use.
 
 ## 2.2 Feature Scenario Analysis
 
@@ -109,7 +109,7 @@ The basic capabilities of msMonitor are improved and enhanced to support fine-gr
 **Scenario Trigger Conditions and Targets**:
 
 - **Roles**: Model Development Engineer, Performance Tuning Expert, Algorithm Researcher.
-- **Tools/Interfaces**: msMonitor CLI (`dyno npu-monitor --filter`).
+- **Tool/Interface**: msMonitor CLI (`dyno npu-monitor --filter`).
 - **Trigger Condition**: When there is a need to focus on the performance of specific operators (such as MatMul, AllReduce, Conv2D, etc.) while filtering out noise from irrelevant operators.
 
 **User application scenarios and key tasks**:
@@ -215,9 +215,11 @@ The following figure illustrates this workflow:
 
 Figure 1: Community solution implementation diagram
 
-1. Configure the PyTorch app environment to enable on-demand trace collection.
-2. Collect GPU trace data on demand, either locally or remotely.
-3. Perform performance analysis on distributed training tasks.
+1\. Configure the PyTorch app environment to enable on-demand trace collection.
+
+2\. Collect GPU trace data on demand, either locally or remotely.
+
+3\. Perform performance analysis on distributed training tasks.
 
 # 3. Feature/Function Implementation Principles
 
@@ -225,7 +227,7 @@ Figure 1: Community solution implementation diagram
 
 msMonitor provides the following core features:
 
-**npu-monitor**: A lightweight resident background process that continuously monitors the latency of key operators, suitable for online observation of performance fluctuations.
+**npu-monitor**: A lightweight resident background process that continuously monitors the duration of key operators, suitable for online observation of performance fluctuations.
 
 **nputrace**: Dynamically triggers the collection and parsing of performance data from the framework, CANN, and Device sides without interrupting task execution.
 
@@ -253,9 +255,11 @@ Figure 3: msMonitor interaction context view
 
 The main external modules involved in msMonitor are as follows:
 
-1. **Developer**: msMonitor provides a command-line interface that supports dynamic collection of custom data and the ability to enable preset monitoring data. Developers can quickly obtain cluster performance data through configuration. The environment where msMonitor resides is the runtime environment, where developers can perform configuration, start/stop, analysis, and other functions.
-2. **Algorithm frameworks such as PyTorch Profiler**: Data collection capabilities implemented based on the PyTorch framework. They support data instrumentation, collection, and other capabilities. They provide performance data at the framework layer and CANN layer, which is returned to the monitoring system for further analysis and display.
-3. **AI platforms such as MindX**: As a runtime platform, they can invoke command-line capabilities and obtain persisted data for secondary analysis/display. They can also integrate the MindStudio Insight visualization interface.
+1\. **Developer**: msMonitor provides a command-line interface that supports dynamic collection of custom data and the ability to enable preset monitoring data. Developers can quickly obtain cluster performance data through configuration. The environment where msMonitor resides is the runtime environment, where developers can perform configuration, start/stop, analysis, and other functions.
+
+2\. **Algorithm frameworks such as PyTorch Profiler**: Data collection capabilities implemented based on the PyTorch framework. They support data instrumentation, collection, and other capabilities. They provide performance data at the framework layer and CANN layer, which is returned to the monitoring system for further analysis and display.
+
+3\. **AI platforms such as MindX**: As a runtime platform, they can invoke command-line capabilities and obtain persisted data for secondary analysis/display. They can also integrate the MindStudio Insight visualization interface.
 
 # 4. Implementation of Basic Parameter Collection Capability of msMonitor
 
@@ -263,8 +267,9 @@ The main external modules involved in msMonitor are as follows:
 
 By extending the parameters of the npu-monitor subcommand, flexible control over the collection scope is supported:
 
-1. The extended parameter `--duration` supports specifying the collection time range.
-2. The extended parameter `--filter` supports configuring operator name filtering rules.
+1\. The extended parameter `--duration` supports specifying the collection time range.
+
+2\. The extended parameter `--filter` supports configuring operator name filtering rules.
 
 ## 4.2 Constraints
 
@@ -276,7 +281,7 @@ NA
 
   1. The user CLI (`dyno`) delivers the configuration to the Dynolog Server via RPC.
   2. The Dynolog Server forwards it to the service process through an IPC Socket.
-  3. The MsptiMonitor thread parses the duration parameter → the collection thread counts time in the `Run()` loop, and automatically stops and cleans up resources when the duration threshold is reached.
+  3. The MsptiMonitor thread parses the duration parameter → the collection thread tracks elapsed time in the `Run()` loop, and automatically stops and cleans up resources when the duration threshold is reached.
 
 ### 4.3.2 npu-monitor Filter Filtering Sequence
 
@@ -324,7 +329,7 @@ MsptiMonitor::Run() main loop
                 └─ Fuzzy match: opName.find(filterOp) != npos
 ```
 
-## 4.4 Inter-Subsystem Interface (Main Covered Module Interface)
+## 4.4 Inter-Subsystem Interface (Mainly Covers Module Interface Definitions)
 
 | Module | Interface/Struct | File | Modification |
 |------|------------|------|----------|
@@ -334,7 +339,7 @@ MsptiMonitor::Run() main loop
 | Configuration struct | `MsptiMonitorCfg` | `plugin/ipc_monitor/InputParser.h` | Added `duration` (float) and `filterItems` (msptiFilterItems) fields |
 | Monitoring Management | `MsptiMonitor::SetDuration()` | `plugin/ipc_monitor/MsptiMonitor.h` | Added interface to set the duration atomic variable |
 | Monitoring Management | `MsptiMonitor::SetFilterItems()` | `plugin/ipc_monitor/MsptiMonitor.h` | Added interface to set operator name filter rules |
-| Monitoring Management | `MsptiMonitor::ShouldKeepRecord()` | `plugin/ipc_monitor/MsptiMonitor.cpp` | Added method for fuzzy matching filter based on filterItems |
+| Monitoring Management | `MsptiMonitor::ShouldKeepRecord()` | `plugin/ipc_monitor/MsptiMonitor.cpp` | Added method that performs fuzzy matching on operator names based on filterItems |
 | Monitoring Management | `MsptiMonitor::Run()` | `plugin/ipc_monitor/MsptiMonitor.cpp` | Added duration expiration detection logic |
 | Message handling | `DynoLogNpuMonitor::DealMonitorReq()` | `plugin/ipc_monitor/DynoLogNpuMonitor.cpp` | Reads cmd.duration and cmd.filterItems and passes them to MsptiMonitor |
 
@@ -376,7 +381,7 @@ MsptiMonitor::Run() main loop
 **Filter Filtering**:
 
 - `ShouldKeepRecord()` performs filtering on each record in the `BufferComplete()` callback.
-- Filter whitelist: The three activity types `MSPTI_ACTIVITY_KIND_MEMORY/MEMSET/MEMCPY` are always retained and do not participate in filtering.
+- Filter allowlist: The three activity types `MSPTI_ACTIVITY_KIND_MEMORY/MEMSET/MEMCPY` are always retained and do not participate in filtering.
 - Operator name extraction: Based on the `record->kind` type, the record is cast to the corresponding structure (`msptiActivityApi`, `msptiActivityKernel`, `msptiActivityCommunication`, `msptiActivityMarker`), and the `name` field is extracted.
 - Fuzzy matching: Use `std::any_of()` to iterate over the filter rule list, and perform substring matching via `opName.find(filterOp) != npos`.
 - Special handling for Marker type: Only Marker records with a valid flag on the Host side are filtered; Markers on the Device side or Markers with an invalid flag are directly passed through.
@@ -418,7 +423,7 @@ The new parameter feature does not involve upgrade or expansion scenarios.
 | filter string too long (>1024 characters) | CLI-side `validate_string_max_len()` validation | Reject the request, prompt "The input string is too long" | Error reported on CLI side |
 | filter format error (missing `Kind:Op` delimiter) | Server-side `str2FilterItems()` parsing | Invalid entries silently skipped, `LOG(WARNING)` records the abnormal entry | Valid entries continue to take effect, collection is not interrupted |
 | filter contains invalid activity type | Server-side `str2FilterItems()` mapping lookup | Unmappable Kind entries automatically ignored, `LOG(WARNING)` | Valid activity types filtered normally |
-| mspti_activity_kind enumeration value invalid | CLI-side `parse_mspti_activity_kinds()` whitelist validation | Reject the request, prompt "Invalid msPTI activity kind" | Error reported on CLI side |
+| mspti_activity_kind enumeration value invalid | CLI-side `parse_mspti_activity_kinds()` allowlist validation | Reject the request, prompt "Invalid msPTI activity kind" | Error reported on CLI side |
 
 **Runtime Exception Handling**:
 
@@ -468,7 +473,7 @@ Miniaturization design is not involved.
 **Functional Verification Dimensions**:
 
 1. **Duration Parameter Function Test**: Normal duration collection (e.g., `--duration 10` automatically stops after 10s), unlimited collection (`--duration 0` continues until manual stop), floating-point precision collection (`--duration 0.5` stops after 500ms), and negative/zero value validation.
-2. **Filter Parameter Function Test**: Single operator name exact match, multi-operator name filtering, multi-activity type combined filtering (e.g., `"Kernel:MatMul;Communication:AllReduce"`), fuzzy match verification (e.g., `Mat` matches `BatchMatMul`), empty string full collection, and verification that whitelist types (Memory/MemSet/MemCpy) are not affected by the filter.
+2. **Filter Parameter Function Test**: Single operator name exact match, multi-operator name filtering, multi-activity type combined filtering (e.g., `"Kernel:MatMul;Communication:AllReduce"`), fuzzy match verification (e.g., `Mat` matches `BatchMatMul`), empty string full collection, and verification that allowlist types (Memory/MemSet/MemCpy) are not affected by the filter.
 3. **Parameter Combination Verification**: Combined use of duration + filter, early termination via duration + stop, and runtime dynamic update of filter (delivered through multiple `DealMonitorReq()` calls).
 4. **Idempotency verification**: Repeated Start does not trigger duplicate startup; Stop without prior Start does not report an error; Stop after Duration expiration takes no action.
 
@@ -575,6 +580,7 @@ The parameters of the npumonitor subcommand are extended to support flexible con
 ```
 
 - The extended parameter `--duration` supports specifying the collection time range.
+
 - The extended parameter `--filter` supports configuring operator name filtering rules.
 
 ## 4.7 System External Interface
@@ -603,7 +609,7 @@ New CLI parameters `--duration` and `--filter` are added and transmitted to the 
 | FIL-03 | Multiple activity type filtering | `--filter "Kernel:MatMul;Communication:AllReduce"` | Both Kernel and Communication are filtered simultaneously |
 | FIL-04 | Fuzzy matching | `--filter "Kernel:Mat"` | All operators whose names contain "Mat" are retained, such as MatMul and BatchMatMul |
 | FIL-05 | Empty filter = no filtering | `--filter ""` | All operators are retained |
-| FIL-06 | Whitelist types are not filtered | `--filter "Kernel:MatMul"` | Memory/MemSet/MemCpy type data is not affected by the filter |
+| FIL-06 | Allowlist types are not filtered | `--filter "Kernel:MatMul"` | Memory/MemSet/MemCpy type data is not affected by the filter |
 | FIL-07 | Filter length validation | Exceeds 1024 characters | CLI validation fails |
 | FIL-08 | Invalid activity type | `--filter "InvalidKind:Op"` | No match, records are filtered out |
 
@@ -613,7 +619,7 @@ New CLI parameters `--duration` and `--filter` are added and transmitted to the 
 
 By extending the parameters of the nputrace subcommand, the asynchronous parsing process can be controlled:
 
-1. The extended parameter `--async-mode` supports data parsing through an independent subprocess, enabling parallel processing to avoid blocking the business flow.
+1\. The extended parameter `--async-mode` supports data parsing through an independent subprocess, enabling parallel processing to avoid blocking the business flow.
 
 ## 5.2 Constraints
 
@@ -626,7 +632,7 @@ None.
 ```text
 CLI (dyno nputrace --async-mode --analyse --duration-ms 10000)
   │
-  ├─► RPC request (setKinetOnDemandRequest,  PROFILE_ASYNC_MODE=true)
+  ├─► RPC request (setKinetOnDemandRequest, including PROFILE_ASYNC_MODE=true)
   │    │
   │    ▼
   ├─► Dynolog Server (IPC Socket forwarding to the training process.)
@@ -663,7 +669,7 @@ msInsight/Analyzer loads parsed results for visualization
 | Applicable Scenarios | Single-card/small-scale debugging | Large-scale clusters and production environments |
 | Data Flow | Collection → Parsing → Disk write (serial) | Collection → Raw data disk write; child process → Parsing → Result disk write |
 
-## 5.4 Inter-Subsystem Interface (Main Covered Module Interface)
+## 5.4 Inter-Subsystem Interface (Mainly Covers Module Interface Definitions)
 
 | Module | Interface/Struct | File | Modification |
 |------|------------|------|----------|
@@ -696,15 +702,12 @@ After the PyTorch Profiler (Ascend extension) receives the configuration file:
 
 1. Reads the `PROFILE_ASYNC_MODE` flag.
 2. If `async_mode=true`:
-
    - Collection phase: The main process performs CANN data collection normally, and the data is written to the specified output directory.
    - Parsing phase: Create an independent child process via `fork()`
    - The child process loads the raw collection data and performs CANN-layer and framework-layer data parsing
    - Upon completion, the child process writes the parsing results to the specified output directory
    - The main process does not wait for the child process to complete and immediately returns to the training workflow
-
 3. If `async_mode=false`:
-
    - Data parsing is performed synchronously in the main process, and training continues only after completion.
 
 ## 5.6 DFX Attribute Design
@@ -723,7 +726,7 @@ The parameter validity and effectiveness design must control and restrict the pa
 
 ### 5.6.4 Resource Management Design
 
-Profiler data asynchronous parsing runs in parallel with model training and does not block the training process, but consumes additional CPU and memory resources.
+Asynchronous parsing of Profiler data runs in parallel with model training and does not block the training process, but consumes additional CPU and memory resources.
 
 ### 5.6.5 Miniaturization Design
 
@@ -772,9 +775,9 @@ No model miniaturization-related design is involved.
 | Sensitive Data Protection | Keys used for encrypting sensitive data transmission must not be hardcoded in the code. | Hardcoding of passwords and keys is prohibited. | No |          |
 | Sensitive Data Protection | Whether sensitive information such as passwords or keys is printed in plaintext | It is prohibited to print plaintext sensitive information (passwords/private keys/pre-shared keys) in logs, debugging information, error messages, and ps command output stored in the system. | No |          |
 | Sensitive Data Protection | Whether passwords are echoed in plaintext | Plaintext password echo is prohibited. | No |          |
-| Sensitive Data Protection | Whether default passwords of third-party and open-source software are used | The use of default passwords of third-party and open-source software is prohibited. Refer to Section 1.5 of the Security Design Guide. | No |          |
+| Sensitive Data Protection | Whether default passwords of third-party and open-source software are used | The use of default passwords of third-party and open-source software is prohibited. Refer to Chapter 1.5 of the Security Design Guide. | No |          |
 | Sensitive Data Protection | Whether passwords are stored in plaintext in configuration files | Plaintext passwords must not be written into configuration files (except for scenarios where passwords are required during CLI tool installation, deployment, and usage). | No |          |
-| Sensitive Data Protection | Whether insecure encryption algorithms are used | The use of proprietary or industry-known insecure encryption algorithms is prohibited. Refer to Section 6.2 of the Security Design Guide for recommended encryption algorithms. | No |          |
+| Sensitive Data Protection | Whether insecure encryption algorithms are used | The use of proprietary or industry-known insecure encryption algorithms is prohibited. Refer to Chapter 6.2 of the Security Design Guide for recommended encryption algorithms. | No |          |
 | Sensitive Data Protection | Whether a secure transmission channel is used for sensitive information such as passwords | Sensitive information transmission between untrusted networks must use a secure transmission channel or be encrypted before transmission. Refer to Chapter 10 of the Security Design Guide. | No |          |
 | Sensitive Data Protection | Whether sensitive information such as passwords or keys in memory is destroyed after use | Passwords, keys, and other information in memory must be cleared to zero immediately after use. | No |          |
 | Sensitive Data Protection | Random numbers used in cryptographic algorithms must be cryptographically secure random numbers. | Random numbers used in cryptographic algorithms must be cryptographically secure random numbers. Refer to Chapter 6.3 of the Security Design Guide. | No |          |
@@ -1014,11 +1017,9 @@ The system defines a unified `ErrCode` enumeration (`utils.h`) covering 13 error
 ### 6.4.1 Parameter Compatibility
 
 - The three new parameters `--duration`, `--filter`, and `--async-mode` are all **optional parameters** and have reasonable default values.
-
   - `duration` defaults to 0.0 (unlimited duration, behavior same as previous versions)
   - `filter` defaults to an empty string (no filtering, behavior same as previous)
   - `async-mode` defaults to false (synchronous mode, behavior same as previous)
-
 - When the new parameters are not specified in legacy command-line scripts, the behavior remains exactly the same as before the upgrade, with no compatibility issues.
 
 ### 6.4.2 Configuration Format Compatibility
@@ -1039,7 +1040,7 @@ The system defines a unified `ErrCode` enumeration (`utils.h`) covering 13 error
 |---------|------|---------|---------|
 | Negative value interception | `--duration` | `parse_duration()` requires ≥0 | "Must be a positive number" |
 | Length limit | `--filter` | `validate_string_max_len()` limits to ≤1024 | "The input string is too long" |
-| Enumeration validation | `--mspti-activity-kind` | `parse_mspti_activity_kinds()` whitelist validation | "Invalid msPTI activity kind" |
+| Enumeration validation | `--mspti-activity-kind` | `parse_mspti_activity_kinds()` allowlist validation | "Invalid msPTI activity kind" |
 | Format validation | `--filter` | Server-side `str2FilterItems()` checks `Kind:Op` format | Invalid entries silently skipped + LOG(WARNING) |
 
 ### 6.5.2 Operation Confirmation
@@ -1077,11 +1078,9 @@ The system defines a unified `ErrCode` enumeration (`utils.h`) covering 13 error
 ### 6.6.4 Thread Naming for Assisted Diagnosis
 
 - All critical threads are named (`prctl(PR_SET_NAME, ...)`):
-
   - `MsptiMonitor`: Main monitoring thread
   - `JsonlDataDumper`: JSON disk write thread
   - TimerTask threads (created by the specific ProcessManager).
-
 - msMonitor threads can be directly identified via `ps`/`top`, facilitating runtime diagnosis.
 
 # 7. Feature Non-Functional Quality Attribute Design
@@ -1093,8 +1092,8 @@ The system defines a unified `ErrCode` enumeration (`utils.h`) covering 13 error
 **Functional Testing**:
 
 - Duration parameter: positive testing (normal duration collection), negative testing (negative/zero values, floating-point precision), and combination testing (+stop early termination, +filter parallel).
-- Filter parameter: single operator name filtering, multiple operator name filtering, multiple activity type combination filtering, fuzzy matching verification, and verification that whitelist types (Memory/MemSet/MemCpy) are not affected by the filter.
-- Async Mode: asynchronous mode start/stop, asynchronous vs. synchronous data consistency comparison, multiple asynchronous triggers, and parent process recovery after abnormal child process termination.
+- Filter parameter: single operator name filtering, multiple operator name filtering, multiple activity type combination filtering, fuzzy matching verification, and verification that allowlist types (Memory/MemSet/MemCpy) are not affected by the filter.
+- Async Mode: asynchronous mode start/stop, asynchronous vs. synchronous data consistency comparison, multiple asynchronous triggers, and main process recovery after abnormal child process termination.
 
 **Boundary Testing**:
 
@@ -1121,7 +1120,6 @@ The system defines a unified `ErrCode` enumeration (`utils.h`) covering 13 error
 
 - **Categorized Logs**: Implemented by `glog`, supporting three log levels: `INFO`/`WARNING`/`ERROR`.
 - **Key Event Logs**:
-
   - MsptiMonitor start/stop logs (including rankId identifier).
   - Duration expiration auto-stop log (including the configured duration).
   - IPC communication failure logs (including retry count and error code).
@@ -1149,7 +1147,6 @@ The system defines a unified `ErrCode` enumeration (`utils.h`) covering 13 error
 - **CLI layer**: Parsed by the `clap` framework. Adding new subcommands or parameters only requires adding fields to the enumeration, without modifying the core logic.
 - **Configuration layer**: Passed as `key=value` key-value pairs. Adding new configuration items does not affect the existing parsing logic.
 - **Collection layer**: The `MsptiDataProcessBase` abstract base class defines the data processor interface, supporting plugin-based extension.
-
   - Existing implementations: `MetricManager`, `DBProcessManager`, `JsonlProcessManager`.
   - Future extension: Modules such as `KafkaProcessManager` and `PrometheusProcessManager` can be added.
 
@@ -1203,7 +1200,7 @@ The system defines a unified `ErrCode` enumeration (`utils.h`) covering 13 error
 
 ### 7.6.2 Data Processing Scalability
 
-- **DB ProcessManager**: Uses `IdPool` to convert IDs to strings, saving storage space. Fourteen tables are partitioned by activity type, supporting large-scale trace data.
+- **DB ProcessManager**: Uses `IdPool` to convert strings to IDs, saving storage space. Fourteen tables are partitioned by activity type, supporting large-scale trace data.
 - **Metric ProcessManager**: Eight types of Metric Processors perform parallel aggregation. Within each Processor, data is grouped and summarized by `deviceId`, supporting multi-device scenarios.
 - **Jsonl ProcessManager**: A dedicated background thread performs batch dumping, reducing I/O blocking on the main thread.
 

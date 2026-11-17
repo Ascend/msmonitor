@@ -2,13 +2,13 @@
 
 ## Overview
 
-This document introduces how to use msMonitor in training and inference scenarios through simple examples.
+This section introduces how to use msMonitor in training and inference scenarios through simple examples.
 
 ## Installing msMonitor
 
 Software package release page: [msMonitor Releases](https://gitcode.com/Ascend/msmonitor/releases).
 
-For detailed installation instructions, see [msMonitor Installation Guide](../install_guide/msmonitor_install_guide.md).
+For detailed installation instructions, see [msMonitor Tool Installation Guide](../install_guide/msmonitor_install_guide.md).
 
 ## Case 1: Training Scenario Megatron (MindSpeed)
 
@@ -34,8 +34,7 @@ for step in steps:
 dynolog --certs-dir NO_CERTS --enable-ipc-monitor
 ```
 
-> [!NOTE]
->
+> [!NOTE] Note
 > `--certs-dir NO_CERTS` indicates that certificate verification is not used. This is intended for test environments only, and the same applies below. In production environments, certificate verification is recommended to ensure data transmission security. For details, see [dynolog_instruct](../user_guide/dynolog_instruct.md).
 
 ![dynolog daemon](../figures/dynolog_daemon.png)
@@ -57,7 +56,7 @@ Launch the Megatron training model.
 Send the nputrace subcommand to collect profile data. For detailed parameter descriptions, refer to [nputrace Subcommand](../user_guide/nputrace_instruct.md).
 
 ```bash
-# Start collection from the next step, collecting framework, CANN, and Device data for 2 steps. Then the collected data is auto-parsed with no data simplification. The dump path is /tmp/profile_data.
+# Start collection from the next step, collect framework, CANN, and Device data in 2 steps. Then the collected data is auto‑parsed with no data simplification. The output path is /tmp/profile_data
 dyno --certs-dir NO_CERTS nputrace --start-step -1 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
 ```
 
@@ -65,19 +64,18 @@ The training process receives the collection configuration and enables profile d
 
 ![nputrace](../figures/nputrace_collect.png)
 
-For the collected results, the on-disk data format and deliverables are described in [Ascend PyTorch Profiler Output Result File Description](https://gitcode.com/Ascend/pytorch/blob/master/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md#output-result-file-description-3).
+For the collected results and the introduction to the data format and deliverables written to disk, see [Ascend PyTorch Profiler Output Result File Description](https://gitcode.com/Ascend/pytorch/blob/master/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md#output-result-files-description).
 
 ![nputrace_result](../figures/nputrace_result.png)
 
-Use the [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/en/user_guide/overview.md) tool to view and analyze profile data.
+Use the [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/en/user_guide/overview.md) tool to view and analyze the profile data.
 
 ![mindstudio insight](../figures/nputrace_insight.png)
 
 ### npu-monitor Subcommand
 
-> [!NOTE]
->
-> The npu-monitor subcommand relies on the [msPTI](https://gitcode.com/Ascend/mspti/tree/master) interface at the underlying layer to implement lightweight data collection. Due to changes in the msPTI implementation mechanism, for versions earlier than CANN 9.0.0, set the `LD_PRELOAD` environment variable to point to the msPTI library path before starting training. The following is an example. CANN 9.0.0 and later versions do not require this setting.
+> [!NOTE] Note
+> The npu-monitor subcommand depends on the [msPTI](https://gitcode.com/Ascend/mspti) interface at the lower layer to implement lightweight data collection. Due to changes in the msPTI implementation mechanism, for versions earlier than CANN 9.0.0, the `LD_PRELOAD` environment variable must be set before starting training to point to the path of the msPTI library, as shown in the following example. Versions CANN 9.0.0 and later do not need this setting.
 
 ```bash
 # export LD_PRELOAD=<CANN Toolkit installation path>/cann/lib64/libmspti.so
@@ -102,21 +100,21 @@ After collecting for a period of time, send a command to stop the collection.
 dyno --certs-dir NO_CERTS npu-monitor --npu-monitor-stop
 ```
 
-The collected profile data files are saved in the user-specified dump path in JSONL format, with each line containing one performance record for ease of subsequent analysis.
+The collected profile data files are saved in the user‑specified dump path in JSONL format, with each line containing one performance record for ease of subsequent analysis.
 
 ![npu-monitor_result](../figures/npumonitor_result.png)
 
-It contains latency information of markers (such as step), kernels, and communication.
+It contains duration information for Marker (such as step), Kernel, and Communication.
 
-Marker data includes the latency information of each step on the host and device:
+Marker data includes the duration information of each step on the host and device:
 
 ![npu-monitor_result_marker](../figures/npumonitor_result_marker.png)
 
-Kernel data includes the execution latency and type of compute operators on the device:
+Kernel data includes the execution duration and type of compute operators on the device:
 
 ![npu-monitor_result_kernel](../figures/npumonitor_result_kernel.png)
 
-Communication data includes information such as the execution latency of communication operators on the device and the transmitted data types.
+Communication data includes information such as the execution duration of communication operators on the device and the transmitted data types.
 
 ![npu-monitor_result_communication](../figures/npumonitor_result_communication.png)
 
@@ -129,7 +127,7 @@ In inference scenarios, only the forward execution of the model is typically inv
 Refer to the vllm-ascend modification PR: https://github.com/vllm-project/vllm-ascend/pull/3123
 
 ```python
-# Load the dynamic_profile module.
+# Load the dynamic_profile module
 from torch_npu.profiler import dynamic_profile as dp
 ...
 
@@ -212,7 +210,7 @@ done
 Send the nputrace subcommand to collect profile data. For detailed parameter descriptions, refer to [nputrace Subcommand](../user_guide/nputrace_instruct.md).
 
 ```bash
-# Start collection from the next step, collecting framework, CANN, and Device data for 10 steps, and set the dump path to /tmp/profile_data_vllm.
+# Start collection from the next step, collect framework, CANN, and Device data in 10 steps, and set the storage path to /tmp/profile_data_vllm.
 dyno --certs-dir NO_CERTS nputrace --start-step -1 --iterations 10 --with-modules --activities CPU,NPU --log-file /tmp/profile_data_vllm
 ```
 
@@ -227,11 +225,11 @@ Note: Typically, the vllm model process runs as a daemon, so online parsing of p
 Parse the profile data offline.
 
 ```bash
-# Execute the Python command to parse the profile data.
+# Execute the Python command to parse the profile data
 python -c "import torch_npu; torch_npu.profiler.profiler.analyse('/tmp/profile_data_vllm/81ca290a1462_2429_20260529070008441_ascend_pt')"
 ```
 
-After parsing is complete, refer to <a href="https://gitcode.com/Ascend/pytorch/blob/master/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md#output-result-file-description-3">Ascend PyTorch Profiler Output Result File Description</a> for details on the generated data format and deliverables.
+After parsing is complete, see [Ascend PyTorch Profiler Output Result File Description](https://gitcode.com/Ascend/pytorch/blob/master/docs/en/developer_notes/ascend_pytorch_profiler_user_guide.md#output-result-files-description) for an introduction to the generated data format and deliverables.
 
 Use the [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/en/user_guide/overview.md) tool to view and analyze the profile data.
 
@@ -239,9 +237,8 @@ Use the [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/do
 
 ### npu-monitor Subcommand
 
-> [!NOTE]
->
-> The npu-monitor subcommand relies on the [msPTI](https://gitcode.com/Ascend/mspti/tree/master) interface at the underlying layer to implement lightweight data collection. Due to changes in the msPTI implementation mechanism, for versions earlier than CANN 9.0.0, set the `LD_PRELOAD` environment variable to point to the msPTI library path before starting training. The following is an example. CANN 9.0.0 and later versions do not require this setting.
+> [!NOTE] Note
+> The npu-monitor subcommand depends on the [msPTI](https://gitcode.com/Ascend/mspti) interface at the lower layer to implement lightweight data collection. Due to changes in the msPTI implementation mechanism, for versions earlier than CANN 9.0.0, the `LD_PRELOAD` environment variable must be set before starting training to point to the path of the msPTI library, as shown in the following example. Versions CANN 9.0.0 and later do not need this setting.
 
 ```bash
 # export LD_PRELOAD=<CANN Toolkit installation path>/cann/lib64/libmspti.so
@@ -252,7 +249,7 @@ export LD_PRELOAD=/usr/local/Ascend/cann/lib64/libmspti.so
 Send the npu-monitor subcommand to collect profile data. For detailed parameter descriptions, refer to [npu-monitor Subcommand](../user_guide/npumonitor_instruct.md).
 
 ```bash
-# The data is written to /tmp/msmonitor_vllm_jsonl at a 30s flush interval. The collected data types are Marker, Kernel, and Communication, written in Jsonl format.
+# The data is written to /tmp/msmonitor_vllm_jsonl at a 30s flush interval. The collected data types are Marker, Kernel, and Communication, written in Jsonl format
 dyno --certs-dir NO_CERTS npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel,Communication --log-file /tmp/msmonitor_vllm_jsonl --export-type Jsonl
 ```
 
@@ -266,21 +263,21 @@ After collecting for a period of time, send the command to stop the collection.
 dyno --certs-dir NO_CERTS npu-monitor --npu-monitor-stop
 ```
 
-The collected profile data files are saved in the user-specified dump path in JSONL format, with each line containing one performance record for ease of subsequent analysis.
+The collected profile data files are saved in the user‑specified dump path in JSONL format, with each line containing one performance record for ease of subsequent analysis.
 
 ![npu-monitor_vllm_result](../figures/npumonitor_vllm_result.png)
 
-It contains Marker (such as step), Kernel, and Communication latency information.
+It contains Marker (such as step), Kernel, and Communication duration information.
 
-Marker data includes the latency information of each step on the host and device:
+Marker data includes the duration information of each step on the host and device:
 
 ![npu-monitor_vllm_result_marker](../figures/npumonitor_vllm_result_marker.png)
 
-Kernel data includes the execution latency and type of compute operators on the device:
+Kernel data includes the execution duration and type of compute operators on the device:
 
 ![npu-monitor_vllm_result_kernel](../figures/npumonitor_vllm_result_kernel.png)
 
-Communication data includes information such as the execution latency and transmitted data types of communication operators on the device.
+Communication data includes information such as the execution duration and transmitted data types of communication operators on the device.
 
 ![npu-monitor_vllm_result_communication](../figures/npumonitor_vllm_result_communication.png)
 
@@ -292,21 +289,21 @@ In large-scale cluster scenarios, traditional profiling generates massive amount
 
 **Usage Example**
 
-In a PyTorch script, call interfaces such as `torch_npu.npu.mstx`, `torch_npu.npu.mstx.mark`, `torch_npu.npu.mstx.range_start`, `torch_npu.npu.mstx.range_end`, and `torch_npu.npu.mstx.mstx_range` to insert markers for the events you want to collect, and collect the latency of the corresponding events.
+In a PyTorch script, call interfaces such as `torch_npu.npu.mstx`, `torch_npu.npu.mstx.mark`, `torch_npu.npu.mstx.range_start`, `torch_npu.npu.mstx.range_end`, and `torch_npu.npu.mstx.mstx_range` to insert markers for the events you want to collect, and collect the duration of the corresponding events.
 
-Record only the host-side range latency.
+Record only the host-side range duration.
 
 ```python
-id = torch_npu.npu.mstx.range_start("dataloader", None)    # Set the second input parameter to None or leave it unset to record only the host-side range latency
+id = torch_npu.npu.mstx.range_start("dataloader", None)    # Set the second input parameter to None or leave it unset to record only the host-side range duration
 dataloader()
 torch_npu.npu.mstx.range_end(id)
 ```
 
-Insert markers on the compute stream to record both the host-side range latency and the corresponding device-side range latency.
+Insert markers on the compute stream to record both the host-side range duration and the corresponding device-side range duration.
 
 ```python
 stream = torch_npu.npu.current_stream()
-id = torch_npu.npu.mstx.range_start("matmul", stream)    # Set the second input parameter to a valid stream to record both the host-side range latency and the corresponding device-side range latency
+id = torch_npu.npu.mstx.range_start("matmul", stream)    # Set the second input parameter to a valid stream to record both the host-side range duration and the corresponding device-side range duration
 torch.matmul()    # Compute stream operation example
 torch_npu.npu.mstx.range_end(id)
 ```
@@ -327,11 +324,11 @@ dyno --certs-dir NO_CERTS npu-monitor --npu-monitor-start --mspti-activity-kind 
 
 ### Obtaining Parallel Strategy Communication Group Information
 
-In multi-card (multi-device) model scenarios, parallel strategy communication group information is typically required to correctly analyze communication performance issues.
+In multi-device model scenarios, parallel strategy communication group information is typically required to correctly analyze communication performance issues.
 
 When torch calls the `new_group` interface to create a communication group, user-defined information such as `group_name` and `hccl_buffer_size` can be passed through the `pg_options` parameter. In TorchNPU, the object corresponding to the `pg_options` parameter is `torch_npu._C_.distributed_c10d.ProcessGroupHccl.Options`. By setting `group_name` in this object, the communication group information can be viewed in msMonitor.
 
-For details about the new_group API, see "[Groups](https://docs.pytorch.org/docs/2.9/distributed.html#torch.distributed.new_group)".
+For a detailed introduction to the `new_group` interface, see "[Groups](https://docs.pytorch.org/docs/2.9/distributed.html#torch.distributed.new_group)".
 
 If users need to collect parallel strategy communication group information, the `group_name` parameter must be passed when torch calls `new_group`. The following uses Megatron/MindSpeed as an example:
 

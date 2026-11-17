@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The npu-monitor tool is a lightweight daemon that monitors the execution time of key operators.
+The npu-monitor tool is a lightweight daemon that monitors the duration of key operators.
 
 ## Preparation
 
@@ -25,7 +25,11 @@ dyno --certs-dir <CERT_DIR> npu-monitor [options]
 
 Enables npu-monitor performance monitoring.
 
-**Command Format**
+**Precautions**
+
+npu-monitor and nputrace share underlying Profiling resources, so they cannot collect at the same time, including the scenario where the two commands are issued one after the other within a short period and are queued or cached at the same time. To switch to nputrace, run `dyno npu-monitor --npu-monitor-stop` first, and send nputrace only after `dyno status` shows `npumonitor` as `Idle`.
+
+**Syntax**
 
 ```bash
 dyno npu-monitor [options] --help
@@ -33,17 +37,17 @@ dyno npu-monitor [options] --help
 
 The options of npu-monitor are as follows.
 
-**Parameter Description**
+**Option Description**
 
-| Subcommand                   |    Optional/Required    | Description                                                                                                                                                  | PyTorch Support | MindSpore Support |
+| Subcommand                   |    Mandatory/Optional    | Description                                                                                                                                                  | PyTorch Support | MindSpore Support |
 |-----------------------|:-----------:|------------------------------------------------------------------------------------------------------------------------------------------------------|:---------:|:-----------:|
 | --npu-monitor-start   | Optional | (Action) Enables performance monitoring. It takes effect after being set and is disabled by default.                                                                                                           | Y | Y |
 | --npu-monitor-stop    | Optional | (Action) Stops performance monitoring. It takes effect after being set and is disabled by default.                                                                                                             | Y | Y |
-| --report-interval-s   | Optional | (u32) Performance monitoring data reporting interval, in seconds. Can only be set at startup. Default value: `60`.                                                                                               | Y | Y |
-| --duration            | Optional | (f32) Performance monitoring data collection duration, in seconds. Can only be set at startup. Default value: `0.0`, meaning no limit on collection duration. Can only be set when npu-monitor starts and cannot be modified during runtime.                                                                         | Y | Y |
+| --report-interval-s   | Optional | (u32) Performance monitoring data reporting interval, in seconds. Must be set at startup. Default value: `60`.                                                                                               | Y | Y |
+| --duration            | Optional | (f32) Performance monitoring data collection duration, in seconds. Must be set at startup. Default value: `0.0`, meaning no limit on collection duration. Can only be set when npu-monitor starts and cannot be modified during runtime.                                                                         | Y | Y |
 | --mspti-activity-kind | Optional | (String) Performance monitoring data reporting data type. Single or multiple types can be set, separated by commas. The global reporting type is refreshed each time it is set. Optional value range: [`Marker`, `Kernel`, `API`, `Hccl`, `Memory`, `MemSet`, `MemCpy`, `Communication`, `AclAPI`, `NodeAPI`, `RuntimeAPI`]. Default value: `Marker`. | Y | Y |
-| --log-file            | Optional | (String) Path for persisting collected performance data to disk. Currently supports exporting only when `mspti-activity-kind` is set to `Marker`, `Kernel`, `API`, `Communication`, `AclAPI`, `NodeAPI`, or `RuntimeAPI` (7 types in total). The persistent storage data format can be DB or Jsonl (for details, see the `export-type` parameter description). Default value: empty, meaning no data is persisted. | Y | Y |
-| --export-type         | Optional | (String) Format for persisting collected performance data to disk. Takes effect only after the user sets the `log-file` parameter. Optional value range: [`DB`, `Jsonl`]. Default value: `DB`. Can only be set when npu-monitor starts and cannot be modified during runtime.<br> **1.** If set to `DB`, the persisted data is in DB format, and the file name is `msmonitor_{process_id}_{timestamp}_{rank_id}.db`. For details about DB content, see [DB Format Performance Data File Reference](https://gitcode.com/Ascend/msprof/blob/master/docs/en/user_guide/profile_data_file_references_db.md). You can use the [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/en/user_guide/overview.md) tool for visual presentation (MindStudio Insight does not currently support presenting `msmonitor.db` data collected in single-process multi-card scenarios). <br> **2.** If set to `Jsonl`, the persisted data is in Jsonl format, and the file name is `msmonitor_{process_id}_{timestamp}_{rank_id}.jsonl`. Each line of the Jsonl file contains a complete piece of performance data in JSON format. The following environment variables can be set to adjust the persistence process: <br> **MSMONITOR_JSONL_BUFFER_CAPACITY**: Sets the RingBuffer size for persistence. This parameter must be a power of 2 ($2^{n}$). Default value: 524288 ($2^{19}$). Supported range: [8192, 2097152] (i.e., [$2^{13}$, $2^{21}$]). <br> **MSMONITOR_JSONL_MAX_DUMP_INTERVAL**: Sets the maximum interval for persistence (unit: ms). When the interval between the current time and the last persistence exceeds this threshold, persistence is automatically triggered. Default value: 30000 ms. Minimum limit: 1000 ms. <br> **MSMONITOR_JSONL_ROTATE_LOG_LINES**: Sets the upper limit of JSON data entries in a single Jsonl file. Exceeding this threshold will create a new file for persistence. Default value: 10000. Supported range: [100, 500000]. <br> **MSMONITOR_JSONL_ROTATE_LOG_FILES**: Sets the number of Jsonl files persisted in a single collection. Exceeding this threshold will delete the earliest persisted file. Default value: `-1` (this feature is disabled). When manually set, the minimum limit is 2. | Y | Y |
+| --log-file            | Optional | (String) Path for persisting collected performance data to disk. Currently supports exporting only 7 data types when `mspti-activity-kind` is set to `Marker`, `Kernel`, `API`, `Communication`, `AclAPI`, `NodeAPI`, or `RuntimeAPI`. The persistent storage data format can be DB or Jsonl (for details, see the `export-type` parameter description). Default value: empty, meaning no data is persisted. | Y | Y |
+| --export-type         | Optional | Format for persisting collected performance data. It is of the String type and takes effect only after you set the `log-file` parameter. The optional value range is [`DB`, `Jsonl`], and the default value is `DB`. It can be set only when npu-monitor is started, and cannot be modified during running.<br> **1.** If set to `DB`, the persisted data is in DB format, and the persisted file name is `msmonitor_{process_id}_{timestamp}_{rank_id}.db`. For the DB content description, see [DB Format Performance Data File Reference](https://gitcode.com/Ascend/msprof/blob/master/docs/en/user_guide/profile_data_file_references_db.md), and the [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/en/user_guide/overview.md) tool can be used for visualization (MindStudio Insight does not currently support presenting msmonitor.db data collected in a single-process multi-device scenario) <br> **2.** If set to `Jsonl`, the persisted data is in Jsonl format, and the persisted file name is `msmonitor_{process_id}_{timestamp}_{rank_id}.jsonl`. Each line of the Jsonl file contains a complete piece of performance data in JSON format. The following environment variables can be set to adjust the persistence process <br> **MSMONITOR_JSONL_BUFFER_CAPACITY**: Sets the size of the persistence RingBuffer. This parameter must be a power of 2 ($2^{n}$). The default value is 524288 ($2^{19}$), and the supported setting range is [8192, 2097152] (that is, [$2^{13}$, $2^{21}$]) <br> **MSMONITOR_JSONL_MAX_DUMP_INTERVAL**: Sets the maximum persistence interval (unit: ms). When the interval between the current time and the last persistence exceeds this threshold, persistence is automatically triggered. The default value is 30000 ms, and the minimum value is 1000 ms <br> **MSMONITOR_JSONL_ROTATE_LOG_LINES**: Sets the upper limit of the number of JSON data entries in a single Jsonl file. When this threshold is exceeded, a new file is created for persistence. The default value is 10000, and the supported setting range is [100, 500000] <br> **MSMONITOR_JSONL_ROTATE_LOG_FILES**: Sets the number of Jsonl files persisted in a single collection. When this threshold is exceeded, the earliest persisted file is deleted. The default value is -1 (this function is disabled), and when set manually, the minimum value is 2 | Y | Y |
 | --json-rotate-log-lines | Optional | (String) Upper limit of JSON data entries in a single Jsonl file during Jsonl persistence. Takes effect only when `--log-file` and `--export-type Jsonl` are configured.<br>It is not passed by default and takes precedence over the environment variable `MSMONITOR_JSONL_ROTATE_LOG_LINES`. If neither the command line nor the environment variable is set, the default value `10000` is used. When manually set, a positive integer in the range [100, 500000] must be passed. | Y | Y |
 | --json-rotate-log-files | Optional | (String) Number of Jsonl files retained in a single collection during Jsonl persistence. When this threshold is exceeded, the earliest persisted file is deleted. Takes effect only when `--log-file` and `--export-type Jsonl` are configured.<br>It is not passed by default and takes precedence over the environment variable `MSMONITOR_JSONL_ROTATE_LOG_FILES`. If neither the command line nor the environment variable is set, the default value `-1` is used, meaning file count cleanup is disabled. When manually set, `-1` or a positive integer greater than or equal to 2 must be passed. | Y | Y |
 | --filter              | Optional | (String) Filters performance data by the data names to be collected. Different data types are separated by semicolons, different data names are separated by commas, and data types and names are separated by colons.<br>Fuzzy matching is supported. You do not need to configure the full name; only keywords are required. When the configured value contains semicolons, the entire value must be enclosed in double quotation marks.<br>Configuration example: `--filter "<activity_kind>:<data>[,<data>][;<activity_kind>:<data>[,<data>]]"`. Optional value range for activity_kind: [`Marker`, `Kernel`, `API`, `Communication`, `AclAPI`, `NodeAPI`, `RuntimeAPI`]. By default, no filtering is applied and all data is retained. | Y | Y |
@@ -56,7 +60,7 @@ The options of npu-monitor are as follows.
    # Start the dynolog daemon via command line
    dynolog --enable-ipc-monitor --certs-dir /home/ssl_certs
 
-   # To use TensorBoard for data visualization, pass --metric_log_dir to specify the persistent storage path for TensorBoard files.
+   # To use TensorBoard for data visualization, pass --metric_log_dir to specify the persistent storage path for TensorBoard files
    # Example:
    dynolog --enable-ipc-monitor --certs-dir /home/ssl_certs --metric_log_dir /tmp/metric_log_dir
    ```
@@ -67,7 +71,7 @@ The options of npu-monitor are as follows.
    export MSMONITOR_USE_DAEMON=1
    ```
 
-3. (Optional) Configure the msMonitor log path. When `MSMONITOR_LOG_PATH` is set explicitly, its value is used directly as the glog log directory (the Python API is automatically pointed by `start()` to the `log/` directory of the session directory). When it is not set, the default is `msmonitor_log_<device ID>` under the process working directory (`msmonitor_log` when the device ID cannot be obtained).
+3. (Optional) Configure the msMonitor log path. When `MSMONITOR_LOG_PATH` is explicitly set, it is directly used as the glog log directory (the Python API is automatically pointed to the `log/` directory of the session directory by `start()`). When it is not set, the default is `msmonitor_log_<device ID>` under the process cwd (or msmonitor_log when the device cannot be obtained).
 
    ```bash
    export MSMONITOR_LOG_PATH=<LOG PATH>
@@ -107,19 +111,19 @@ The options of npu-monitor are as follows.
    # Set the reporting period to 25s and the reported data type to Marker and Kernel, and retain only data of the Kernel type whose operator name contains the keyword "Relu".
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 25 --mspti-activity-kind Marker,Kernel --filter Kernel:Relu
 
-   # Example 5: Configure collection parameters when Performance Monitoring is enabled, enable data collection to persistent storage, with the storage format being the default DB format
-   # Data persistent storage path is /tmp/msmonitor_db, storage period is 30s, and collection data types are Marker, Kernel, and Communication.
+   # Example 5: Configure collection parameters when performance monitoring is enabled, enable data collection to persistent storage, with the storage format being the default DB format
+   # Data persistent storage path is /tmp/msmonitor_db, storage period is 30s, and collection data types are Marker, Kernel, and Communication
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel,Communication --log-file /tmp/msmonitor_db
 
    # Example 6: Write to persistent storage in Jsonl format, and set Jsonl file rotation configuration via command-line parameters
    dyno --certs-dir /home/ssl_certs npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel,Communication --log-file /tmp/msmonitor_jsonl --export-type Jsonl --json-rotate-log-lines 10000 --json-rotate-log-files 5
 
-   # Example 7: Modify configuration when Performance Monitoring is enabled in a multi-machine scenario
+   # Example 7: Modify configuration when performance monitoring is enabled in a multi-machine scenario
    # In a multi-machine scenario, send parameter information to a specific machine x.x.x.x. The parameters indicate a reporting period of 30s and reporting data types of Marker and Kernel.
    dyno --certs-dir /home/ssl_certs --hostname x.x.x.x npu-monitor --npu-monitor-start --report-interval-s 30 --mspti-activity-kind Marker,Kernel
    ```
 
-## Output Result File Description
+## Output File Description
 
 View the data reported by TensorBoard.
 
@@ -130,7 +134,7 @@ pip install tensorboard
 # Run TensorBoard
 tensorboard --logdir=<metric_log_dir> # metric_log_dir is the path specified by the --metric_log_dir parameter in the example dynolog command line
 
-# Access http://localhost:6006 from a browser to view the corresponding visualization charts, where localhost is the server IP address and 6006 is the default TensorBoard port.
+# Access http://localhost:6006 from a browser to view the corresponding visualization charts, where localhost is the server IP address and 6006 is the default TensorBoard port
 ```
 
 For detailed TensorBoard usage parameters, see <https://github.com/tensorflow/tensorboard>.

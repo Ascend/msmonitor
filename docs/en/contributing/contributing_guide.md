@@ -47,7 +47,7 @@ In addition, you can learn about the project's development plans and roadmap by 
 
 4. Test the compiled package.
 
-   Compile the developed code into a .whl package for testing. For detailed steps, see [msMonitor Installation Guide](../install_guide/msmonitor_install_guide.md).
+   Compile the developed code into a .whl package for testing. For detailed steps, see [msMonitor Tool Installation Guide](../install_guide/msmonitor_install_guide.md).
 
 5. Develop the documentation.
 
@@ -87,7 +87,7 @@ bash scripts/run_ut_cpp.sh
 bash scripts/run_st.sh
 ```
 
-`python3 build.py test` runs the C++ and Python unit tests in sequence; `scripts/run_ut.sh` is kept as a compatibility entry point.
+`python3 build.py test` runs the C++ and Python unit tests in sequence; `scripts/run_ut.sh` is retained as a compatibility entry point.
 
 #### Adding Tests
 
@@ -98,21 +98,21 @@ bash scripts/run_st.sh
 
 #### Code Coverage
 
-Run on Linux. Python UTs require `xlsxwriter`; coverage collection also requires `coverage`. C++ coverage requires GCC, a matching `gcov`, `lcov >= 2.0`, and `genhtml`. Incremental checks require `diff-cover`, plus `lcov_cobertura` for C++.
+Run in a Linux environment. Python UT requires `xlsxwriter`, and coverage collection additionally requires `coverage`; C++ coverage collection requires GCC, a matching `gcov`, `lcov >= 2.0`, and `genhtml`. Incremental checking requires `diff-cover`, and C++ additionally requires `lcov_cobertura`.
 
 ```bash
 # Full coverage
 bash scripts/run_ut_coverage_python.sh
 bash scripts/run_ut_coverage_cpp.sh
 
-# Full coverage and incremental line coverage checks
+# Full coverage + incremental line coverage check
 DIFF_BASE=origin/master FAIL_UNDER=80 bash scripts/run_ut_coverage_python.sh diff
 DIFF_BASE=origin/master FAIL_UNDER=80 bash scripts/run_ut_coverage_cpp.sh diff
 ```
 
-Python coverage measures `plugin/IPCMonitor/`. C++ coverage measures code under `plugin/ipc_monitor/` compiled into the UTs. Tests, stubs, and third-party code are excluded. Reports are written to `test/build_llt/output/python_coverage/` and `test/build_llt/output/cpp_coverage/`, respectively.
+Python coverage is measured for `plugin/IPCMonitor/`, and C++ coverage is measured for the code compiled into the UT under `plugin/ipc_monitor/`; tests, stubs, and third-party code are excluded in both cases. The reports are output to `test/build_llt/output/python_coverage/` and `test/build_llt/output/cpp_coverage/` respectively.
 
-`DIFF_BASE` defaults to `origin/${TARGET_BRANCH:-${targetBranch:-master}}` and must exist in the local Git history. `FAIL_UNDER` defaults to 80%; incremental checks return a nonzero status below this threshold. Without `diff`, only full coverage reports are generated.
+The incremental baseline `DIFF_BASE` defaults to `origin/${TARGET_BRANCH:-${targetBranch:-master}}` and must already exist in the local Git history; `FAIL_UNDER` defaults to 80%, and the script returns a non-zero status when the rate is below the threshold. Without `diff`, only the full-coverage report is generated.
 
 ### Documentation Development
 
@@ -121,7 +121,7 @@ Python coverage measures `plugin/IPCMonitor/`. C++ coverage measures code under 
 If your changes affect how users interact with the product, update the relevant documentation:
 
 - User guide: `docs/en/`
-- API Documentation: docstrings in code comments
+- API documentation: docstrings in code comments
 - Sample code: `samples/`
 
 #### Documentation Conventions
@@ -182,9 +182,9 @@ Before submitting a PR, ensure the following:
 5. **Review the code.**
 
    1. After submitting a PR, notify the relevant Reviewers and Committers to review the content.
-   2. You need to modify the code based on the review feedback and resubmit the update. This process may involve multiple rounds, so remain responsive and communicative.
+   2. You need to modify the code based on the review feedback and resubmit the update. This process may have multiple rounds, so remain responsive and communicative.
 
-   The PR process will prompt the relevant Reviewers and Committers. You can specify the relevant Reviewers and Committers during the PR process, or contact us via [README_EN](../../../README_EN.md#-suggestions-and-communication).
+   The PR process will prompt the relevant Reviewers and Committers. You can specify the relevant Reviewers and Committers during the PR process, or contact us via [README](../../../README_EN.md#-suggestions-and-communication).
 
 6. **Merge the code.**
 
@@ -264,5 +264,7 @@ The documentation in the docs directory of the msMonitor tool is licensed under 
 ## Acknowledgments
 
 Thank you for contributing to msMonitor. Your efforts make this project stronger and more user-friendly. We look forward to your participation!
+
+---
 
 If you have any questions or need assistance, feel free to ask in [Issues](https://gitcode.com/Ascend/msmonitor/issues) or contact us through other community channels.
