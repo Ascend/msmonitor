@@ -32,8 +32,8 @@ class Processor {
     Processor(const Processor &) = delete;
     Processor &operator=(const Processor &) = delete;
 
-    // Blocking and single-use: replay a stable directory, or follow additions until RequestStop.
-    void Run(bool follow = false);
+    // Blocking and single-use. Poll for new data until RequestStop().
+    void Run();
 
     // Thread-safe stop request. Normal shutdown drains published steps; stage calls must return in finite time.
     void RequestStop();

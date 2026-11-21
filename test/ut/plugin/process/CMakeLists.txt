@@ -2,5 +2,9 @@ add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../../../../plugin/process" process_
 
 add_executable(test_Processor test_Processor.cpp)
 target_link_libraries(test_Processor PRIVATE msmonitor_process_core ${googletest_LIBRARIES})
+if(ENABLE_UT_COVERAGE)
+    target_compile_options(msmonitor_process_core PRIVATE --coverage -O0 -g -fprofile-abs-path -fprofile-update=atomic)
+    target_link_options(test_Processor PRIVATE --coverage)
+endif()
 add_test(NAME test_Processor COMMAND test_Processor)
 set_tests_properties(test_Processor PROPERTIES TIMEOUT 15)

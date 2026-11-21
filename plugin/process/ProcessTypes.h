@@ -14,8 +14,8 @@ namespace msmonitor::process {
 
 struct Options {
     std::filesystem::path inputDir;
-    std::int64_t rank{ProcessConstants::InvalidRank};
-    // Required only when the input directory contains multiple processes for this rank.
+    std::int64_t rank{ProcessConstants::UnspecifiedRank};
+    // Required for unranked files or to disambiguate multiple processes for a rank.
     std::optional<std::uint64_t> processId;
     std::chrono::milliseconds pollInterval{ProcessConstants::PollInterval};
     std::size_t queueCapacity{ProcessConstants::QueueCapacity};

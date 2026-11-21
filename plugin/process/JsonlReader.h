@@ -17,7 +17,7 @@ class JsonlReader {
     explicit JsonlReader(const Options &options) : options_(options), processId_(options.processId) {}
 
     // Snapshot file sizes first, then drain that bounded snapshot using small chunks.
-    ReadBatch Poll(const LineConsumer &consume, bool follow = false);
+    ReadBatch Poll(const LineConsumer &consume);
     void Finish(bool inputComplete, const LineConsumer &consume);
 
   private:
@@ -32,8 +32,8 @@ class JsonlReader {
         std::uintmax_t size;
     };
 
-    std::vector<FileSnapshot> SnapshotFiles(bool follow);
-    bool ReadAppendedBytes(const FileSnapshot &snapshot, Cursor &cursor, const LineConsumer &consume, bool follow);
+    std::vector<FileSnapshot> SnapshotFiles();
+    bool ReadAppendedBytes(const FileSnapshot &snapshot, Cursor &cursor, const LineConsumer &consume);
     void EmitCompleteLines(const std::filesystem::path &file, Cursor &cursor, const LineConsumer &consume);
 
     Options options_;

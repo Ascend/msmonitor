@@ -23,18 +23,17 @@ struct Processor::Impl {
           traceExporter_(traceExporter), metricQueue_(options_.queueCapacity), traceQueue_(options_.queueCapacity) {}
 
     // Start concurrent consumers, process input, then drain queues and join both workers.
-    void Run(bool follow) {
+    void Run() {
         if (used_.exchange(true)) {
             throw std::logic_error("Processor is single-use");
         }
-        LOG(INFO) << "Process started, rank: " << options_.rank << ", input: " << options_.inputDir.string()
-                  << ", follow: " << follow;
+        LOG(INFO) << "Process started, rank: " << options_.rank << ", input: " << options_.inputDir.string();
         try {
             metricThread_ = StartExportWorker("metric export", metricQueue_,
                 [this](const StepDataOutput &step) { metricExporter_.ExportStep(step); });
             traceThread_ = StartExportWorker(
                 "trace export", traceQueue_, [this](const StepDataOutput &step) { WriteAndCompressTrace(step); });
-            ReadJsonlAndPublishSteps(follow);
+            ReadJsonlAndPublishSteps();
         } catch (...) {
             Fail("JSONL pipeline/startup", std::current_exception());
         }
@@ -80,7 +79,7 @@ struct Processor::Impl {
         traceExporter_.CompressStep(directory);
     }
 
-    void ReadJsonlAndPublishSteps(bool follow) {
+    void ReadJsonlAndPublishSteps() {
         const EmitStepData publish = [this](StepDataPtr step) { EnqueueStepForExport(std::move(step)); };
         const auto analyseLine = [this](const JsonlLine &line) {
             try {
@@ -89,27 +88,28 @@ struct Processor::Impl {
                 throw std::runtime_error(line.file.string() + ":" + std::to_string(line.lineNumber) + ": " + e.what());
             }
         };
-        for (;;) {
+        while (!stop_.load()) {
             const auto nextPoll = std::chrono::steady_clock::now() + options_.pollInterval;
-            const auto batch = reader_.Poll(analyseLine, follow);
+            const auto batch = reader_.Poll(analyseLine);
             analyser_.EndBatch(batch, publish);
-            if (stop_.load() || !follow) {
-                break;
-            }
-            // Every online poll is paced, even when it read new data. Do not run catch-up bursts.
+            // Pace polls even when new data was read.
             if (std::chrono::steady_clock::now() > nextPoll) {
                 LOG(WARNING) << "Process read/analysis batch exceeded poll interval, rank: " << options_.rank
                              << ", poll interval ms: " << options_.pollInterval.count();
             }
             std::unique_lock<std::mutex> lock(waitMutex_);
-            wake_.wait_until(lock, nextPoll, [this] { return stop_.load(); });
+            if (wake_.wait_until(lock, nextPoll, [this] { return stop_.load(); })) {
+                break;
+            }
         }
-        const bool inputComplete = !follow && !stop_.load();
-        reader_.Finish(inputComplete, analyseLine);
-        analyser_.Finish(inputComplete, publish);
+        reader_.Finish(false, analyseLine);
+        analyser_.Finish(false, publish);
     }
 
     void EnqueueStepForExport(StepDataPtr step) {
+        if (!step) {
+            throw std::invalid_argument("step analyser published a null step");
+        }
         // Share immutable results. Either slow consumer applies backpressure without silently dropping steps.
         if (!metricQueue_.Push(step) || !traceQueue_.Push(step)) {
             throw std::runtime_error("consumer queue closed");
@@ -179,9 +179,10 @@ struct Processor::Impl {
 
 Processor::Processor(
     Options options, StepAnalyser &analyser, MetricExporter &metricExporter, TraceExporter &traceExporter) {
-    if (options.rank < 0 || analyser.Rank() != options.rank || !options.queueCapacity || !options.readChunkBytes ||
-        !options.maxLineBytes || options.pollInterval.count() <= 0 ||
-        !std::filesystem::is_directory(options.inputDir)) {
+    if (options.rank < ProcessConstants::Unranked ||
+        (options.rank == ProcessConstants::Unranked && !options.processId) || analyser.Rank() != options.rank ||
+        !options.queueCapacity || !options.readChunkBytes || !options.maxLineBytes ||
+        options.pollInterval.count() <= 0 || !std::filesystem::is_directory(options.inputDir)) {
         throw std::invalid_argument("invalid processor options/input directory");
     }
     impl_ = std::make_unique<Impl>(std::move(options), analyser, metricExporter, traceExporter);
@@ -189,7 +190,7 @@ Processor::Processor(
 
 Processor::~Processor() = default;
 
-void Processor::Run(bool follow) { impl_->Run(follow); }
+void Processor::Run() { impl_->Run(); }
 
 void Processor::RequestStop() { impl_->RequestStop(); }
 } // namespace msmonitor::process

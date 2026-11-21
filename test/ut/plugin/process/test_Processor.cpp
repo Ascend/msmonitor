@@ -18,7 +18,7 @@ using namespace std::chrono_literals;
 // Turn each complete line into one synthetic step. The real analyser is added separately.
 class RecordingAnalyser final : public StepAnalyser {
   public:
-    std::int64_t Rank() const override { return 2; }
+    std::int64_t Rank() const override { return rank; }
     void ProcessLine(const JsonlLine &line) override {
         lines.push_back(line.text);
         if (onLine) {
@@ -39,6 +39,7 @@ class RecordingAnalyser final : public StepAnalyser {
     }
 
     std::vector<std::string> lines;
+    std::int64_t rank{2};
     std::function<void()> onLine;
     std::function<void(const ReadBatch &)> onBatch;
     std::optional<bool> complete;
@@ -118,11 +119,12 @@ class ProcessorTest : public ::testing::Test {
     RecordingTrace trace;
 };
 
-TEST_F(ProcessorTest, ReplaysSelectedRankInOrderAndDrainsBothExporters) {
+TEST_F(ProcessorTest, ReadsSelectedRankInOrderAndDrainsBothExporters) {
+    options.rank = analyser.rank = ProcessConstants::Unranked;
     options.processId = 10;
-    Append("msmonitor_10_100_2.jsonl", "{\"id\":1}\n{\"id\":2}\r\n");
-    Append("msmonitor_10_200_2.jsonl", "{\"id\":3}");
-    Append("msmonitor_11_100_2.jsonl", "other process\n");
+    Append("msmonitor_10_100_-1.jsonl", "{\"id\":1}\n{\"id\":2}\r\n");
+    Append("msmonitor_10_200_-1.jsonl", "{\"id\":3}\n");
+    Append("msmonitor_11_100_-1.jsonl", "other process\n");
     Append("msmonitor_10_100_3.jsonl", "other rank\n");
 
     // A metric blocked on the first step must not prevent trace export of that same step.
@@ -140,13 +142,26 @@ TEST_F(ProcessorTest, ReplaysSelectedRankInOrderAndDrainsBothExporters) {
     };
 
     Processor processor(options, analyser, metrics, trace);
+    analyser.onBatch = [&](const ReadBatch &) { processor.RequestStop(); };
     processor.Run();
 
-    EXPECT_EQ(analyser.complete, true);
+    EXPECT_EQ(analyser.complete, false);
     EXPECT_EQ(analyser.lines, (std::vector<std::string>{"{\"id\":1}", "{\"id\":2}", "{\"id\":3}"}));
     EXPECT_EQ(metrics.steps, (std::vector<std::uint64_t>{1, 2, 3}));
     EXPECT_EQ(trace.steps, metrics.steps);
     EXPECT_EQ(trace.archives, (std::vector<std::string>{"step_1", "step_2", "step_3"}));
+}
+
+TEST_F(ProcessorTest, RejectsNullStep) {
+    class NullStepAnalyser final : public StepAnalyser {
+      public:
+        std::int64_t Rank() const override { return 2; }
+        void ProcessLine(const JsonlLine &) override {}
+        void EndBatch(const ReadBatch &, const EmitStepData &emit) override { emit({}); }
+        void Finish(bool, const EmitStepData &) override {}
+    } nullAnalyser;
+    Processor processor(options, nullAnalyser, metrics, trace);
+    EXPECT_THROW(processor.Run(), std::invalid_argument);
 }
 
 TEST_F(ProcessorTest, FollowsAppendsAndRotatedFilesUntilStopped) {
@@ -174,7 +189,7 @@ TEST_F(ProcessorTest, FollowsAppendsAndRotatedFilesUntilStopped) {
         }
     };
 
-    processor.Run(true);
+    processor.Run();
 
     EXPECT_EQ(analyser.complete, false);
     EXPECT_EQ(analyser.lines, (std::vector<std::string>{"{\"id\":1}", "{\"id\":2}"}));
@@ -196,25 +211,20 @@ TEST_F(ProcessorTest, PropagatesExporterFailureWithBoundedQueues) {
     }
 }
 
-TEST_F(ProcessorTest, StopsWithPartialTailInBothModes) {
+TEST_F(ProcessorTest, StopsWithPartialTailAndDrainsCompleteLines) {
     Append("msmonitor_10_100_2.jsonl", "{}\n{\"id\":");
-    for (bool follow : {false, true}) {
-        RecordingAnalyser stoppingAnalyser;
-        RecordingMetrics stoppingMetrics;
-        RecordingTrace stoppingTrace;
-        Processor processor(options, stoppingAnalyser, stoppingMetrics, stoppingTrace);
-        stoppingAnalyser.onBatch = [&](const ReadBatch &batch) {
-            EXPECT_TRUE(batch.hasPartialLine);
-            processor.RequestStop();
-        };
+    Processor processor(options, analyser, metrics, trace);
+    analyser.onBatch = [&](const ReadBatch &batch) {
+        EXPECT_TRUE(batch.hasPartialLine);
+        processor.RequestStop();
+    };
 
-        processor.Run(follow);
+    processor.Run();
 
-        EXPECT_EQ(stoppingAnalyser.complete, false);
-        EXPECT_EQ(stoppingAnalyser.lines, std::vector<std::string>{"{}"});
-        EXPECT_EQ(stoppingMetrics.steps, std::vector<std::uint64_t>{1});
-        EXPECT_EQ(stoppingTrace.archives, std::vector<std::string>{"step_1"});
-    }
+    EXPECT_EQ(analyser.complete, false);
+    EXPECT_EQ(analyser.lines, std::vector<std::string>{"{}"});
+    EXPECT_EQ(metrics.steps, std::vector<std::uint64_t>{1});
+    EXPECT_EQ(trace.archives, std::vector<std::string>{"step_1"});
 }
 
 TEST_F(ProcessorTest, ContinuesWhenRotationRemovesAnUnreadFile) {
@@ -233,11 +243,32 @@ TEST_F(ProcessorTest, ContinuesWhenRotationRemovesAnUnreadFile) {
         processor.RequestStop();
     };
 
-    processor.Run(true);
+    processor.Run();
 
     EXPECT_EQ(analyser.lines, (std::vector<std::string>{"{}", "{\"id\":3}"}));
     EXPECT_EQ(metrics.steps, (std::vector<std::uint64_t>{1, 2}));
     EXPECT_EQ(trace.steps, metrics.steps);
+}
+
+TEST_F(ProcessorTest, RetiresDeletedCursorWhileKeepingActiveOffset) {
+    const std::string retired = "msmonitor_10_100_2.jsonl";
+    const std::string active = "msmonitor_10_200_2.jsonl";
+    Append(retired, "{\"old\":1}\n");
+    Append(active, "{}\n");
+    Processor processor(options, analyser, metrics, trace);
+    unsigned polls = 0;
+    analyser.onBatch = [&](const ReadBatch &) {
+        if (++polls == 1) {
+            EXPECT_TRUE(std::filesystem::remove(options.inputDir / retired));
+        } else if (polls == 2) {
+            Append(active, "{}\n");
+            Append(retired, "{}\n");
+        } else {
+            processor.RequestStop();
+        }
+    };
+    processor.Run();
+    EXPECT_EQ(analyser.lines, (std::vector<std::string>{"{\"old\":1}", "{}", "{}", "{}"}));
 }
 } // namespace
 } // namespace msmonitor::process
