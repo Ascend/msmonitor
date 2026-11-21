@@ -23,6 +23,7 @@ if(PACKAGE STREQUAL "ut")
     find_package(mockcpp MODULE REQUIRED)
 
     add_subdirectory(ut/plugin/ipc_monitor)
+    add_subdirectory(ut/plugin/process)
 
     add_subdirectory(ut/dynolog)
 

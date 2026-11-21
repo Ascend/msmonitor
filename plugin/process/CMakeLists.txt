@@ -1,0 +1,17 @@
+cmake_minimum_required(VERSION 3.16)
+project(msmonitor_process LANGUAGES CXX)
+find_package(Threads REQUIRED)
+# Reuse the collector glog target/libraries, or find an installed glog package.
+if(NOT TARGET glog::glog AND NOT glog_LIBRARIES)
+    find_package(glog CONFIG REQUIRED)
+endif()
+
+add_library(msmonitor_process_core STATIC Processor.cpp JsonlReader.cpp)
+target_compile_features(msmonitor_process_core PUBLIC cxx_std_17)
+target_include_directories(msmonitor_process_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(msmonitor_process_core PUBLIC Threads::Threads)
+if(TARGET glog::glog)
+    target_link_libraries(msmonitor_process_core PUBLIC glog::glog)
+else()
+    target_link_libraries(msmonitor_process_core PUBLIC ${glog_LIBRARIES})
+endif()
