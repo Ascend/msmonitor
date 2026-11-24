@@ -27,6 +27,10 @@ dyno --certs-dir <CERT_DIR> npu-monitor [options]
 
 开启npu-monitor性能监测。
 
+**注意事项**
+
+npu-monitor与nputrace共享底层Profiling资源，不支持同时采集，包括两条命令短时间内先后下发、同时处于排队或缓存中的场景。切换为nputrace时，先执行`dyno npu-monitor --npu-monitor-stop`，待`dyno status`显示`npumonitor`为`Idle`后再发送nputrace。
+
 **命令格式**
 
 ```bash
@@ -43,7 +47,7 @@ npu-monitor的options功能参数如下：
 | --npu-monitor-stop    | 可选 | 停止性能监测，action类型，设置参数后生效，默认不生效。                                                                                                                      | Y | Y |
 | --report-interval-s   | 可选 | 性能监测数据上报周期，u32类型，单位s，需要在启动时设置。默认值60。                                                                                                                | Y | Y |
 | --duration            | 可选 | 性能监测数据采集时长，f32类型，单位s，需要在启动时设置。默认值0.0，表示不限制采集时长。仅可在npu-monitor启动时设置，运行期间不支持修改。                                                                                 | Y | Y |
-| --mspti-activity-kind | 可选 | 性能监测数据上报数据类型，String类型，可以设置单个或多个，多个类型以逗号分隔，每次设置时刷新全局上报类型。可选值范围[`Marker`、`Kernel`、`API`、`HCCL`、`Memory`、`MemSet`、`MemCpy`、`Communication`、`AclAPI`、`NodeAPI`、`RuntimeAPI`]，默认值`Marker`。 | Y | Y |
+| --mspti-activity-kind | 可选 | 性能监测数据上报数据类型，String类型，可以设置单个或多个，多个类型以逗号分隔，每次设置时刷新全局上报类型。可选值范围[`Marker`、`Kernel`、`API`、`Hccl`、`Memory`、`MemSet`、`MemCpy`、`Communication`、`AclAPI`、`NodeAPI`、`RuntimeAPI`]，默认值`Marker`。 | Y | Y |
 | --log-file            | 可选 | 性能数据采集落盘的路径，String类型，当前仅支持`mspti-activity-kind`设置为`Marker`、`Kernel`、`API`、`Communication`、`AclAPI`、`NodeAPI`、`RuntimeAPI`，7种类型数据的导出，落盘数据格式可选为DB、Jsonl（详见`export-type`参数说明），默认值为空，表示不落盘。 | Y | Y |
 | --export-type         | 可选 | 性能数据采集落盘的格式，String类型，仅在用户设置了`log-file`参数后生效，可选值范围[`DB`, `Jsonl`]，默认值`DB`。仅可在npu-monitor启动时设置，运行期间不支持修改。<br> **1.** 若设置为`DB`，则落盘数据为DB格式，落盘文件名为`msmonitor_{process_id}_{timestamp}_{rank_id}.db`，DB内容说明请参见[DB格式性能数据文件参考](https://gitcode.com/Ascend/msprof/blob/master/docs/zh/user_guide/profile_data_file_references_db.md)，可使用[MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/zh/user_guide/overview.md)工具进行可视化呈现（MindStudio Insight暂不支持呈现单进程多卡场景采集的msmonitor.db数据） <br> **2.** 若设置为`Jsonl`，则落盘数据为Jsonl格式，落盘文件名为`msmonitor_{process_id}_{timestamp}_{rank_id}.jsonl`，Jsonl文件每行包含一条完整的json格式的性能数据，支持设置以下环境变量对落盘过程进行调节 <br> **MSMONITOR_JSONL_BUFFER_CAPACITY**：设置落盘 RingBuffer 大小，该参数必须为2的幂次（$2^{n}$），默认值 524288（$2^{19}$），支持的设置范围为 [8192, 2097152]（即 [$2^{13}$，$2^{21}$]） <br> **MSMONITOR_JSONL_MAX_DUMP_INTERVAL**：设置落盘最长时间间隔（单位：ms），当前时间与上次落盘的间隔超过该阈值时，将自动触发落盘，默认值 30000ms，最小值限制为 1000ms <br> **MSMONITOR_JSONL_ROTATE_LOG_LINES**：设置单个 Jsonl 文件的 Json 数据条数上限，超出该阈值将新建文件落盘。默认值 10000，支持设置范围为 [100, 500000] <br> **MSMONITOR_JSONL_ROTATE_LOG_FILES**：设置单次采集的 Jsonl 文件落盘数量，超出该阈值时将删除最早落盘的文件。默认值 -1（不开启此功能），手动设置时最小值限制为 2 | Y | Y |
 | --json-rotate-log-lines | 可选 | Jsonl 落盘时单个 Jsonl 文件的 json 数据条数上限，String类型，仅在 --log-file 与 --export-type Jsonl 配置时生效。<br>该参数默认不传入，优先级高于环境变量 `MSMONITOR_JSONL_ROTATE_LOG_LINES`；若命令行和环境变量均未设置，则使用默认值 `10000`。手动设置时必须传入范围为 [100, 500000] 的正整数。 | Y | Y |
