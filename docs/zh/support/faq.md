@@ -10,7 +10,7 @@
      - CANN < 9.0.0 时，需在启动训练前设置 `export LD_PRELOAD=<CANN-path>/cann/lib64/libmspti.so`。
   2. **dynolog daemon 状态检查**：确认 dynolog daemon 已正常启动，`~`（当前用户主目录）下存在 `dynolog.sock` 文件。
   3. **MSMONITOR_USE_DAEMON 检查**：确认训练或推理服务启动前已设置 `export MSMONITOR_USE_DAEMON=1`。
-  4. **共享内存残留检查**：参见本 FAQ "故障排查" 部分关于共享内存残留的处理。
+  4. **共享内存残留检查**：参见本 FAQ “故障排查” 部分关于共享内存残留的处理。
   5. **日志检查**：查看 dynolog 日志中是否正常接收到了 dyno CLI 的 RPC 请求。
 
 - **Q：dyno CLI 发送采集命令后，无法采集到性能数据？**
@@ -53,7 +53,7 @@
 - A：`--duration` 参数单位为s，支持浮点数精度（如 `--duration 0.5` 表示采集 500ms）。
   - `--duration 0`（默认值）：表示不限时采集，需通过 `--npu-monitor-stop` 手动停止。
   - `--duration N`（N>0）：采集 N 秒后自动停止并清理资源。
-  - `--duration` 支持与 `--stop` 配合使用：启动时设置较长 duration，在发现异常时通过 stop 提前终止。
+  - `--duration` 支持与 `--npu-monitor-stop` 配合使用：启动时设置较长 duration，在发现异常时通过 stop 提前终止。
   - duration 不与 filter 耦合，可叠加使用，如 `--duration 60 --filter "Kernel:Attention"`。
 
 - **Q：npu-monitor `--duration` 到期后如何重新开始采集？**
@@ -70,7 +70,7 @@
   **示例**：
   - 仅采集 Kernel 类型中的 MatMul 算子：`--filter "Kernel:MatMul"`
   - 采集多种活动类型：`--filter "Kernel:MatMul,Conv2D;Communication:AllReduce"`
-  - 模糊匹配：`--filter "Kernel:Mat"`（匹配所有名称含 "Mat" 的算子）
+  - 模糊匹配：`--filter "Kernel:Mat"`（匹配所有名称含 `Mat` 的算子）
 
 - **Q：npu-monitor `--filter` 设置后能否动态更新？是覆盖还是追加？**
 - A：支持动态更新，且为**覆盖**行为。运行时再次下发包含 filter 的配置，`SetFilterItems()` 会替换原有过滤规则。如需追加算子名，需在 filter 字符串中同时包含新旧规则。
@@ -79,7 +79,7 @@
 - A：是的。这三种内存操作类型在 `ShouldKeepRecord()` 中被加入白名单，无论 filter 如何设置都会保留，确保内存和性能分析数据的完整性。
 
 - **Q：npu-monitor `--filter ""`（空字符串）的效果是什么？**
-- A：空 filter 表示不过滤，所有算子数据均会采集。与不指定 `--filter` 参数行为一致。
+- A：空 filter 表示不过滤，所有算子数据均会采集，与不指定 `--filter` 参数行为一致。
 
 - **Q：nputrace `--async-mode` 参数必须在什么条件下生效？**
 - A：`--async-mode` 仅在使用 PyTorch Profiler 时生效，MindSpore 场景不支持异步解析。开启后，数据解析在独立子进程中执行，主进程不阻塞。
@@ -87,7 +87,7 @@
 ## 三、故障排查
 
 - **Q：IPC 通信失败如何排查？**
-- A：msMonitor 的 IPC 通信链路为：CLI → TCP/TLS（RPC）→ Dynolog Server → Unix Domain Socket → 模型进程。请按以下顺序排查：
+- A：msMonitor 的 IPC 通信链路为：CLI → TCP/TLS（RPC）→ dynolog Server → Unix Domain Socket → 模型进程。请按以下顺序排查：
   1. 确认 dynolog daemon 已启动，且 `~` 目录下存在 `dynolog.sock`。
   2. 确认 CLI 与 Server 间的 RPC 端口（默认 1778）未被防火墙拦截。
   3. 检查 dynolog 日志中是否有 `ECONNREFUSED`、`EAGAIN` 等 socket 错误码。
@@ -129,7 +129,7 @@
 ## 四、兼容性
 
 - **Q：哪些昇腾产品支持 msMonitor？**
-- A：msMonitor 支持以下产品类型，昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/Glossary/productform/hardwaredesc_0001.html)》。
+- A：msMonitor 支持以下产品类型。昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/Glossary/productform/hardwaredesc_0001.html)》。
 
   <!-- npu="950" id1 -->
   - Ascend 950PR&950DT系列产品：支持
@@ -193,11 +193,11 @@
   pip install mindstudio_monitor-{mindstudio_version}-cp{python_version}-cp{python_version}-linux_{arch}.whl
   ```
 
-  在不支持联网的环境（如容器），请确保以上依赖已安装，否则会导致 msMonitor 无法正常运行。
+  在不支持联网的环境（如容器）中，请确保以上依赖已安装，否则会导致 msMonitor 无法正常运行。
 
 - **Q：升级到新版本后，原有采集脚本是否需要修改？**
 - A：不需要。`--duration`、`--filter`、`--async-mode` 三个新增参数均为可选参数，有合理的默认值：
-  - `duration` 默认 0.0（不限时，行为同旧版本）
+  - `--duration` 默认 0.0（不限时，行为同旧版本）
   - `filter` 默认空字符串（不过滤，行为同旧版本）
   - `async-mode` 默认 false（同步模式，行为同旧版本）
   旧脚本不指定新参数时，行为与升级前完全一致。

@@ -1,5 +1,7 @@
 # dynolog使用说明
 
+本文档介绍dynolog工具的启动方法与参数说明，dynolog负责接收dyno CLI的RPC请求并触发nputrace和npu-monitor功能，适用于通过systemd或命令行启动dynolog daemon的用户。
+
 ## 简介
 
 dynolog负责接收dyno CLI的RPC请求，触发nputrace和npu-monitor功能。
@@ -19,11 +21,11 @@ dynolog负责接收dyno CLI的RPC请求，触发nputrace和npu-monitor功能。
 
 **使用示例**
 
-dynolog daemon 可以通过 systemd 或命令行任意一种方法启动。
+dynolog daemon可以通过systemd或命令行任意一种方法启动。
 
 ```bash
 # 方法1：使用systemd拉起service
-# 修改配置文件/etc/dynolog.gflags, 使能ipc_monitor功能
+# 修改配置文件/etc/dynolog.gflags，使能ipc_monitor功能
 echo "--enable-ipc-monitor" | sudo tee -a /etc/dynolog.gflags
 sudo systemctl start dynolog
 ```

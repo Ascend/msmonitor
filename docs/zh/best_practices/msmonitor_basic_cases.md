@@ -1,8 +1,10 @@
 # msMonitor 使用案例
 
+本文档介绍msMonitor在训练和推理场景下的使用案例，涵盖dynolog daemon启动、nputrace与npu-monitor子命令采集性能数据及结果查看，适用于Megatron（MindSpeed）训练与vLLM推理场景的性能分析人员。
+
 ## 概述
 
-本节通过简单的案例介绍 msMonitor 在训练和推理场景下的使用方式。
+本文档通过简单的案例介绍msMonitor在训练和推理场景下的使用方式。
 
 ## 安装 msMonitor
 
@@ -64,9 +66,9 @@ dyno --certs-dir NO_CERTS nputrace --start-step -1 --iterations 2 --activities C
 
 ![nputrace](../figures/nputrace_collect.png)
 
-采集结果，落盘的数据格式和交付件介绍请参见 [Ascend PyTorch Profiler 输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
+采集结果，落盘的数据格式和交付件介绍请参见 [Ascend PyTorch Profiler输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
 
-![nputrace_result](../figures/nputrace_result.png)
+![nputrace采集完成后落盘的性能数据结果文件目录结构，含解析后的交付件文件](../figures/nputrace_result.png)
 
 使用 [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/zh/user_guide/overview.md) 工具进行性能数据的查看和分析。
 
@@ -124,7 +126,7 @@ Communication 数据，包含通信算子在 Device 上的执行耗时、传输�
 
 推理场景通常只有模型的前向执行，没有优化器的调用，因此用户需要在推理的迭代中，通常是每次模型前向调用，手动执行 `torch_npu.profiler.dynamic_profile.step` 方法，才能完成推理迭代的区间界定。在 vLLM 0.11.0 及之后版本中，msMonitor 支持在模型的 forward 方法中，自动调用 `torch_npu.profiler.dynamic_profile.step` 方法，无需用户手动调用。之前的版本则需要用户手动执行。
 
-参考 vllm-ascend 修改pr：https://github.com/vllm-project/vllm-ascend/pull/3123
+参考[vllm-ascend 修改 PR #3123](https://github.com/vllm-project/vllm-ascend/pull/3123)。
 
 ```python
 # 加载dynamic_profile模块
@@ -159,7 +161,7 @@ dynolog --certs-dir NO_CERTS --enable-ipc-monitor
 export MSMONITOR_USE_DAEMON=1
 ```
 
-拉起 vLLM 推理服务
+拉起 vLLM 推理服务。
 
 ```bash
 # 拉起 vLLM 推理服务
@@ -216,11 +218,11 @@ dyno --certs-dir NO_CERTS nputrace --start-step -1 --iterations 10 --with-module
 
 推理进程接收到采集配置，开启性能数据采集。
 
-![nputrace_vllm_collect](../figures/nputrace_vllm_collect.png)
+![vLLM推理进程接收nputrace采集配置后开启性能数据采集的命令回显](../figures/nputrace_vllm_collect.png)
 
-注意，通常 vllm 模型进程是以守护进程的形式运行的，所以无法支持在线解析性能数据，需要用户在采集完成后，手动解析性能数据。
+注意，通常 vLLM 模型进程是以守护进程的形式运行的，所以无法支持在线解析性能数据，需要用户在采集完成后，手动解析性能数据。
 
-![nputrace_vllm_result](../figures/nputrace_vllm_result.png)
+![vLLM守护进程采集结束后落盘的性能数据文件，需手动离线解析](../figures/nputrace_vllm_result.png)
 
 离线解析性能数据。
 
@@ -229,16 +231,17 @@ dyno --certs-dir NO_CERTS nputrace --start-step -1 --iterations 10 --with-module
 python -c "import torch_npu; torch_npu.profiler.profiler.analyse('/tmp/profile_data_vllm/81ca290a1462_2429_20260529070008441_ascend_pt')"
 ```
 
-解析完成后，生成的数据格式和交付件介绍请参见 [Ascend PyTorch Profiler 输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
+解析完成后，生成的数据格式和交付件介绍请参见 [Ascend PyTorch Profiler输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
 
 使用 [MindStudio Insight](https://gitcode.com/Ascend/msinsight/blob/master/docs/zh/user_guide/overview.md) 工具进行性能数据的查看和分析。
 
-![nputrace_vllm_insight](../figures/nputrace_vllm_insight.png)
+![使用MindStudio Insight查看vLLM推理场景性能数据的分析视图](../figures/nputrace_vllm_insight.png)
 
 ### npu-monitor 子命令
 
-> [!NOTE] Note
-> npu-monitor 子命令底层依赖 [msPTI](https://gitcode.com/Ascend/mspti) 接口，实现轻量化数据采集，由于 msPTI 实现机制的变更，CANN 9.0.0 之前的版本，在拉起训练前，需要设置 LD_PRELOAD 环境变量，指向 msPTI 库的路径，示例如下，CANN 9.0.0 及之后版本无需设置。
+> [!NOTE]
+> 
+> npu-monitor 子命令底层依赖 [msPTI](https://gitcode.com/Ascend/mspti) 接口，实现轻量化数据采集，由于 msPTI 实现机制的变更，CANN 9.0.0 之前的版本，在拉起推理服务前，需要设置 LD_PRELOAD 环境变量，指向 msPTI 库的路径，示例如下，CANN 9.0.0 及之后版本无需设置。
 
 ```bash
 # export LD_PRELOAD=<CANN Toolkit安装路径>/cann/lib64/libmspti.so
@@ -255,7 +258,7 @@ dyno --certs-dir NO_CERTS npu-monitor --npu-monitor-start --report-interval-s 30
 
 推理进程接收到采集配置，开启性能数据采集和落盘。
 
-![npumonitor_vllm_collect](../figures/npumonitor_vllm_collect.png)
+![vLLM推理进程接收npu-monitor采集配置后开启Marker等数据落盘的命令回显](../figures/npumonitor_vllm_collect.png)
 
 采集一段时间后，发送命令，停止采集。
 
@@ -310,7 +313,7 @@ torch_npu.npu.mstx.range_end(id)
 
 用户在模型脚本中完成自定义打点后，即可通过 msMonitor 的 nputrace 和 npu-monitor 子命令采集打点信息。
 
-nputrace 子命令需要设置 `msprof-tx` 参数，以及 mstx_domain_include 或 mstx_domain_exclude 参数对打点数据的 domain 进行过滤，示例如下：
+nputrace 子命令需要设置 `mstx` 参数，以及 `mstx_domain_include` 或 `mstx_domain_exclude` 参数对打点数据的 domain 进行过滤，示例如下：
 
 ```bash
 dyno --certs-dir NO_CERTS nputrace --msprof-tx ...
@@ -354,7 +357,7 @@ def get_nccl_options_add_group_info_wrapper(get_nccl_options):
 
 Megatron 创建通信域示例：
 
-![megatron_group](../figures/megatron_group.png)
+![Megatron创建通信域的new_group调用示例代码，通过group_name标识并行策略通信域](../figures/megatron_group.png)
 
 完成上述修改后，在 nputrace 子命令交付件 profiler_metadata.json 中，即可查看并行策略通信域的信息，在 npu-monitor 子命令落盘的 jsonl 文件中也会包含该信息。
 

@@ -1,5 +1,7 @@
 # MindSpore框架下msMonitor的使用方法
 
+本文档介绍MindSpore框架下msMonitor组件的使用方法，说明如何监测模型训练过程中的性能指标，支持动态profiling自定义for循环方式和callback方式，适用于需要采集训练性能数据的MindSpore用户。
+
 ## 简介
 
 在MindSpore框架下使用msMonitor组件，用于监测MindSpore模型的训练过程中的性能指标，支持动态profiling自定义for循环方式和callback方式。
@@ -21,7 +23,7 @@
     export MSMONITOR_USE_DAEMON=1
     ```
 
-3. （可选）配置msMonitor日志路径。显式设置 `MSMONITOR_LOG_PATH` 时直接作为 glog 日志目录（Python API 由 `start()` 自动指向会话目录的 `log/`）；未设置时默认在进程 cwd 下 `msmonitor_log_<设备ID>`（取不到设备时为msmonitor_log）。
+3. （可选）配置msMonitor日志路径。显式设置 `MSMONITOR_LOG_PATH` 时直接作为glog日志目录（Python API 由 `start()` 自动指向会话目录的 `log/`）；未设置时默认在进程 cwd 下 `msmonitor_log_<设备ID>`（取不到设备时为msmonitor_log）。
 
     ```bash
     export MSMONITOR_LOG_PATH=<LOG PATH>
@@ -76,7 +78,7 @@
             dp.step()
     ```
 
-5. 通过 dyno CLI 使能 nputrace 或 npu-monitor
+5. 通过dyno CLI使能nputrace或npu-monitor
 
     ```bash
     # 使能 nputrace

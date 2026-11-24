@@ -1,4 +1,6 @@
-# msMonitor 安装指南
+# msMonitor安装指南
+
+本文档介绍msMonitor工具的安装方式，涵盖在线安装、离线安装和源码安装三种方式，适用于需要在Linux系统下使用msMonitor的用户。
 
 <br>
 
@@ -133,11 +135,11 @@ python3 -c "import msmonitor; print('All is OK')"
 
 可通过`dyno --version`命令查看当前环境的版本信息，再选择需要升级的版本。升级版本时需要关注版本配套关系，请参见《[版本说明](https://gitcode.com/Ascend/release-management/blob/master/MindStudio/master/release_notes.md)》。
 
-## 5. 安装openssl（RPC TLS认证）生成证书密钥
+## 5. 安装OpenSSL（RPC TLS认证）生成证书密钥
 
 dyno CLI与dynolog daemon之间的RPC通信使用TLS证书密钥加密，在启动dyno和dynolog二进制时可以指定证书密钥存放的路径，路径下需要满足如下结构和名称。
 
-用户应使用与自己需求相符的密钥生成和存储机制，并保证密钥安全性与机密性。当前仅支持RSA-SHA256和RSA-SHA512两种证书签名算法。
+用户应使用与自己需求相符的密钥生成和存储机制，并保证密钥安全性与保密性。当前仅支持RSA-SHA256和RSA-SHA512两种证书签名算法。
 
 服务端证书目录结构：
 

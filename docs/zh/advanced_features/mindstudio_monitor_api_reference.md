@@ -1,11 +1,13 @@
 # mindstudio_monitor模块接口参考
 
+本文档介绍mindstudio_monitor模块的接口，涵盖IPC控制通道与IPC数据通道、轻量化性能数据采集，以及PyDynamicMonitorProxy接口、ActivityKind与DcmiLayer枚举类、ActivityData数据结构字段说明，适用于需要调用msPTI Monitor采集和获取性能数据的开发人员。
+
 ## mindstudio_monitor模块介绍
 
 提供IPC（Inter-Process Communication，进程间通信）接口以及独立控制 msPTI Monitor 采集和获取性能数据的能力。
 
-1. IPC控制通道: profiler backend 向 dynolog daemon 获取 profiler 配置
-2. IPC数据通道: msPTI Monitor 向 dynolog daemon 发送性能数据
+1. IPC控制通道：profiler backend 向 dynolog daemon 获取 profiler 配置
+2. IPC数据通道：msPTI Monitor 向 dynolog daemon 发送性能数据
 3. 轻量化性能数据采集
 
   * 控制 msPTI Monitor 启停采集数据
@@ -55,7 +57,7 @@ Monitor API 使用示例请参见 [monitor_feature.md](./monitor_feature.md)。
     * kinds(List[ActivityKind]) 数据采集类型列表（原有能力）
     * dcmi_layers(List[DcmiLayer]，可选) DCMI 按硬件层配置，选择某层即采集该层全部可得指标，空则不采集 DCMI
     * dcmi_interval_ms(int，可选，默认 10) DCMI 采样间隔，单位：ms
-    * save_path(str，可选，默认 None) 结果保存目录。为 None（默认）时不创建会话目录、不落盘日志，仅通过 `get_result()` 在线获取数据；指定时 start 即在其下创建 `msmonitor_<pid>_<时间戳>/` 会话目录，glog 从开始直接写入其 `log/`
+    * save_path(str，可选，默认 None) 结果保存目录，为 None（默认）时不创建会话目录、不落盘日志，仅通过 `get_result()` 在线获取数据；指定时 start 即在其下创建 `msmonitor_<pid>_<时间戳>/` 会话目录，glog 从开始直接写入其 `log/`
   * return: None
   * 说明：DCMI 采集设备无需指定，默认取当前进程已 set 的 device
 * `stop` 停止 monitor 数据采集
@@ -74,8 +76,8 @@ Monitor API 使用示例请参见 [monitor_feature.md](./monitor_feature.md)。
 定义 DCMI 采集的硬件层，作为 `start(dcmi_layers=...)` 的配置单位（与 Chrome Trace 分层呈现一一对应）。选择某层即采集该层全部可得指标：
 
 * `DcmiLayer.DEVICE`: 设备级指标：Power（功耗，W）、Temp（温度，℃）
-* `DcmiLayer.AICORE`: AICore 当前/额定频率（MHz）、AI Core/AI Cube/Vector Core/NPU 利用率（%）
-* `DcmiLayer.AICPU`: AICPU 最大运行频率（MHz）、当前频率（MHz）、利用率（%）
+* `DcmiLayer.AICORE`: AI Core 当前/额定频率（MHz）、AI Core/AI Cube/Vector Core/NPU 利用率（%）
+* `DcmiLayer.AICPU`: AI CPU 最大运行频率（MHz）、当前频率（MHz）、利用率（%）
 * `DcmiLayer.HBM`: 片上内存频率（MHz）、总容量（MB）、已用内存（MB）、带宽利用率（%）、温度（℃）
 
 > 兼容性说明：不同代际芯片（A2 / A3 / A5）的 DCMI 接口表面一致；驱动不支持的类型（如部分芯片无 NPU 整体利用率）会自动禁用对应指标，原因在启动日志中打印，并写入 trace metadata。

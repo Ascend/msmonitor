@@ -1,5 +1,7 @@
 # Monitor 特性介绍
 
+本文档介绍Monitor特性，提供开启、停止性能监测及在线获取、落盘导出性能数据的接口，适用于需要采集计算类算子、通信类算子、API与DCMI设备指标的用户。
+
 ## 简介
 
 Monitor 是集成在MindStudio Monitor中的一套接口，用户可以通过调用这些接口来开启、停止性能监测，以及获取监测数据。
@@ -12,7 +14,7 @@ Monitor 是集成在MindStudio Monitor中的一套接口，用户可以通过调
 
 **功能说明**
 
-提供简单易用接口，采集计算类算子、通信类算子、API、Runtime API、Mstx等性能数据，用户可以根据需要选择采集的指标。此外，支持通过 DCMI 接口采集 NPU 卡的设备级指标（Power、Temp）与各硬件层指标（AICore 频率/利用率、AICPU 最大/当前频率与利用率、HBM 片上内存频率/容量/用量/带宽/温度等），并支持将结果以 Chrome Trace JSON 格式导出，便于在 `chrome://tracing` 或 Perfetto 中以时间轴条形图（算子耗时）+ 曲线（设备指标变化趋势）方式按硬件层可视化分析。
+提供简单易用接口，采集计算类算子、通信类算子、API、Runtime API、mstx等性能数据，用户可以根据需要选择采集的指标。此外，支持通过 DCMI 接口采集 NPU 卡的设备级指标（Power、Temp）与各硬件层指标（AICore 频率/利用率、AICPU 最大/当前频率与利用率、HBM 片上内存频率/容量/用量/带宽/温度等），并支持将结果以 Chrome Trace JSON 格式导出，便于在 `chrome://tracing` 或 Perfetto 中以时间轴条形图（算子耗时）+ 曲线（设备指标变化趋势）方式按硬件层可视化分析。
 
 **接口说明**
 
@@ -184,7 +186,7 @@ Monitor 是集成在MindStudio Monitor中的一套接口，用户可以通过调
 
 当 `start` 指定 `dcmi_layers` 时，Excel 会多出 `DCMI` Sheet 页。
 
-`DCMI` Sheet 页每行对应一条 DCMI 采样样本（所有设备 × 所有指标扁平排列）：
+`DCMI` Sheet 页每行对应一条 DCMI 样本（所有设备 × 所有指标扁平排列）：
 
 * `Layer`: 指标所属硬件层，取值 `DEVICE` / `AICORE` / `AICPU` / `HBM`
 * `Metric`: 指标名称，如 `Power`、`AICore Freq`、`AICPU Max Freq`、`HBM Memory Used` 等
@@ -199,10 +201,10 @@ Monitor 是集成在MindStudio Monitor中的一套接口，用户可以通过调
 
 | 层 | 内容 | 呈现 |
 |---|---|---|
-| Ascend Hardware | mspti 采集的 Kernel / Communication 耗时条，每个 stream 一个泳道 | 条形图（X 事件） |
+| Ascend Hardware | msPTI 采集的 Kernel / Communication 耗时条，每个 stream 一个泳道 | 条形图（X 事件） |
 | Power/Temp | DEVICE 层指标（Power/Temp）曲线 | 曲线（C 事件） |
-| AICore | AICore 当前/额定频率、利用率（含 AI Cube / Vector Core / NPU 利用率） | 曲线 |
-| AICPU | AICPU 最大/当前运行频率、利用率 | 曲线 |
+| AICore | AI Core 当前/额定频率、利用率（含 AI Cube / Vector Core / NPU 利用率） | 曲线 |
+| AICPU | AI CPU 最大/当前运行频率、利用率 | 曲线 |
 | HBM | 片上内存频率、总容量、已用内存、带宽利用率、温度 | 曲线 |
 | Overlap Analysis | 每个设备一条泳道：Computing / Communication（Overlapped / Not Overlapped）/ Free | 耗时条 |
 
