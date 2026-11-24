@@ -6,6 +6,7 @@
 #include <fstream>
 #include <future>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 
 #include <glog/logging.h>
@@ -211,6 +212,36 @@ TEST_F(ProcessorTest, PropagatesExporterFailureWithBoundedQueues) {
     }
 }
 
+TEST_F(ProcessorTest, StopFromAnotherThreadWakesPollingReader) {
+    options.pollInterval = 3s;
+    Append("msmonitor_10_100_2.jsonl", "{}\n");
+    Processor processor(options, analyser, metrics, trace);
+    std::promise<void> firstBatch;
+    auto batchReady = firstBatch.get_future();
+    unsigned polls = 0;
+    analyser.onBatch = [&](const ReadBatch &) {
+        if (++polls == 1) {
+            firstBatch.set_value();
+        } else {
+            processor.RequestStop();
+        }
+    };
+    auto run = std::async(std::launch::async, [&] { processor.Run(); });
+    const auto batchStatus = batchReady.wait_for(1s);
+    if (batchStatus == std::future_status::ready) {
+        // Give Run time to enter the timed wait after the callback returns.
+        std::this_thread::sleep_for(30ms);
+    }
+    processor.RequestStop();
+
+    EXPECT_EQ(batchStatus, std::future_status::ready);
+    EXPECT_EQ(run.wait_for(1s), std::future_status::ready);
+    run.get();
+    EXPECT_EQ(polls, 1U);
+    EXPECT_EQ(metrics.steps, std::vector<std::uint64_t>{1});
+    EXPECT_EQ(trace.steps, metrics.steps);
+}
+
 TEST_F(ProcessorTest, StopsWithPartialTailAndDrainsCompleteLines) {
     Append("msmonitor_10_100_2.jsonl", "{}\n{\"id\":");
     Processor processor(options, analyser, metrics, trace);
@@ -269,6 +300,43 @@ TEST_F(ProcessorTest, RetiresDeletedCursorWhileKeepingActiveOffset) {
     };
     processor.Run();
     EXPECT_EQ(analyser.lines, (std::vector<std::string>{"{\"old\":1}", "{}", "{}", "{}"}));
+}
+
+TEST_F(ProcessorTest, RestartsCursorWhenUnreadFileDisappearsAndIsRecreatedInSamePoll) {
+    const std::string earlier = "msmonitor_10_100_2.jsonl";
+    const std::string replaced = "msmonitor_10_200_2.jsonl";
+    Append(replaced, "{\"id\":1}\n{\"id\":");
+    Processor processor(options, analyser, metrics, trace);
+    unsigned polls = 0;
+    analyser.onBatch = [&](const ReadBatch &batch) {
+        switch (++polls) {
+        case 1:
+            EXPECT_TRUE(batch.hasPartialLine);
+            Append(earlier, "{\"remove\":true}\n");
+            Append(replaced, "2}\n");
+            Append("msmonitor_10_300_2.jsonl", "{\"recreate\":true}\n");
+            break;
+        case 2:
+            EXPECT_TRUE(batch.hasPartialLine);
+            break;
+        default:
+            EXPECT_FALSE(batch.hasPartialLine);
+            processor.RequestStop();
+            break;
+        }
+    };
+    analyser.onLine = [&] {
+        if (analyser.lines.back() == "{\"remove\":true}") {
+            EXPECT_TRUE(std::filesystem::remove(options.inputDir / replaced));
+        } else if (analyser.lines.back() == "{\"recreate\":true}") {
+            Append(replaced, "{\"replacement\":12345}\n");
+        }
+    };
+
+    processor.Run();
+
+    EXPECT_EQ(analyser.lines, (std::vector<std::string>{
+        "{\"id\":1}", "{\"remove\":true}", "{\"recreate\":true}", "{\"replacement\":12345}"}));
 }
 } // namespace
 } // namespace msmonitor::process

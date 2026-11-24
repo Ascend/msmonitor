@@ -91,6 +91,7 @@ ReadBatch JsonlReader::Poll(const LineConsumer &consume) {
         batch.hasData = batch.hasData || snapshot.size > cursor.offset;
         if (!ReadAppendedBytes(snapshot, cursor, consume)) {
             batch.hasPartialLine = true;
+            cursors_.erase(position);
         }
     }
     auto snapshot = files.begin();
@@ -161,7 +162,6 @@ bool JsonlReader::ReadAppendedBytes(const FileSnapshot &snapshot, Cursor &cursor
     if (file.fd < 0) {
         LOG(WARNING) << "Process JSONL removed before read, rank: " << options_.rank << ", file: " << snapshot.file
                      << ", unread bytes in snapshot: " << snapshot.size - cursor.offset;
-        cursor.pending.clear();
         return false;
     }
     struct stat status{};
