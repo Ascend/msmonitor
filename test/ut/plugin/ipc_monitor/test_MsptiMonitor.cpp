@@ -33,6 +33,20 @@
 
 using namespace dynolog_npu::ipc_monitor;
 
+// UT-only hooks from plugin/stub/mspti.cpp.
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace stub
+{
+void ResetMsptiCallOrder();
+int GetUnsubscribeCount();
+int GetFlushAfterUnsubscribeCount();
+}  // namespace stub
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
+
 namespace
 {
 
@@ -233,6 +247,25 @@ TEST(MsptiMonitorTest, StartIdempotentAndRestart)
     EXPECT_TRUE(monitor->IsStarted());
     monitor->Stop();
     EXPECT_FALSE(monitor->IsStarted());
+}
+
+TEST(MsptiMonitorTest, ManualStopFlushesAfterUnsubscribe)
+{
+    auto *monitor = MsptiMonitor::GetInstance();
+    auto proc = std::make_shared<FakeProcessor>();
+    monitor->SetDataProcessor(proc);
+    monitor->SetFlushInterval(0);  // avoid periodic flushes in the call-order check
+
+    stub::ResetMsptiCallOrder();
+    monitor->Start();
+    ASSERT_TRUE(monitor->IsStarted());
+    monitor->EnableActivity(MSPTI_ACTIVITY_KIND_KERNEL);
+    monitor->Stop();
+    EXPECT_FALSE(monitor->IsStarted());
+
+    // Manual stop must flush after unsubscribe, same as the duration path.
+    EXPECT_GT(stub::GetUnsubscribeCount(), 0);
+    EXPECT_GT(stub::GetFlushAfterUnsubscribeCount(), 0);
 }
 
 TEST(MsptiMonitorTest, SavePathCheckAndExportType)

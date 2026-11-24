@@ -15,7 +15,7 @@
  * See the Mulan PSL v2 for more details.
  * -------------------------------------------------------------------------
  */
-
+// Copyright (c) Meta Platforms, Inc. and affiliates.
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 use std::fs::File;
@@ -91,6 +91,17 @@ fn validate_string_max_len(s: &str) -> std::result::Result<String, String> {
     Ok(s.to_string())
 }
 
+// Values are embedded in the newline separated `key=value` config string. A
+// backslash or control character would let the value forge additional config
+// entries once the newlines are escaped for transport, so reject them early.
+fn validate_config_value(s: &str) -> std::result::Result<String, String> {
+    validate_string_max_len(s)?;
+    if let Some(invalid) = s.chars().find(|c| *c == '\\' || c.is_control()) {
+        return Err(format!("The value contains invalid character: {:?}", invalid));
+    }
+    Ok(s.to_string())
+}
+
 const ALLOWED_VALUES: &[&str] = &["Marker", "Kernel", "API", "Hccl", "Memory", "MemSet", "MemCpy", "Communication",
     "AclAPI", "NodeAPI", "RuntimeAPI"];
 
@@ -102,7 +113,7 @@ fn parse_mspti_activity_kinds(src: &str)  -> std::result::Result<String, String>
 
     for kind in &kinds {
         if !allowed_values.contains(kind) {
-            return Err(format!("Invalid MSPTI activity kind: {}, Possible values: {:?}.]", kind, allowed_values));
+            return Err(format!("unsupported activity kind '{}', expected one of {:?}", kind, allowed_values));
         }
     }
 
@@ -122,7 +133,7 @@ fn parse_host_sys(src: &str) -> std::result::Result<String, String>{
 
     for host_system in &host_systems {
         if !allowed_host_sys_values.contains(host_system) {
-            return Err(format!("Invalid NPU Trace host system: {}, Possible values: {:?}.]", host_system,
+            return Err(format!("unsupported host system '{}', expected one of {:?}", host_system,
             allowed_host_sys_values));
         }
     }
@@ -151,7 +162,7 @@ fn parse_iterations(src: &str) -> std::result::Result<i64, String> {
 fn parse_duration(src: &str) -> std::result::Result<f32, String> {
     let duration = src.trim().parse::<f32>().map_err(|e| format!("{}", e))?;
     if duration < 0.0 {
-        return Err("Must be a positive number".to_string());
+        return Err("Must be a non-negative number".to_string());
     }
     Ok(duration)
 }
@@ -190,13 +201,13 @@ fn parse_comma_separated_integers(src: &str) -> std::result::Result<String, Stri
 
     let values: Vec<&str> = src.split(',').map(|s| s.trim()).collect();
     if values.is_empty() || values.iter().any(|value| value.is_empty()) {
-        return Err("Must be a comma-separated list of integers".to_string());
+        return Err("must be a comma-separated list of integers".to_string());
     }
 
     for value in &values {
         value
             .parse::<i64>()
-            .map_err(|_| format!("Invalid integer value: {}", value))?;
+            .map_err(|_| format!("invalid integer value '{}'", value))?;
     }
 
     Ok(values.join(","))
@@ -292,10 +303,10 @@ enum Command {
         #[clap(long, action)]
         sys_interconnection: bool,
         /// The domain that needs to be enabled in mstx mode.
-        #[clap(long)]
+        #[clap(long, value_parser = validate_config_value)]
         mstx_domain_include: Option<String>,
         /// Domains that do not need to be enabled in mstx mode.
-        #[clap(long)]
+        #[clap(long, value_parser = validate_config_value)]
         mstx_domain_exclude: Option<String>,
         /// Rank list to collect data.
         #[clap(long)]
@@ -331,7 +342,7 @@ enum Command {
         #[clap(long, value_parser = parse_json_rotate_log_files, default_value = "", allow_negative_numbers = true)]
         json_rotate_log_files: String,
         /// Filter for NPU monitor.
-        #[clap(long, value_parser = validate_string_max_len, default_value = "")]
+        #[clap(long, value_parser = validate_config_value, default_value = "")]
         filter: String,
     }
 }
@@ -585,7 +596,7 @@ fn create_dyno_client_with_no_certs(
     let addr = (host, port)
         .to_socket_addrs()?
         .next()
-        .expect("Failed to connect to the server");
+        .ok_or_else(|| err(format!("failed to resolve {}:{}", host, port)))?;
     let stream = TcpStream::connect(addr)?;
     Ok(DynoClient::Insecure(stream))
 }
@@ -727,7 +738,14 @@ fn create_dyno_client_with_certs(
 }
 
 
-fn main() -> Result<()> {
+fn main() {
+    if let Err(error) = run() {
+        eprintln!("error: {}", error);
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<()> {
     if utils::is_root() {
         println!(
             "Security Warning: Do not run this tool as root. \
@@ -746,7 +764,7 @@ fn main() -> Result<()> {
         return Err(err("--certs_dir must be a valid directory!"));
     }
     let client = create_dyno_client(&hostname, port, &certs_dir)
-        .expect("Couldn't connect to the server...");
+        .map_err(|e| err(format!("failed to set up connection to {}:{}: {}", hostname, port, e)))?;
 
     match cmd {
         Command::Status => status::run_status(client),
@@ -783,19 +801,9 @@ fn main() -> Result<()> {
             mstx_domain_exclude,
             rank_list,
         } => {
-            if let Some(value) = &mstx_domain_include {
-                if let Err(err_msg) = validate_string_max_len(value) {
-                    return Err(err(format!("--mstx-domain-include error: {}", err_msg)));
-                }
-            }
-            if let Some(value) = &mstx_domain_exclude {
-                if let Err(err_msg) = validate_string_max_len(value) {
-                    return Err(err(format!("--mstx-domain-exclude error: {}", err_msg)));
-                }
-            }
             if let Some(value) = &rank_list {
                 if let Err(err_msg) = parse_comma_separated_integers(value) {
-                    return Err(err(format!("--rank-list error: {}", err_msg)));
+                    return Err(err(format!("invalid value for '--rank-list': {}", err_msg)));
                 }
             }
             if !PathUtils::check_dir(&log_file, false, false) {
@@ -874,5 +882,54 @@ fn main() -> Result<()> {
             npumonitor::run_npumonitor(client, npu_mon_config)
         }
         // ... add new commands here
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_validate_config_value_accepts_normal_values() {
+        assert_eq!(validate_config_value("domain1,domain2").unwrap(), "domain1,domain2");
+        assert_eq!(validate_config_value("Kernel:add;API:launch").unwrap(), "Kernel:add;API:launch");
+        assert!(validate_config_value("").is_ok());
+    }
+
+    #[test]
+    fn test_validate_config_value_rejects_config_injection() {
+        // A real newline would add a second `key=value` entry.
+        assert!(validate_config_value("x\nPROFILE_IS_RANK=false").is_err());
+        // A literal `\n` is the transport separator used by the config string.
+        assert!(validate_config_value("x\\nPROFILE_IS_RANK=false").is_err());
+        // A trailing backslash would escape the separator.
+        assert!(validate_config_value("x\\").is_err());
+        assert!(validate_config_value("x\rY").is_err());
+        assert!(validate_config_value("x\tY").is_err());
+    }
+
+    #[test]
+    fn test_parse_comma_separated_integers_reports_invalid_value() {
+        assert_eq!(
+            parse_comma_separated_integers("1,2,x").unwrap_err(),
+            "invalid integer value 'x'"
+        );
+        assert_eq!(
+            parse_comma_separated_integers("1,,2").unwrap_err(),
+            "must be a comma-separated list of integers"
+        );
+    }
+
+    #[test]
+    fn test_option_validators_report_supported_values() {
+        let mspti = parse_mspti_activity_kinds("bad").unwrap_err();
+        assert!(mspti.contains("unsupported activity kind 'bad'"));
+        assert!(!mspti.contains(".]"));
+
+        let host = parse_host_sys("bad").unwrap_err();
+        assert!(host.contains("unsupported host system 'bad'"));
+        assert!(!host.contains(".]"));
+
+        assert_eq!(parse_duration("-1").unwrap_err(), "Must be a non-negative number");
     }
 }

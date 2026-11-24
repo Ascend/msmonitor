@@ -155,7 +155,8 @@ impl PathUtils {
 
         for &(invalid, _) in INVALID_CHAR {
             if path.contains(invalid) {
-                println!("WARNING: The path contains invalid character: {:?}", invalid);
+                println!("ERROR: The path contains invalid character: {:?}", invalid);
+                return false;
             }
         }
 
@@ -201,5 +202,74 @@ impl PathUtils {
         }
 
         true
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::fs;
+
+    fn unique_path(name: &str) -> PathBuf {
+        env::temp_dir().join(format!("dyno_cli_path_{}_{}", std::process::id(), name))
+    }
+
+    #[test]
+    fn test_check_dir_rejects_empty_path() {
+        assert!(!PathUtils::check_dir("", false, false));
+    }
+
+    #[test]
+    fn test_check_dir_rejects_too_long_path() {
+        let path = "a".repeat(MAX_PATH_SIZE + 1);
+        assert!(!PathUtils::check_dir(&path, false, false));
+    }
+
+    #[test]
+    fn test_check_dir_rejects_invalid_characters() {
+        for &(invalid, _) in INVALID_CHAR {
+            let path = format!("/tmp/x{}y", invalid);
+            assert!(
+                !PathUtils::check_dir(&path, false, false),
+                "path containing {:?} should be rejected",
+                invalid
+            );
+        }
+    }
+
+    #[test]
+    fn test_check_dir_rejects_json_injection_path() {
+        let path = r#"/tmp/x", "fn": "getVersion", "q": ""#;
+        assert!(!PathUtils::check_dir(path, false, false));
+    }
+
+    #[test]
+    fn test_check_dir_accepts_nonexistent_path_when_not_required() {
+        let path = unique_path("nonexistent");
+        assert!(PathUtils::check_dir(path.to_str().unwrap(), false, false));
+    }
+
+    #[test]
+    fn test_check_dir_rejects_nonexistent_path_when_required() {
+        let path = unique_path("required_nonexistent");
+        assert!(!PathUtils::check_dir(path.to_str().unwrap(), true, false));
+    }
+
+    #[test]
+    fn test_check_dir_rejects_regular_file() {
+        let path = unique_path("file");
+        fs::write(&path, b"test").unwrap();
+        let result = PathUtils::check_dir(path.to_str().unwrap(), false, false);
+        let _ = fs::remove_file(&path);
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_check_dir_accepts_existing_directory() {
+        let path = unique_path("dir");
+        fs::create_dir_all(&path).unwrap();
+        let result = PathUtils::check_dir(path.to_str().unwrap(), true, false);
+        let _ = fs::remove_dir_all(&path);
+        assert!(result);
     }
 }

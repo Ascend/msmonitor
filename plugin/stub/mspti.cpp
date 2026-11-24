@@ -18,12 +18,47 @@
 
 #include "mspti.h"
 
+#include <atomic>
+
+namespace
+{
+// UT-only tracking of the stop-path flush order.
+std::atomic<bool> g_unsubscribed{false};
+std::atomic<int> g_unsubscribeCount{0};
+std::atomic<int> g_flushAfterUnsubscribeCount{0};
+}  // namespace
+
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
+namespace stub
+{
+void ResetMsptiCallOrder()
+{
+    g_unsubscribed.store(false);
+    g_unsubscribeCount.store(0);
+    g_flushAfterUnsubscribeCount.store(0);
+}
+
+int GetUnsubscribeCount() { return g_unsubscribeCount.load(); }
+
+int GetFlushAfterUnsubscribeCount() { return g_flushAfterUnsubscribeCount.load(); }
+}  // namespace stub
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
+
 msptiResult msptiSubscribe(msptiSubscriberHandle *subscriber, msptiCallbackFunc callback, void *userdata)
 {
     return MSPTI_SUCCESS;
 }
 
-msptiResult msptiUnsubscribe(msptiSubscriberHandle subscriber) { return MSPTI_SUCCESS; }
+msptiResult msptiUnsubscribe(msptiSubscriberHandle subscriber)
+{
+    g_unsubscribed.store(true);
+    g_unsubscribeCount.fetch_add(1);
+    return MSPTI_SUCCESS;
+}
 
 msptiResult msptiActivityRegisterCallbacks(msptiBuffersCallbackRequestFunc funcBufferRequested,
                                            msptiBuffersCallbackCompleteFunc funcBufferCompleted)
@@ -40,7 +75,14 @@ msptiResult msptiActivityGetNextRecord(uint8_t *buffer, size_t validBufferSizeBy
     return MSPTI_SUCCESS;
 }
 
-msptiResult msptiActivityFlushAll(uint32_t flag) { return MSPTI_SUCCESS; }
+msptiResult msptiActivityFlushAll(uint32_t flag)
+{
+    if (g_unsubscribed.load())
+    {
+        g_flushAfterUnsubscribeCount.fetch_add(1);
+    }
+    return MSPTI_SUCCESS;
+}
 
 msptiResult msptiActivityEnableMarkerDomain(const char *name) { return MSPTI_SUCCESS; }
 

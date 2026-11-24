@@ -34,6 +34,7 @@ struct PathUtils
     static std::string GetAbsolutePath(const std::string &path);
 };
 bool IsRoot();
+// Validates JSON nesting depth and rejects objects containing duplicate keys.
 bool CheckJsonDepth(const std::string &json_str);
 std::string GetCurrentUserHomePath();
 std::string GetHostUid();
