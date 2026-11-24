@@ -3,7 +3,7 @@
 # Environment: PYTHON (python3), JOBS (nproc), DIFF_BASE (origin/${TARGET_BRANCH:-${targetBranch:-master}}), FAIL_UNDER (80).
 # Requires GCC/gcov, lcov >= 2.0, genhtml and C++ UT dependencies.
 # diff also requires lcov_cobertura, diff-cover and a local Git base ref.
-# Scope: plugin/ipc_monitor/ sources/headers compiled into UTs; excludes tests, stubs and third-party code.
+# Scope: plugin/ipc_monitor/ and plugin/process/ sources/headers compiled into UTs.
 # Reports: test/build_llt/output/cpp_coverage/{result,ut_report.info,cpp_coverage_report.log}
 # With diff: coverage.xml, incremental.json and result/ut_incremental_coverage_report.html.
 set -euo pipefail
@@ -55,6 +55,10 @@ discover_coverage_dirs() {
                 ;;
         esac
     done < <(find "$object_root" -path '*/test_*.dir/*' -type f -name '*.gcda' -print0)
+    local process_objects="$BUILD_DIR/ut/plugin/process/process_core/CMakeFiles/msmonitor_process_core.dir"
+    while IFS= read -r -d '' counter; do
+        printf '%s\0' "${counter%/*}"
+    done < <(find "$process_objects" -type f -name '*.gcda' -print0)
 }
 
 LCOV_DIR_ARGS=()
@@ -70,7 +74,8 @@ echo "Collecting C++ coverage from $((${#LCOV_DIR_ARGS[@]} / 2)) object director
 # GCC 13 and lcov 2.0 record different exception tags for Connection.h templates.
 LCOV_ARGS=("${LCOV_DIR_ARGS[@]}" --no-recursion --base-directory "$TOP_DIR"
     --no-external --branch-coverage
-    --include "${TOP_DIR}/plugin/ipc_monitor/*" --ignore-errors unused,inconsistent,mismatch)
+    --include "${TOP_DIR}/plugin/ipc_monitor/*" --include "${TOP_DIR}/plugin/process/*"
+    --ignore-errors unused,inconsistent,mismatch)
 echo "Collecting executed C++ coverage..."
 lcov --capture "${LCOV_ARGS[@]}" --output-file "${COV_DIR}/ut_report.info"
 genhtml "${COV_DIR}/ut_report.info" --branch-coverage --ignore-errors inconsistent,mismatch \
@@ -82,7 +87,7 @@ echo "Full C++ coverage: ${COV_DIR}/result/index.html"
 if [[ "${1:-}" == "diff" ]]; then
     lcov_cobertura "${COV_DIR}/ut_report.info" --base-dir "$TOP_DIR" -o "${COV_DIR}/coverage.xml"
     diff-cover "${COV_DIR}/coverage.xml" \
-        --compare-branch="$DIFF_BASE" --include 'plugin/ipc_monitor/**' \
+        --compare-branch="$DIFF_BASE" --include 'plugin/ipc_monitor/**' 'plugin/process/**' \
         --format "html:${COV_DIR}/result/ut_incremental_coverage_report.html,json:${COV_DIR}/incremental.json" \
         --fail-under="$FAIL_UNDER"
 fi
