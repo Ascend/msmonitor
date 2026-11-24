@@ -9,17 +9,21 @@
 
 #include "ProcessTypes.h"
 
-namespace msmonitor::process {
+namespace msmonitor::process
+{
 
 // Bounded queue with backpressure. Close wakes waiters while allowing queued steps to drain.
-class StepQueue {
-  public:
+class StepQueue
+{
+   public:
     explicit StepQueue(std::size_t capacity) : capacity_(capacity) {}
 
-    bool Push(StepDataPtr step) {
+    bool Push(StepDataPtr step)
+    {
         std::unique_lock<std::mutex> lock(mutex_);
         changed_.wait(lock, [&] { return closed_ || items_.size() < capacity_; });
-        if (closed_) {
+        if (closed_)
+        {
             return false;
         }
         items_.push_back(std::move(step));
@@ -27,10 +31,12 @@ class StepQueue {
         return true;
     }
 
-    StepDataPtr Pop() {
+    StepDataPtr Pop()
+    {
         std::unique_lock<std::mutex> lock(mutex_);
         changed_.wait(lock, [&] { return closed_ || !items_.empty(); });
-        if (items_.empty()) {
+        if (items_.empty())
+        {
             return {};
         }
         auto step = std::move(items_.front());
@@ -39,13 +45,14 @@ class StepQueue {
         return step;
     }
 
-    void Close() {
+    void Close()
+    {
         std::lock_guard<std::mutex> lock(mutex_);
         closed_ = true;
         changed_.notify_all();
     }
 
-  private:
+   private:
     std::size_t capacity_;
     std::mutex mutex_;
     std::condition_variable changed_;
@@ -53,4 +60,4 @@ class StepQueue {
     bool closed_{false};
 };
 
-} // namespace msmonitor::process
+}  // namespace msmonitor::process

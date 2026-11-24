@@ -7,11 +7,13 @@
 
 #include "ProcessTypes.h"
 
-namespace msmonitor::process {
+namespace msmonitor::process
+{
 
 // One reader owns one rank and one training process across all rotated files.
-class JsonlReader {
-  public:
+class JsonlReader
+{
+   public:
     using LineConsumer = std::function<void(const JsonlLine &)>;
 
     explicit JsonlReader(const Options &options) : options_(options), processId_(options.processId) {}
@@ -20,14 +22,16 @@ class JsonlReader {
     ReadBatch Poll(const LineConsumer &consume);
     void Finish(bool inputComplete, const LineConsumer &consume);
 
-  private:
-    struct Cursor {
+   private:
+    struct Cursor
+    {
         std::uintmax_t offset{0};
         std::uintmax_t line{0};
         std::string pending;
     };
 
-    struct FileSnapshot {
+    struct FileSnapshot
+    {
         std::filesystem::path file;
         std::uintmax_t size;
     };
@@ -40,4 +44,4 @@ class JsonlReader {
     std::optional<std::uint64_t> processId_;
     std::map<std::filesystem::path, Cursor> cursors_;
 };
-} // namespace msmonitor::process
+}  // namespace msmonitor::process

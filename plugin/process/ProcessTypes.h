@@ -10,9 +10,11 @@
 
 #include "ProcessConstants.h"
 
-namespace msmonitor::process {
+namespace msmonitor::process
+{
 
-struct Options {
+struct Options
+{
     std::filesystem::path inputDir;
     std::int64_t rank{ProcessConstants::UnspecifiedRank};
     // Required for unranked files or to disambiguate multiple processes for a rank.
@@ -23,29 +25,33 @@ struct Options {
     std::size_t maxLineBytes{ProcessConstants::MaxLineBytes};
 };
 
-struct JsonlLine {
+struct JsonlLine
+{
     std::filesystem::path file;
     std::uintmax_t lineNumber{0};
     std::string text;
 };
 
-struct ReadBatch {
+struct ReadBatch
+{
     bool hasData{false};
     bool hasPartialLine{false};
 };
 
-struct StepBoundary {
+struct StepBoundary
+{
     std::uint64_t stepId;
     std::uint64_t startNs;
     std::uint64_t endNs;
 };
 
 // Minimal step identity handed to both export workers.
-struct StepDataOutput {
+struct StepDataOutput
+{
     StepBoundary boundary;
     std::int64_t rank;
 };
 
 using StepDataPtr = std::shared_ptr<const StepDataOutput>;
 using EmitStepData = std::function<void(StepDataPtr)>;
-} // namespace msmonitor::process
+}  // namespace msmonitor::process

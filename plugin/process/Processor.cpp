@@ -2,6 +2,8 @@
 // Licensed under Mulan PSL v2. See the repository license.
 #include "Processor.h"
 
+#include <glog/logging.h>
+
 #include <atomic>
 #include <condition_variable>
 #include <exception>
@@ -10,42 +12,56 @@
 #include <thread>
 #include <utility>
 
-#include <glog/logging.h>
-
 #include "JsonlReader.h"
 #include "StepQueue.h"
 
-namespace msmonitor::process {
+namespace msmonitor::process
+{
 
-struct Processor::Impl {
+struct Processor::Impl
+{
     Impl(Options config, StepAnalyser &analyser, MetricExporter &metricExporter, TraceExporter &traceExporter)
-        : options_(std::move(config)), reader_(options_), analyser_(analyser), metricExporter_(metricExporter),
-          traceExporter_(traceExporter), metricQueue_(options_.queueCapacity), traceQueue_(options_.queueCapacity) {}
+        : options_(std::move(config)),
+          reader_(options_),
+          analyser_(analyser),
+          metricExporter_(metricExporter),
+          traceExporter_(traceExporter),
+          metricQueue_(options_.queueCapacity),
+          traceQueue_(options_.queueCapacity)
+    {
+    }
 
     // Start concurrent consumers, process input, then drain queues and join both workers.
-    void Run() {
-        if (used_.exchange(true)) {
+    void Run()
+    {
+        if (used_.exchange(true))
+        {
             throw std::logic_error("Processor is single-use");
         }
         LOG(INFO) << "Process started, rank: " << options_.rank << ", input: " << options_.inputDir.string();
-        try {
+        try
+        {
             metricThread_ = StartExportWorker("metric export", metricQueue_,
-                [this](const StepDataOutput &step) { metricExporter_.ExportStep(step); });
-            traceThread_ = StartExportWorker(
-                "trace export", traceQueue_, [this](const StepDataOutput &step) { WriteAndCompressTrace(step); });
+                                              [this](const StepDataOutput &step) { metricExporter_.ExportStep(step); });
+            traceThread_ = StartExportWorker("trace export", traceQueue_,
+                                             [this](const StepDataOutput &step) { WriteAndCompressTrace(step); });
             ReadJsonlAndPublishSteps();
-        } catch (...) {
+        }
+        catch (...)
+        {
             Fail("JSONL pipeline/startup", std::current_exception());
         }
         DrainAndJoinWorkers();
-        if (failure_) {
+        if (failure_)
+        {
             std::rethrow_exception(failure_);
         }
         LOG(INFO) << "Process finished, rank: " << options_.rank;
     }
 
     // Change scheduling state without accessing stage objects from another thread.
-    void RequestStop() {
+    void RequestStop()
+    {
         {
             // Synchronise with the wait predicate so a stop cannot miss a sleeping reader.
             std::lock_guard<std::mutex> lock(waitMutex_);
@@ -54,51 +70,67 @@ struct Processor::Impl {
         wake_.notify_all();
     }
 
-  private:
+   private:
     // Each consumer drains its own queue and reports failures with the current step.
     template <typename ExportStep>
-    std::thread StartExportWorker(const char *stage, StepQueue &queue, ExportStep exportStep) {
-        return std::thread([this, stage, &queue, exportStep] {
-            StepDataPtr step;
-            try {
-                while ((step = queue.Pop())) {
-                    exportStep(*step);
-                    VLOG(1) << "Process step exported, rank: " << step->rank << ", step: " << step->boundary.stepId
-                            << ", stage: " << stage;
-                    step.reset();
+    std::thread StartExportWorker(const char *stage, StepQueue &queue, ExportStep exportStep)
+    {
+        return std::thread(
+            [this, stage, &queue, exportStep]
+            {
+                StepDataPtr step;
+                try
+                {
+                    while ((step = queue.Pop()))
+                    {
+                        exportStep(*step);
+                        VLOG(1) << "Process step exported, rank: " << step->rank << ", step: " << step->boundary.stepId
+                                << ", stage: " << stage;
+                        step.reset();
+                    }
                 }
-            } catch (...) {
-                Fail(stage, std::current_exception(), step.get());
-            }
-        });
+                catch (...)
+                {
+                    Fail(stage, std::current_exception(), step.get());
+                }
+            });
     }
 
     // Write and close each step Trace/DB before compressing its output directory.
-    void WriteAndCompressTrace(const StepDataOutput &step) {
+    void WriteAndCompressTrace(const StepDataOutput &step)
+    {
         const auto directory = traceExporter_.WriteStep(step);
         traceExporter_.CompressStep(directory);
     }
 
-    void ReadJsonlAndPublishSteps() {
+    void ReadJsonlAndPublishSteps()
+    {
         const EmitStepData publish = [this](StepDataPtr step) { EnqueueStepForExport(std::move(step)); };
-        const auto analyseLine = [this](const JsonlLine &line) {
-            try {
+        const auto analyseLine = [this](const JsonlLine &line)
+        {
+            try
+            {
                 analyser_.ProcessLine(line);
-            } catch (const std::exception &e) {
+            }
+            catch (const std::exception &e)
+            {
                 throw std::runtime_error(line.file.string() + ":" + std::to_string(line.lineNumber) + ": " + e.what());
             }
         };
-        while (!stop_.load()) {
+        while (!stop_.load())
+        {
             const auto nextPoll = std::chrono::steady_clock::now() + options_.pollInterval;
             const auto batch = reader_.Poll(analyseLine);
             analyser_.EndBatch(batch, publish);
             // Pace polls even when new data was read.
-            if (std::chrono::steady_clock::now() > nextPoll) {
+            if (std::chrono::steady_clock::now() > nextPoll)
+            {
                 LOG(WARNING) << "Process read/analysis batch exceeded poll interval, rank: " << options_.rank
                              << ", poll interval ms: " << options_.pollInterval.count();
             }
             std::unique_lock<std::mutex> lock(waitMutex_);
-            if (wake_.wait_until(lock, nextPoll, [this] { return stop_.load(); })) {
+            if (wake_.wait_until(lock, nextPoll, [this] { return stop_.load(); }))
+            {
                 break;
             }
         }
@@ -106,37 +138,46 @@ struct Processor::Impl {
         analyser_.Finish(false, publish);
     }
 
-    void EnqueueStepForExport(StepDataPtr step) {
-        if (!step) {
+    void EnqueueStepForExport(StepDataPtr step)
+    {
+        if (!step)
+        {
             throw std::invalid_argument("step analyser published a null step");
         }
         // Share immutable results. Either slow consumer applies backpressure without silently dropping steps.
-        if (!metricQueue_.Push(step) || !traceQueue_.Push(step)) {
+        if (!metricQueue_.Push(step) || !traceQueue_.Push(step))
+        {
             throw std::runtime_error("consumer queue closed");
         }
     }
 
     // Shared by normal shutdown and failure handling; closing a queue is idempotent.
-    void CloseQueues() {
+    void CloseQueues()
+    {
         metricQueue_.Close();
         traceQueue_.Close();
     }
 
-    void DrainAndJoinWorkers() {
+    void DrainAndJoinWorkers()
+    {
         CloseQueues();
-        if (metricThread_.joinable()) {
+        if (metricThread_.joinable())
+        {
             metricThread_.join();
         }
-        if (traceThread_.joinable()) {
+        if (traceThread_.joinable())
+        {
             traceThread_.join();
         }
     }
 
     // Keep the first error, unblock producers, then rethrow after joining. Branches have no atomic rollback.
-    void Fail(const char *stage, std::exception_ptr error, const StepDataOutput *step = nullptr) {
+    void Fail(const char *stage, std::exception_ptr error, const StepDataOutput *step = nullptr)
+    {
         {
             std::lock_guard<std::mutex> lock(errorMutex_);
-            if (failure_) {
+            if (failure_)
+            {
                 return;
             }
             failure_ = error;
@@ -144,12 +185,17 @@ struct Processor::Impl {
         CloseQueues();
         RequestStop();
         const auto stepContext = step ? ", step: " + std::to_string(step->boundary.stepId) : std::string{};
-        try {
+        try
+        {
             std::rethrow_exception(error);
-        } catch (const std::exception &e) {
+        }
+        catch (const std::exception &e)
+        {
             LOG(ERROR) << "Process failed, rank: " << options_.rank << ", stage: " << stage << stepContext << ": "
                        << e.what();
-        } catch (...) {
+        }
+        catch (...)
+        {
             LOG(ERROR) << "Process failed, rank: " << options_.rank << ", stage: " << stage << stepContext
                        << ": unknown exception";
         }
@@ -177,12 +223,14 @@ struct Processor::Impl {
     std::exception_ptr failure_;
 };
 
-Processor::Processor(
-    Options options, StepAnalyser &analyser, MetricExporter &metricExporter, TraceExporter &traceExporter) {
+Processor::Processor(Options options, StepAnalyser &analyser, MetricExporter &metricExporter,
+                     TraceExporter &traceExporter)
+{
     if (options.rank < ProcessConstants::Unranked ||
         (options.rank == ProcessConstants::Unranked && !options.processId) || analyser.Rank() != options.rank ||
         !options.queueCapacity || !options.readChunkBytes || !options.maxLineBytes ||
-        options.pollInterval.count() <= 0 || !std::filesystem::is_directory(options.inputDir)) {
+        options.pollInterval.count() <= 0 || !std::filesystem::is_directory(options.inputDir))
+    {
         throw std::invalid_argument("invalid processor options/input directory");
     }
     impl_ = std::make_unique<Impl>(std::move(options), analyser, metricExporter, traceExporter);
@@ -193,4 +241,4 @@ Processor::~Processor() = default;
 void Processor::Run() { impl_->Run(); }
 
 void Processor::RequestStop() { impl_->RequestStop(); }
-} // namespace msmonitor::process
+}  // namespace msmonitor::process

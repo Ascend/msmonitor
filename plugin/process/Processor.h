@@ -4,12 +4,14 @@
 
 #include "ProcessStages.h"
 
-namespace msmonitor::process {
+namespace msmonitor::process
+{
 
 // One rank-local pipeline per instance. A daemon may run multiple instances concurrently,
 // each with distinct analyser and exporter objects.
 // The caller owns all stages and joins Run before destroying this object. No cross-rank barrier.
-class Processor {
+class Processor
+{
     // Architecture (all state and workers belong to Options.rank):
     //
     // Every 1 s: snapshot JSONL sizes -> read all visible appends in bounded chunks
@@ -26,7 +28,7 @@ class Processor {
     //
     // Rank-local backpressure never waits for another rank's queue.
 
-  public:
+   public:
     Processor(Options options, StepAnalyser &analyser, MetricExporter &metricExporter, TraceExporter &traceExporter);
     ~Processor();
     Processor(const Processor &) = delete;
@@ -38,8 +40,8 @@ class Processor {
     // Thread-safe stop request. Normal shutdown drains published steps; stage calls must return in finite time.
     void RequestStop();
 
-  private:
+   private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };
-} // namespace msmonitor::process
+}  // namespace msmonitor::process
