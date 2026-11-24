@@ -31,11 +31,13 @@
 #include <algorithm>
 #include <climits>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace dynolog
@@ -48,6 +50,30 @@ const std::unordered_map<std::string, std::string> INVALID_CHAR = {
     {"\n", "\\n"},         {"\f", "\\f"},  {"\r", "\\r"}, {"\b", "\\b"},  {"\t", "\\t"}, {"\v", "\\v"},
     {"\u007F", "\\u007F"}, {"\"", "\\\""}, {"'", "\'"},   {"\\", "\\\\"}, {"%", "\\%"},  {">", "\\>"},
     {"<", "\\<"},          {"|", "\\|"},   {"&", "\\&"},  {"$", "\\$"}};
+
+// Escapes and truncates external input before it is written to the log.
+std::string SanitizeLogString(const std::string &value)
+{
+    constexpr size_t MAX_LOG_LEN = 64;
+    std::string result;
+    for (size_t i = 0; i < value.size() && result.size() < MAX_LOG_LEN; ++i)
+    {
+        unsigned char c = static_cast<unsigned char>(value[i]);
+        if (c >= 0x20 && c < 0x7F && c != '\\' && c != '"')
+        {
+            result += static_cast<char>(c);
+            continue;
+        }
+        char buffer[8] = {0};
+        std::snprintf(buffer, sizeof(buffer), "\\x%02X", c);
+        result += buffer;
+    }
+    if (value.size() > MAX_LOG_LEN)
+    {
+        result += "...";
+    }
+    return result;
+}
 }  // namespace
 
 bool PathUtils::Access(const std::string &path, const int &mode)
@@ -196,12 +222,24 @@ class JsonDepthCheckSAX : public nlohmann::json::json_sax_t
     bool number_float(nlohmann::json::number_float_t, const std::string &) override { return true; }
     bool string(nlohmann::json::string_t &) override { return true; }
     bool binary(nlohmann::json::binary_t &) override { return true; }
-    bool key(nlohmann::json::string_t &) override { return true; }
+    bool key(nlohmann::json::string_t &val) override
+    {
+        if (objectKeys_.empty())
+        {
+            return true;
+        }
+        if (!objectKeys_.back().insert(val).second)
+        {
+            throw std::runtime_error("JSON object contains duplicate key: " + SanitizeLogString(val));
+        }
+        return true;
+    }
     bool parse_error(std::size_t, const std::string &, const nlohmann::json::exception &) override { return false; }
 
     bool start_object(std::size_t) override
     {
         depth_++;
+        objectKeys_.emplace_back();
         if (depth_ > MAX_DEPTH)
         {
             throw std::runtime_error("JSON depth exceeds maximum allowed depth");
@@ -212,6 +250,10 @@ class JsonDepthCheckSAX : public nlohmann::json::json_sax_t
     bool end_object() override
     {
         depth_--;
+        if (!objectKeys_.empty())
+        {
+            objectKeys_.pop_back();
+        }
         return true;
     }
 
@@ -234,6 +276,7 @@ class JsonDepthCheckSAX : public nlohmann::json::json_sax_t
    private:
     int depth_ = 0;
     const int MAX_DEPTH = 10;
+    std::vector<std::unordered_set<std::string>> objectKeys_;
 };
 
 bool CheckJsonDepth(const std::string &json_str)
@@ -241,14 +284,13 @@ bool CheckJsonDepth(const std::string &json_str)
     JsonDepthCheckSAX sax;
     try
     {
-        nlohmann::json::sax_parse(json_str, &sax);
+        return nlohmann::json::sax_parse(json_str, &sax);
     }
     catch (const std::exception &e)
     {
-        LOG(ERROR) << "JSON depth check failed: " << e.what();
+        LOG(ERROR) << "JSON structure check failed: " << e.what();
         return false;
     }
-    return true;
 }
 
 std::string GetCurrentUserHomePath()

@@ -128,10 +128,6 @@ void MsptiMonitor::Stop()
         return;
     }
 
-    if (msptiActivityFlushAll(1) != MSPTI_SUCCESS)
-    {
-        LOG(WARNING) << "MsptiMonitor stop msptiActivityFlushAll failed";
-    }
     Uninit();
     LOG(INFO) << "MsptiMonitor stop successfully";
 }
@@ -375,12 +371,13 @@ void MsptiMonitor::Run()
         enabledActivities_.clear();
     }
     flushInterval_.store(0);
+    // Kernel records can only be flushed after unsubscribe; keep both exit paths identical.
+    if (msptiActivityFlushAll(1) != MSPTI_SUCCESS)
+    {
+        LOG(WARNING) << "MsptiMonitor stop msptiActivityFlushAll failed";
+    }
     if (isDurationExpired)
     {
-        if (msptiActivityFlushAll(1) != MSPTI_SUCCESS)
-        {
-            LOG(WARNING) << "MsptiMonitor stop msptiActivityFlushAll failed";
-        }
         start_.store(false);
         if (dataProcessor_ != nullptr)
         {

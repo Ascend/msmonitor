@@ -16,16 +16,28 @@
  * -------------------------------------------------------------------------
  */
 
+// Copyright (c) Meta Platforms, Inc. and affiliates.
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 
-use crate::error::Result;
+use crate::error::{err, Result};
 
 use crate::DynoClient;
 
 use nix::unistd::Uid;
+
+fn map_read_error(error: io::Error) -> Box<dyn std::error::Error> {
+    if error.kind() == io::ErrorKind::UnexpectedEof {
+        return err(
+            "Failed to receive a response from the server: the connection was closed \
+             before a complete response arrived. The request may have been rejected, \
+             please check whether the parameters contain unexpected special characters.",
+        );
+    }
+    Box::new(error)
+}
 
 pub fn send_msg(client: &mut DynoClient, msg: &str) -> Result<()> {
     match client {
@@ -51,20 +63,48 @@ pub fn get_resp(client: &mut DynoClient) -> Result<String> {
 
     match client {
         DynoClient::Secure(secure_client) => {
-            secure_client.read_exact(&mut len_buf)?;
+            secure_client.read_exact(&mut len_buf).map_err(map_read_error)?;
             let len = u32::from_ne_bytes(len_buf) as usize;
             resp_buf = vec![0u8; len];
-            secure_client.read_exact(&mut resp_buf)?;
+            secure_client
+                .read_exact(&mut resp_buf)
+                .map_err(map_read_error)?;
         }
         DynoClient::Insecure(insecure_client) => {
-            insecure_client.read_exact(&mut len_buf)?;
+            insecure_client
+                .read_exact(&mut len_buf)
+                .map_err(map_read_error)?;
             let len = u32::from_ne_bytes(len_buf) as usize;
             resp_buf = vec![0u8; len];
-            insecure_client.read_exact(&mut resp_buf)?;
+            insecure_client
+                .read_exact(&mut resp_buf)
+                .map_err(map_read_error)?;
         }
     }
 
     Ok(String::from_utf8(resp_buf)?)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_map_read_error_translates_unexpected_eof() {
+        let error = map_read_error(io::Error::new(
+            io::ErrorKind::UnexpectedEof,
+            "failed to fill whole buffer",
+        ));
+        let message = error.to_string();
+        assert!(message.contains("connection was closed"));
+        assert!(!message.contains("UnexpectedEof"));
+    }
+
+    #[test]
+    fn test_map_read_error_keeps_other_errors() {
+        let error = map_read_error(io::Error::new(io::ErrorKind::ConnectionReset, "reset"));
+        assert_eq!(error.to_string(), "reset");
+    }
 }
 
 pub fn is_root() -> bool {

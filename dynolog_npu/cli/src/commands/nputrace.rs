@@ -16,8 +16,8 @@
  * -------------------------------------------------------------------------
  */
 
-use crate::error::Result;
-use serde_json::Value;
+use crate::error::{err, Result};
+use serde_json::{json, Value};
 use crate::DynoClient;
 use super::utils;
 
@@ -156,6 +156,37 @@ impl NpuTraceConfig {
     }
 }
 
+fn parse_pids(pids: &str) -> std::result::Result<Vec<i64>, String> {
+    let mut result = Vec::new();
+    for (index, pid) in pids.split(',').enumerate() {
+        let pid = pid.trim();
+        if pid.is_empty() {
+            return Err(format!(
+                "element {} is empty; expected a comma-separated list of integers",
+                index + 1
+            ));
+        }
+        result.push(pid.parse::<i64>().map_err(|_| {
+            format!(
+                "element {} is not an integer; expected a comma-separated list of integers",
+                index + 1
+            )
+        })?);
+    }
+    Ok(result)
+}
+
+fn build_request(config: &str, job_id: u64, pids: &[i64], process_limit: u32) -> String {
+    json!({
+        "fn": "setKinetOnDemandRequest",
+        "config": config,
+        "job_id": job_id,
+        "pids": pids,
+        "process_limit": process_limit,
+    })
+    .to_string()
+}
+
 pub fn run_nputrace(
     mut client: DynoClient,
     job_id: u64,
@@ -163,21 +194,12 @@ pub fn run_nputrace(
     process_limit: u32,
     config: NpuTraceConfig,
 ) -> Result<()> {
+    let pids = parse_pids(pids).map_err(|e| err(format!("invalid value for '--pids': {}", e)))?;
+
     let config_str = config.config();
     println!("NpuTrace config = \n{}", config_str);
-    let config_str = config_str.replace('\n', "\\n");
 
-    let request_json = format!(
-        r#"
-{{
-    "fn": "setKinetOnDemandRequest",
-    "config": "{}",
-    "job_id": {},
-    "pids": [{}],
-    "process_limit": {}
-}}"#,
-        config_str, job_id, pids, process_limit
-    );
+    let request_json = build_request(&config_str, job_id, &pids, process_limit);
 
     utils::send_msg(&mut client, &request_json)?;
 
@@ -218,6 +240,7 @@ pub fn run_nputrace(
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::*;
 
     #[test]
@@ -306,5 +329,102 @@ PROFILE_MSTX_DOMAIN_EXCLUDE=domain2
 PROFILE_IS_RANK=true
 PROFILE_RANK_LIST=0,1,2,3"#
         );
+    }
+
+    fn trace_config_with_log_file(log_file: &str) -> NpuTraceConfig {
+        NpuTraceConfig {
+            log_file: log_file.to_string(),
+            trigger_config: NpuTraceTriggerConfig::IterationBased {
+                start_step: -1,
+                iterations: 1,
+            },
+            trace_options: NpuTraceOptions {
+                record_shapes: false,
+                profile_memory: false,
+                with_stack: false,
+                with_flops: false,
+                with_modules: false,
+                activities: "CPU,NPU".to_string(),
+                analyse: false,
+                async_mode: false,
+                profiler_level: "Level0".to_string(),
+                aic_metrics: "AiCoreNone".to_string(),
+                l2_cache: false,
+                op_attr: false,
+                msprof_tx: false,
+                gc_detect_threshold: None,
+                data_simplification: "true".to_string(),
+                export_type: "Text".to_string(),
+                host_sys: "None".to_string(),
+                sys_io: false,
+                sys_interconnection: false,
+                mstx_domain_include: None,
+                mstx_domain_exclude: None,
+                rank_list: None,
+            },
+        }
+    }
+
+    #[test]
+    fn test_parse_pids() {
+        assert_eq!(parse_pids("0").unwrap(), vec![0]);
+        assert_eq!(parse_pids("1, 2,3").unwrap(), vec![1, 2, 3]);
+        assert!(parse_pids("").is_err());
+        assert!(parse_pids("1,,2").is_err());
+        assert!(parse_pids("1,abc").is_err());
+        assert_eq!(
+            parse_pids("1,abc").unwrap_err(),
+            "element 2 is not an integer; expected a comma-separated list of integers"
+        );
+        assert_eq!(
+            parse_pids("1,,2").unwrap_err(),
+            "element 2 is empty; expected a comma-separated list of integers"
+        );
+    }
+
+    #[test]
+    fn test_parse_pids_rejects_json_injection() {
+        assert!(parse_pids(r#"0], "fn": "getVersion", "q": [0"#).is_err());
+        assert!(parse_pids(r#"0], "job_id": "x", "q": [0"#).is_err());
+    }
+
+    #[test]
+    fn test_request_json_does_not_allow_mstx_injection() {
+        let mut config = trace_config_with_log_file("/tmp/ok");
+        config.trace_options.mstx_domain_include =
+            Some(r#"x", "fn": "getVersion", "q": ""#.to_string());
+
+        let expected_config = config.config();
+        let request = build_request(&expected_config, 0, &[0], 3);
+        let parsed: Value = serde_json::from_str(&request).unwrap();
+
+        assert_eq!(parsed["fn"], "setKinetOnDemandRequest");
+        assert_eq!(parsed["config"], expected_config);
+        // The server splits the config on real newlines, so the decoded value
+        // must keep them instead of carrying a literal backslash-n.
+        assert!(parsed["config"].as_str().unwrap().contains('\n'));
+    }
+
+    #[test]
+    fn test_request_json_escapes_special_characters() {
+        // Paths containing quotes, backslashes or control characters must still
+        // produce a request whose config value is byte-for-byte identical to
+        // the config that was serialized.
+        for log_file in ["/tmp/x\"y", "/tmp/x\\", "/tmp/x\ty", "/tmp/x\ny"] {
+            let config = trace_config_with_log_file(log_file);
+            let expected_config = config.config();
+            let request = build_request(&expected_config, 0, &[1, 2], 3);
+            let parsed: Value = serde_json::from_str(&request)
+                .unwrap_or_else(|e| panic!("request for {:?} is not valid JSON: {}", log_file, e));
+
+            assert_eq!(parsed["fn"], "setKinetOnDemandRequest");
+            assert_eq!(parsed["config"], expected_config);
+            // Escaping must be handled by the JSON serializer alone: the
+            // decoded config keeps the real newlines used as separators.
+            assert!(parsed["config"].as_str().unwrap().contains('\n'));
+            assert_eq!(parsed["pids"], serde_json::json!([1, 2]));
+            assert_eq!(parsed["job_id"], 0);
+            assert_eq!(parsed["process_limit"], 3);
+        }
     }
 }

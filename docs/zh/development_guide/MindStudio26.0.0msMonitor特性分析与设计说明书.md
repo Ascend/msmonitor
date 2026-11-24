@@ -448,7 +448,7 @@ MsptiMonitor::Run() 线程主循环
 - 最大并发 Buffer 数：32（`MAX_ALLOC_CNT = 256MB / 8MB`），通过静态原子变量 `allocCnt` 计数控制。
 - Buffer 生命周期：`BufferRequest()` 回调中分配 → msPTI 驱动填充数据 → `BufferComplete()` 回调中消费 → `MsptiFree` 释放，`allocCnt` 对应增减。
 - 限流机制：`allocCnt` 达到上限时 `BufferRequest` 返回 nullptr，msPTI 驱动层自动降速丢弃数据，防止内存无限增长。
-- Duration 到期时：`Run()` 退出前调用 `msptiUnsubscribe` 禁用所有活动，`BufferComplete` 继续处理已分配的残留 Buffer 直至全部释放。
+- 退出采集时（Duration 到期或手动 stop）：`Run()` 统一先调用 `msptiUnsubscribe` 取消订阅并禁用所有活动，再调用 `msptiActivityFlushAll` 取走残留 Buffer；Kernel 等记录在该次 flush 中才交付，因此两条退出路径产出的数据一致，`BufferComplete` 继续处理已分配的残留 Buffer 直至全部释放。
 
 **线程资源管理**：
 
