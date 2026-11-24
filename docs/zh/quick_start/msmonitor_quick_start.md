@@ -1,9 +1,11 @@
 # msMonitor工具快速入门
 
+本文档介绍msMonitor工具的性能监测与性能数据采集功能，通过npu-monitor监测关键算子耗时、通过nputrace采集详细性能数据做分析，适用于需要对训练任务进行性能分析的用户。
+
 下面通过msMonitor常见的使用场景介绍msMonitor工具快速入门：
 
 1. 先使用npu-monitor功能获取关键算子耗时。
-2. 当发现监测到关键算子耗时劣化，使用nputrace功能采集详细性能数据做分析。
+2. 当监测到关键算子耗时劣化，使用nputrace功能采集详细性能数据做分析。
 
 **前置条件**
 
@@ -11,7 +13,7 @@
 
 **操作步骤**
 
-1. 启动dynolog daemon进程。
+1. 启动dynolog Daemon进程。
 
    命令示例如下：
 
@@ -42,7 +44,7 @@
 
 4. 启动训练任务。
 
-   以下 `train.py` 是一个完整的 PyTorch 训练脚本示例，使用随机生成的数据，无需外部数据集即可运行。将脚本保存为 `train.py` 并执行：
+   以下 `train.py` 是一个完整的PyTorch训练脚本示例，使用随机生成的数据，无需外部数据集即可运行。将脚本保存为 `train.py` 并执行：
 
    ```python
    import torch
@@ -96,7 +98,7 @@
    python train.py
    ```
 
-   > 若使用 PyTorch 原生优化器（如 `torch.optim.SGD`、`torch.optim.Adam`），msMonitor 可自动识别训练迭代边界，无需额外修改代码。
+   > 若使用PyTorch原生优化器（如 `torch.optim.SGD`、`torch.optim.Adam`），msMonitor可自动识别训练迭代边界，无需额外修改代码。
 
 5. 使用dyno命令行触发npu-monitor监测关键算子耗时。
 
@@ -108,7 +110,7 @@
    dyno --certs-dir NO_CERTS npu-monitor --npu-monitor-stop
    ```
 
-   npu-monitor 功能详细介绍和采集结果说明请参见 [npumonitor_instruct](../user_guide/npumonitor_instruct.md)。
+   npu-monitor功能详细介绍和采集结果说明请参见 [npumonitor_instruct](../user_guide/npumonitor_instruct.md)。
 
 6. 使用dyno命令行触发nputrace采集详细trace数据（需要关闭npu-monitor功能才能触发nputrace功能）。
 
@@ -117,4 +119,4 @@
    dyno --certs-dir NO_CERTS nputrace --start-step 10 --iterations 2 --activities CPU,NPU --analyse --data-simplification false --log-file /tmp/profile_data
    ```
 
-   nputrace 功能详细介绍和采集结果说明请参见 [nputrace_instruct](../user_guide/nputrace_instruct.md)。
+   nputrace功能详细介绍和采集结果说明请参见 [nputrace_instruct](../user_guide/nputrace_instruct.md)。

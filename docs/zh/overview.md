@@ -1,12 +1,14 @@
 # 总体介绍
 
+本文档介绍MindStudio Monitor（msMonitor）的总体情况，说明该工具面向昇腾集群场景提供在线性能监测与动态采集能力，涵盖npu-monitor、nputrace和Monitor API等核心功能，适用于需要对昇腾集群进行在线性能观察与性能数据采集的用户。
+
 ## ℹ️ 简介
 
-MindStudio Monitor（msMonitor）是面向昇腾集群场景的在线性能监测与动态采集工具，基于 [dynolog](https://github.com/facebookincubator/dynolog)（Meta CPU-GPU监控系统）和 [msPTI](https://gitcode.com/Ascend/mspti/blob/master/docs/zh/quick_start/mspti_quick_start.md)（MindStudio Profiler Tools Interface，MindStudio 性能分析工具接口）构建，支持`npu-monitor`、`nputrace`和`Monitor API`等能力。
+MindStudio Monitor（msMonitor）是面向昇腾集群场景的在线性能监测与动态采集工具，基于 [dynolog](https://github.com/facebookincubator/dynolog)（Meta CPU-GPU监控系统）和 [msPTI](https://gitcode.com/Ascend/mspti/blob/master/docs/zh/quick_start/mspti_quick_start.md)（MindStudio Profiler Tools Interface，MindStudio性能分析工具接口）构建，支持`npu-monitor`、`nputrace`和`Monitor API`等能力。
 
-支持的框架Profiler工具：[Ascend PyTorch Profiler](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md)和[MindSpore Profiler](https://gitcode.com/Ascend/docs/blob/master/MindStudio/master/zh/menu/mindspore_profiler_user_guide.md)
+支持的框架Profiler工具：[Ascend PyTorch Profiler](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md)和[MindSpore Profiler](https://gitcode.com/Ascend/docs/blob/master/MindStudio/master/zh/menu/mindspore_profiler_user_guide.md)。
 
-![msMonitor](./figures/msMonitor.png)
+![msMonitor核心组件架构图：Dyno CLI下发命令，Dynolog daemon与msPTI Monitor采集上报数据](./figures/msMonitor.png)
 
 如上图所示msMonitor核心组件如下：
 

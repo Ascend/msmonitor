@@ -1,8 +1,10 @@
 # nputrace使用说明
 
+本文档介绍nputrace工具的使用方法，涵盖使用前准备、功能说明、参数说明与使用示例，指导用户采集框架、CANN以及device的详细性能数据。
+
 ## 简介
 
-nputrace工具的作用是获取框架、CANN以及device的详细性能数据。
+nputrace工具的作用是获取框架、CANN以及Device的详细性能数据。
 
 ## 使用前准备
 
@@ -26,7 +28,7 @@ nputrace与npu-monitor共享底层Profiling资源，不支持同时采集，包�
 dyno --certs-dir <CERT_DIR> nputrace [options]
 ```
 
-`CERT_DIR`配置为证书路径，如果不使用TLS证书密钥，则设置为NO_CERTS；`options`为nputrace功能的参数，详细介绍如下**参数说明**。
+`CERT_DIR`配置为证书路径，如果不使用TLS证书密钥，则设置为NO_CERTS；`options`为nputrace功能的参数，详细介绍如下：**参数说明**。
 
 **参数说明**
 
@@ -43,7 +45,7 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
 | --record-shapes       | 可选 | 算子的InputShapes和InputTypes采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                            |     Y     |      Y      |
 | --profile-memory      | 可选 | 算子内存信息采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                                 |     Y     |      Y      |
 | --with-stack          | 可选 | Python调用栈采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                              |     Y     |      Y      |
-| --with-flops          | 可选 | 算子flops采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                                |     Y     |      N      |
+| --with-flops          | 可选 | 算子FLOPS采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                                |     Y     |      N      |
 | --with-modules        | 可选 | modules层级的Python调用栈采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                    |     Y     |      N      |
 | --analyse             | 可选 | 采集后自动解析开关，action类型，配置该参数表示开启自动解析，默认未配置表示不自动解析。                                                                                                                                                                                                          |     Y     |      Y      |
 | --async-mode          | 可选 | 异步解析开关，action类型，配置该参数表示开启异步解析，默认未配置表示同步解析。未配置--analyse的情况下不生效。                                                                                                                                                                                                        |     Y     |      Y      |
@@ -59,7 +61,7 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
 | --aic-metrics         | 可选 | AI Core的性能指标采集项，取值为：<br/>&#8226; AiCoreNone：关闭AI Core的性能指标采集。<br/>&#8226; PipeUtilization：计算单元和搬运单元耗时占比。<br/>&#8226; ArithmeticUtilization：各种计算类指标占比统计。<br/>&#8226; Memory：外部内存读写类指令占比。<br/>&#8226; MemoryL0：内部L0内存读写类指令占比。<br/>&#8226; ResourceConflictRatio：流水线队列类指令占比。<br/>&#8226; MemoryUB：内部UB内存读写类指令占比。<br/>&#8226; L2Cache：读写cache命中次数和缺失后重新分配次数。<br/>&#8226; MemoryAccess：算子在核上访存的带宽数据量。<br/>当--profiler-level设置为Level_none或Level0，默认值为AiCoreNone，当--profiler-level设置为Level1或Level2，默认值为PipeUtilization。 |     Y     |      Y      |
 | --export-type         | 可选 | profiler解析导出数据的类型，取值为：<br/>&#8226; Text：表示解析为.json和.csv格式的timeline和summary文件以及汇总所有性能数据的.db格式文件。<br/>&#8226; Db：表示仅解析为汇总所有性能数据的.db格式文件，使用MindStudio Insight工具展示。<br/>默认值为Text。 |     Y     |      Y      |
 | --gc-detect-threshold | 可选 | GC检测阈值，Option\<f32\>类型，单位ms，只采集超过阈值的GC事件。默认不设置时不开启GC检测。                                                                                                                                                                                                                           |     Y     |      N      |
-| --host-sys            | 可选 | 采集host侧系统数据，取值为：<br/>&#8226; cpu：进程级别的CPU利用率。<br/>&#8226; mem：进程级别的内存利用率。<br/>&#8226; disk：进程级别的磁盘I/O利用率。<br/>&#8226; network：系统级别的网络I/O利用率。<br/>&#8226; osrt：进程级别的syscall和pthreadcall。<br/>可以设置单个或多个，多个类型以逗号分隔，例如：--host-sys cpu,mem。<br/>默认未配置，表示未开启Host侧系统数据采集。 |     Y     |      Y      |
+| --host-sys            | 可选 | 采集Host侧系统数据，取值为：<br/>&#8226; cpu：进程级别的CPU利用率。<br/>&#8226; mem：进程级别的内存利用率。<br/>&#8226; disk：进程级别的磁盘I/O利用率。<br/>&#8226; network：系统级别的网络I/O利用率。<br/>&#8226; osrt：进程级别的syscall和pthreadcall。<br/>可以设置单个或多个，多个类型以逗号分隔，例如：--host-sys cpu,mem。<br/>默认未配置，表示未开启Host侧系统数据采集。 |     Y     |      Y      |
 | --sys-io              | 可选 | NIC、RoCE数据采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                            |     Y     |      Y      |
 | --sys-interconnection | 可选 | 集合通信带宽数据（HCCS）、PCIe、片间传输带宽数据采集开关，action类型，配置该参数表示开启采集，默认未配置表示不采集。                                                                                                                                                                                                   |     Y     |      Y      |
 
@@ -106,4 +108,4 @@ dyno --certs-dir <CERT_DIR> nputrace [options]
 
 ## 输出结果文件说明
 
-nputrace落盘的数据格式和交付件包含PyTorch和MindSpore框架数据，详细介绍可参考Ascend PyTorch调优工具的[输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。
+nputrace落盘的数据格式和交付件包含PyTorch和MindSpore框架数据，详细介绍请参见Ascend PyTorch调优工具的[输出结果文件说明](https://gitcode.com/Ascend/pytorch/blob/master/docs/zh/developer_notes/ascend_pytorch_profiler_user_guide.md#%E8%BE%93%E5%87%BA%E7%BB%93%E6%9E%9C%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)。

@@ -1,5 +1,7 @@
 # dyno使用说明
 
+本文档介绍dyno工具，通过发送dyno CLI的RPC请求触发nputrace和npu-monitor功能，适用于需要下发采集指令并查看采集状态的用户。
+
 ## 简介
 
 dyno负责发送dyno CLI的RPC请求，触发nputrace和npu-monitor功能。
@@ -81,7 +83,7 @@ dyno status
 4. `current_step` 默认初始值为 `-1`。
 5. MindSpore 框架下，`nputrace` 不存在 `Ready` 状态。
 6. `trace_id`、`queue_depth`、`rejected` 由模型进程上报，仅新版模型进程/插件提供：
-   - `trace_id`、`queue_depth` 仅在 `nputrace` 为 `Ready` 或 `Running` 时展示；
-   - `rejected` 在模型进程支持上报时展示；
+   - `trace_id`、`queue_depth` 仅在 `nputrace` 为 `Ready` 或 `Running` 时展示。
+   - `rejected` 在模型进程支持上报时展示。
    - 模型进程不支持上报时，结果中不出现对应字段，避免将“未上报”误读为 `0`。
 7. 多个模型进程同时上报时，以最后一次上报为准。

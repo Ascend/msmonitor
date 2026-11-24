@@ -177,7 +177,7 @@ Python统计`plugin/IPCMonitor/`，C++统计`plugin/ipc_monitor/`下编译进UT�
 
       包括更改内容、原因、测试情况等
 
-   3. 关联相关的Issue
+   3. 关联对应的Issue
 
 5. **代码审查**
 
