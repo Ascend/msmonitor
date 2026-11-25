@@ -51,11 +51,15 @@ file(GLOB_RECURSE IPC_SOURCES
 
 file(GLOB_RECURSE SECUREC_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/third_party/securec/src/*.c)
 
+# 数据处理实现位于 plugin/process，编进 IPCMonitor_C 扩展随 whl 分发。
+add_subdirectory(process)
+
 set(SOURCES
     bindings.cpp
     ${IPC_SOURCES}
     ${SECUREC_SOURCES}
     ${sqlite3_SOURCES}
+    process/ProcessRunner.cpp
 )
 
 add_library(IPCMonitor MODULE ${SOURCES})
@@ -73,6 +77,8 @@ target_link_libraries(IPCMonitor PRIVATE
     dl
     ${glog_LIBRARIES}
     ${CMAKE_CURRENT_SOURCE_DIR}/stub/libmspti.so
+    # ProcessRunner.cpp 依赖的 Processor/JsonlReader 由 process 子目录编译成静态库
+    msmonitor_process_core
 )
 
 target_compile_options(IPCMonitor PRIVATE

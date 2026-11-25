@@ -18,21 +18,45 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <memory>
+#include <stdexcept>
+
+#include "ipc_monitor/NpuIpcServer.h"
 #include "ipc_monitor/PyDynamicMonitorProxy.h"
 #include "ipc_monitor/dcmi/DcmiTypes.h"
 #include "ipc_monitor/monitor/ActivityData.h"
 #include "ipc_monitor/monitor/Monitor.h"
 #include "ipc_monitor/mspti_monitor/MsptiMonitor.h"
+#include "process/ProcessRunner.h"
 
 namespace py = pybind11;
 
 namespace
 {
+// Python 侧传 snake_case dict，这里统一取默认值，缺键不影响启动。
+std::string DictString(const py::dict& config, const char* key)
+{
+    return config.contains(key) && !config[key].is_none() ? config[key].cast<std::string>() : std::string();
+}
+
+int DictInt(const py::dict& config, const char* key, int fallback)
+{
+    return config.contains(key) && !config[key].is_none() ? config[key].cast<int>() : fallback;
+}
+
+bool DictBool(const py::dict& config, const char* key, bool fallback)
+{
+    return config.contains(key) && !config[key].is_none() ? config[key].cast<bool>() : fallback;
+}
+
 using dynolog_npu::ipc_monitor::monitor::DcmiApiStatus;
 using dynolog_npu::ipc_monitor::monitor::DcmiLayer;
 using dynolog_npu::ipc_monitor::monitor::DcmiMetricKind;
 using dynolog_npu::ipc_monitor::monitor::DcmiSample;
 using dynolog_npu::ipc_monitor::monitor::DcmiStatusSnapshot;
+
+// 供 msmonitor CLI 的 collector 进程使用的 IPC 服务端，与 PTA 侧 IpcClient 同协议
+std::unique_ptr<dynolog_npu::ipc_monitor::NpuIpcServer> g_ipcServer;
 
 std::string LayerName(DcmiLayer layer)
 {
@@ -295,4 +319,70 @@ PYBIND11_MODULE(IPCMonitor_C, m)
         py::arg("status"));
 
     init_monitor_module(m);
+
+    // ---- IPC 服务端：msmonitor CLI 的 collector 通过它和 PTA 监控进程交互 ----
+    m.def(
+        "serve_start",
+        [](const std::string& name) -> bool
+        {
+            try
+            {
+                // 先释放旧实例，保证同一 socket 路径同一时刻只由一个实例持有。
+                g_ipcServer.reset();
+                g_ipcServer = std::make_unique<dynolog_npu::ipc_monitor::NpuIpcServer>(name);
+                return true;
+            }
+            catch (const std::exception&)
+            {
+                g_ipcServer.reset();
+                return false;
+            }
+        },
+        py::arg("name") = "dynolog");
+    // 返回 (type, payload, src)；无消息返回 None
+    m.def("serve_poll",
+          []() -> py::object
+          {
+              if (!g_ipcServer)
+              {
+                  return py::none();
+              }
+              std::string type;
+              std::string payload;
+              std::string src;
+              if (!g_ipcServer->PollOnce(type, payload, src))
+              {
+                  return py::none();
+              }
+              return py::make_tuple(type, py::bytes(payload), src);
+          });
+    m.def(
+        "serve_reply", [](const std::string& src, const std::string& type, const std::string& payload) -> bool
+        { return g_ipcServer ? g_ipcServer->Reply(src, type, payload) : false; }, py::arg("src"), py::arg("type"),
+        py::arg("payload"));
+    m.def("serve_stop", []() -> void { g_ipcServer.reset(); });
+    m.def("serve_name", []() -> std::string { return g_ipcServer ? g_ipcServer->Name() : std::string(); });
+
+    // ---- 数据处理：Python 子进程调用，C++ 内按 rank 起线程并调用 Processor ----
+    m.def(
+        "process_start",
+        [](const py::dict& config) -> bool
+        {
+            msmonitor::process_runner::RunnerConfig cfg;
+            cfg.inputDir = DictString(config, "input_dir");
+            cfg.jobId = DictString(config, "job_id");
+            cfg.traceStepsPerFile = DictInt(config, "trace_steps_per_file", 5);
+            cfg.traceKeepFiles = DictInt(config, "trace_keep_files", 100);
+            cfg.serverHost = DictString(config, "server_host");
+            cfg.serverPort = DictInt(config, "server_port", 8443);
+            cfg.remoteWriteUrl = DictString(config, "remote_write_url");
+            cfg.tokenFile = DictString(config, "token_file");
+            cfg.token = DictString(config, "token");
+            cfg.caFile = DictString(config, "ca_file");
+            cfg.enableTrace = DictBool(config, "enable_trace", true);
+            cfg.enableMetric = DictBool(config, "enable_metric", true);
+            return msmonitor::process_runner::Start(cfg);
+        },
+        py::arg("config"));
+    m.def("process_stop", []() -> void { msmonitor::process_runner::Stop(); });
 }

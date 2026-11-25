@@ -93,6 +93,7 @@ add_ipc_ut(test_DcmiMetricRegistry "${IPC_DIR}/dcmi/DcmiMetricRegistry.cpp" "${I
 add_ipc_ut(test_DcmiCollector ${IPC_RUNTIME_SOURCES})
 add_ipc_ut(test_DcmiMonitorSession ${IPC_RUNTIME_SOURCES})
 add_ipc_ut(test_NpuIpcClient "${IPC_DIR}/NpuIpcClient.cpp" ${IPC_UTIL_SOURCES} ${SECUREC_SOURCES})
+add_ipc_ut(test_NpuIpcServer "${IPC_DIR}/NpuIpcServer.cpp" ${IPC_UTIL_SOURCES} ${SECUREC_SOURCES})
 add_ipc_ut(test_MetricProcessBase ${IPC_RUNTIME_SOURCES})
 add_ipc_ut(test_MetricManager ${IPC_RUNTIME_SOURCES})
 add_ipc_ut(test_InputParser "${IPC_DIR}/InputParser.cpp" "${IPC_DIR}/utils/utils.cpp" "${IPC_DIR}/dcmi/DcmiApiLoader.cpp")
