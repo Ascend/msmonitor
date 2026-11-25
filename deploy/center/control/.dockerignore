@@ -1,0 +1,11 @@
+*
+!Dockerfile
+!requirements.txt
+!app.py
+!registry.py
+!center.py
+!center_config.py
+!standalone-haproxy.cfg
+!wheelhouse/
+wheelhouse/*
+!wheelhouse/*.whl

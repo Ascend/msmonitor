@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: msmonitor-i8
+spec:
+  replicas: 2
+  minReadySeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: msmonitor-i8
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: msmonitor-i8
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 25
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: msmonitor-i8
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: i8
+          image: msmonitor-i8:replace-with-release
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: MSMONITOR_MODE
+              value: cluster
+            - name: I8_DATABASE_URL_FILE
+              value: /run/secrets/i8/database_url
+            - name: I8_TOKENS_FILE
+              value: /run/secrets/i8/tokens.json
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 3
+            timeoutSeconds: 2
+          volumeMounts:
+            - name: credentials
+              mountPath: /run/secrets/i8
+              readOnly: true
+      volumes:
+        - name: credentials
+          secret:
+            secretName: msmonitor-i8
+            defaultMode: 0440
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: msmonitor-i8
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: msmonitor-i8
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: msmonitor-i8
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: msmonitor-i8

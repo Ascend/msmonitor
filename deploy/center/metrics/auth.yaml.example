@@ -1,0 +1,35 @@
+users:
+  - name: tenant-10-write
+    bearer_token: "REPLACE_TENANT_10_WRITE_TOKEN"
+    url_map:
+      - src_paths:
+          - /insert/10/prometheus/api/v1/write
+        url_prefix: http://msmonitor-i3-l4:8480
+  - name: tenant-10-read
+    bearer_token: "REPLACE_TENANT_10_READ_TOKEN"
+    url_map:
+      - src_paths:
+          - /select/10/prometheus/api/v1/query
+          - /select/10/prometheus/api/v1/query_range
+          - /select/10/prometheus/api/v1/series
+          - /select/10/prometheus/api/v1/labels
+          - /select/10/prometheus/api/v1/status/buildinfo
+          - /select/10/prometheus/api/v1/label/[a-zA-Z_][a-zA-Z0-9_]*/values
+        url_prefix: http://vmselect-msmonitor:8481
+  - name: tenant-20-write
+    bearer_token: "REPLACE_TENANT_20_WRITE_TOKEN"
+    url_map:
+      - src_paths:
+          - /insert/20/prometheus/api/v1/write
+        url_prefix: http://msmonitor-i3-l4:8480
+  - name: tenant-20-read
+    bearer_token: "REPLACE_TENANT_20_READ_TOKEN"
+    url_map:
+      - src_paths:
+          - /select/20/prometheus/api/v1/query
+          - /select/20/prometheus/api/v1/query_range
+          - /select/20/prometheus/api/v1/series
+          - /select/20/prometheus/api/v1/labels
+          - /select/20/prometheus/api/v1/status/buildinfo
+          - /select/20/prometheus/api/v1/label/[a-zA-Z_][a-zA-Z0-9_]*/values
+        url_prefix: http://vmselect-msmonitor:8481

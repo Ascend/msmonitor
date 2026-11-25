@@ -1,5 +1,7 @@
 # msMonitor 安装指南
 
+训练监控中心的 Docker 或 Kubernetes 安装步骤见[部署 msMonitor 中心（beta）](msmonitor_center.md)。
+
 <br>
 
 ## 1. 安装说明

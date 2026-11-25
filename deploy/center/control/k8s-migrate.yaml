@@ -1,0 +1,48 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: msmonitor-i8-migrate-
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 120
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: msmonitor-i8:replace-with-release
+          command: [python]
+          args: [-m, registry, migrate, --runtime-dsn-file, /run/secrets/i8/runtime_database_url]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: I8_DATABASE_URL_FILE
+              value: /run/secrets/i8/database_url
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          volumeMounts:
+            - name: credentials
+              mountPath: /run/secrets/i8
+              readOnly: true
+      volumes:
+        - name: credentials
+          secret:
+            secretName: msmonitor-i8-migration
+            defaultMode: 0440

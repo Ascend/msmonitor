@@ -1,0 +1,26 @@
+{
+  "tenants": {
+    "10": {
+      "write_token": "REPLACE_TENANT_10_WRITE_TOKEN",
+      "read_token": "REPLACE_TENANT_10_READ_TOKEN"
+    }
+  },
+  "i8_tokens": {
+    "demo-job": "REPLACE_DAEMON_CONTROL_TOKEN"
+  },
+  "scope_accounts": {},
+  "retention_period": "7d",
+  "cluster": {
+    "namespace": "msmonitor-system",
+    "image": "registry.example.com/msmonitor-center:release",
+    "host": "monitor.example.com",
+    "ingress_class": "nginx",
+    "gateway_namespace": "ingress-nginx",
+    "gateway_pod_labels": {
+      "app.kubernetes.io/component": "controller"
+    },
+    "tls_secret": "msmonitor-center-tls",
+    "database_url_file": "database-url",
+    "migration_database_url_file": "migration-database-url"
+  }
+}

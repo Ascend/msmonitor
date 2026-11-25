@@ -1,0 +1,139 @@
+# Apply in the center namespace after replacing source namespace and Pod selectors.
+# VMCluster components use the VM Operator-generated VMServiceScrape jobs.
+# Only allow platform-owned collectors to connect to native VM HTTP ports.
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: msmonitor-i5-vminsert
+    spec:
+      podSelector:
+        matchLabels:
+          msmonitor.io/i3-component: insert
+      policyTypes: [Ingress]
+      ingress:
+        - from:
+            - &metricsScraper
+              namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: replace-with-monitoring-namespace
+              podSelector:
+                matchLabels:
+                  msmonitor.io/metrics-scraper: "true"
+          ports:
+            - port: 8480
+              protocol: TCP
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: msmonitor-i5-vmselect
+    spec:
+      podSelector:
+        matchLabels:
+          msmonitor.io/i3-component: select
+      policyTypes: [Ingress]
+      ingress:
+        - from:
+            - *metricsScraper
+          ports:
+            - port: 8481
+              protocol: TCP
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: msmonitor-i5-vmstorage
+    spec:
+      podSelector:
+        matchLabels:
+          msmonitor.io/i3-component: storage
+      policyTypes: [Ingress]
+      ingress:
+        - from:
+            - *metricsScraper
+          ports:
+            - port: 8482
+              protocol: TCP
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: msmonitor-i5-haproxy
+    spec:
+      podSelector:
+        matchLabels:
+          msmonitor.io/i3-component: l4
+      policyTypes: [Ingress]
+      ingress:
+        - from:
+            - *metricsScraper
+          ports:
+            - port: 8404
+              protocol: TCP
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: msmonitor-i5-vmauth
+    spec:
+      podSelector:
+        matchLabels:
+          msmonitor.io/i3-component: auth
+      policyTypes: [Ingress]
+      ingress:
+        - from:
+            - *metricsScraper
+          ports:
+            - port: 8428
+              protocol: TCP
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: msmonitor-i5-i8
+    spec:
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: msmonitor-i8
+      policyTypes: [Ingress]
+      ingress:
+        - from:
+            - *metricsScraper
+            # Preserve the existing I8 HTTPS gateway path when enabling isolation.
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: replace-with-gateway-namespace
+              podSelector:
+                matchLabels:
+                  msmonitor.io/center-gateway: "true"
+          ports:
+            - port: 8080
+              protocol: TCP
+  - apiVersion: operator.victoriametrics.com/v1beta1
+    kind: VMPodScrape
+    metadata:
+      name: msmonitor-i3-edge
+    spec:
+      selector:
+        matchExpressions:
+          - key: msmonitor.io/i3-component
+            operator: In
+            values: [l4, auth]
+      podMetricsEndpoints:
+        - port: health
+          path: /metrics
+          interval: 30s
+          scrapeTimeout: 5s
+          follow_redirects: false
+  - apiVersion: operator.victoriametrics.com/v1beta1
+    kind: VMPodScrape
+    metadata:
+      name: msmonitor-i8
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: msmonitor-i8
+      podMetricsEndpoints:
+        - port: http
+          path: /metrics
+          interval: 30s
+          scrapeTimeout: 5s
+          follow_redirects: false
