@@ -4,6 +4,7 @@
 !app.py
 !registry.py
 !center.py
+!visualization.py
 !center_config.py
 !standalone-haproxy.cfg
 !wheelhouse/

@@ -13,6 +13,7 @@ from string import Template
 from urllib.error import URLError
 from urllib.request import ProxyHandler, build_opener
 
+import visualization
 from center_config import auth_config, load_config, retention_period, registration_urls
 
 APP = Path(__file__).resolve().parent
@@ -196,6 +197,10 @@ def start_metrics(processes, auth_file, retention):
     )
 
 
+def visualization_enabled():
+    return os.getenv("MSMONITOR_VISUALIZATION") == "1"
+
+
 def standalone(command):
     config = load_config(CONFIG / "center.json")
     retention = retention_period(config)
@@ -209,7 +214,10 @@ def standalone(command):
             work = Path(directory)
             proxy = work / "haproxy.cfg"
             template = Template((APP / "standalone-haproxy.cfg").read_text(encoding="utf-8"))
-            proxy.write_text(template.substitute(ADDRESSES, public_port=PUBLIC_PORT), encoding="utf-8")
+            proxy_config = template.substitute(ADDRESSES, public_port=PUBLIC_PORT)
+            if visualization_enabled():
+                proxy_config += visualization.query_proxy(config, ADDRESSES["auth"])
+            proxy.write_text(proxy_config, encoding="utf-8")
             run_once(["/usr/sbin/haproxy", "-c", "-f", str(proxy)])
             auth_file = work / "auth.yaml"
             auth_file.write_text(
@@ -231,6 +239,8 @@ def standalone(command):
                     "internal services",
                 )
                 processes.start(["/usr/sbin/haproxy", "-db", "-f", str(proxy)])
+                if visualization_enabled():
+                    visualization.start(processes)
                 while True:
                     processes.check()
                     time.sleep(0.25)
@@ -244,6 +254,8 @@ def main():
     mode = os.getenv("MSMONITOR_MODE", "standalone")
     if sys.argv[1:] == ["healthcheck"]:
         urls = (CHECK_URLS["control"],) if mode == "cluster" else CHECK_URLS.values()
+        if mode == "standalone" and visualization_enabled():
+            urls = (*urls, *visualization.HEALTH_URLS)
         return 0 if all(map(healthy, urls)) else 1
     if mode not in ("standalone", "cluster") or len(sys.argv) < 2:
         raise ValueError("Expected standalone or cluster mode and an I8 command")
