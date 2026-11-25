@@ -2,6 +2,8 @@
 
 本文档介绍msMonitor工具的安装方式，涵盖在线安装、离线安装和源码安装三种方式，适用于需要在Linux系统下使用msMonitor的用户。
 
+训练监控中心的 Docker 或 Kubernetes 安装步骤见[部署 msMonitor 中心（beta）](msmonitor_center.md)。
+
 <br>
 
 ## 1. 安装说明

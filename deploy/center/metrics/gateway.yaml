@@ -1,0 +1,258 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: msmonitor-i3-l4
+data:
+  haproxy.cfg: |
+    global
+      log stdout format raw local0
+      maxconn 12000
+    defaults
+      log global
+      mode tcp
+      option tcplog
+      timeout connect 3s
+      timeout client 30s
+      timeout server 30s
+    resolvers kube_dns
+      parse-resolv-conf
+      accepted_payload_size 4096
+      hold valid 3s
+      hold obsolete 1s
+    frontend write_entry
+      bind :8480
+      default_backend writers
+    backend writers
+      balance roundrobin
+      option httpchk
+      http-check connect
+      http-check send meth GET uri /-/healthy ver HTTP/1.1 hdr Host vminsert
+      http-check expect status 200
+      default-server inter 1s fall 2 rise 2 on-marked-down shutdown-sessions
+      server-template writer 32 "vminsert-msmonitor-headless.${POD_NAMESPACE}.svc.${CLUSTER_DOMAIN}:8480" check resolvers kube_dns init-addr none
+    frontend status
+      bind :8404
+      mode http
+      option httplog
+      monitor-uri /readyz
+      monitor fail if { nbsrv(writers) lt 1 }
+      http-request return status 200 if { path /livez }
+      http-request use-service prometheus-exporter if { path /metrics }
+      stats enable
+      stats uri /stats
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: msmonitor-i3-l4
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      msmonitor.io/i3-component: l4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        msmonitor.io/i3-component: l4
+    spec:
+      automountServiceAccountToken: false
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              msmonitor.io/i3-component: l4
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: haproxy
+          image: haproxy:3.2.26
+          command: [haproxy]
+          args: [-W, -db, -f, /etc/haproxy/haproxy.cfg]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CLUSTER_DOMAIN
+              value: cluster.local
+          ports:
+            - name: write
+              containerPort: 8480
+            - name: health
+              containerPort: 8404
+          resources:
+            requests:
+              cpu: 250m
+              memory: 128Mi
+            limits:
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: health
+          volumeMounts:
+            - name: config
+              mountPath: /etc/haproxy
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: msmonitor-i3-l4
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: msmonitor-i3-l4
+spec:
+  type: ClusterIP
+  selector:
+    msmonitor.io/i3-component: l4
+  ports:
+    - name: write
+      port: 8480
+      targetPort: write
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: msmonitor-i3-l4
+spec:
+  podSelector:
+    matchLabels:
+      msmonitor.io/i3-component: l4
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              msmonitor.io/i3-component: auth
+      ports:
+        - port: 8480
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: msmonitor-i3-auth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      msmonitor.io/i3-component: auth
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        msmonitor.io/i3-component: auth
+    spec:
+      automountServiceAccountToken: false
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              msmonitor.io/i3-component: auth
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: vmauth
+          image: victoriametrics/vmauth:v1.155.0
+          args:
+            - -auth.config=/etc/vmauth/auth.yaml
+            - -configCheckInterval=30s
+            - -httpListenAddr=:8427
+            - -httpInternalListenAddr=:8428
+            - -http.shutdownDelay=5s
+            - -loggerFormat=json
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8427
+            - name: health
+              containerPort: 8428
+          resources:
+            requests:
+              cpu: 250m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: health
+            periodSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: health
+          volumeMounts:
+            - name: auth
+              mountPath: /etc/vmauth
+              readOnly: true
+      volumes:
+        - name: auth
+          secret:
+            secretName: msmonitor-i3-auth
+            defaultMode: 0440
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: msmonitor-i3-auth
+spec:
+  type: ClusterIP
+  selector:
+    msmonitor.io/i3-component: auth
+  ports:
+    - name: http
+      port: 8427
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: msmonitor-i3-auth
+spec:
+  podSelector:
+    matchLabels:
+      msmonitor.io/i3-component: auth
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: replace-with-gateway-namespace
+      ports:
+        - port: 8427

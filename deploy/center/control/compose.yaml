@@ -1,0 +1,74 @@
+x-image: &i8-image
+  image: "${I8_LAB_IMAGE:-msmonitor-i8:local}"
+  build:
+    context: .
+    target: i8-service
+  user: "${I8_UID:?Set I8_UID to your Linux UID}:${I8_GID:?Set I8_GID to your Linux GID}"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+
+x-app: &i8-app
+  <<: *i8-image
+  environment:
+    I8_DATABASE_URL_FILE: /run/secrets/database_url
+    I8_TOKENS_FILE: /run/secrets/tokens.json
+  secrets:
+    - database_url
+    - source: tokens
+      target: tokens.json
+  depends_on:
+    db:
+      condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
+  stop_grace_period: 25s
+  healthcheck:
+    test: [CMD, python, -c, "from urllib.request import urlopen; urlopen('http://127.0.0.1:8080/readyz', timeout=2).close()"]
+    interval: 3s
+    timeout: 3s
+    retries: 15
+
+services:
+  db:
+    image: ${I8_LAB_POSTGRES_IMAGE:-postgres:15-bookworm}
+    environment:
+      POSTGRES_USER: i8
+      POSTGRES_DB: i8
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, i8, -d, i8]
+      interval: 3s
+      timeout: 2s
+      retries: 15
+
+  migrate:
+    <<: *i8-image
+    environment:
+      I8_DATABASE_URL_FILE: /run/secrets/database_url
+    secrets: [database_url]
+    command: [python, -m, registry, migrate]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app1:
+    <<: *i8-app
+    ports: ["127.0.0.1:${I8_LAB_PORT_A:-18471}:8080"]
+
+  app2:
+    <<: *i8-app
+    ports: ["127.0.0.1:${I8_LAB_PORT_B:-18472}:8080"]
+
+secrets:
+  postgres_password:
+    file: ${I8_LAB_SECRETS:?Set I8_LAB_SECRETS}/postgres_password
+  database_url:
+    file: ${I8_LAB_SECRETS:?Set I8_LAB_SECRETS}/database_url
+  tokens:
+    file: ${I8_LAB_SECRETS:?Set I8_LAB_SECRETS}/tokens.json
+
+volumes:
+  postgres_data:

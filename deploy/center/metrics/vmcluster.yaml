@@ -1,0 +1,128 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMCluster
+metadata:
+  name: msmonitor
+spec:
+  clusterVersion: v1.155.0-cluster
+  clusterDomainName: cluster.local
+  retentionPeriod: "1d"
+  replicationFactor: 2
+  useStrictSecurity: true
+  vminsert:
+    replicaCount: 3
+    podMetadata:
+      labels:
+        msmonitor.io/i3-component: insert
+    topologySpreadConstraints:
+      - maxSkew: 1
+        minDomains: 3
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        nodeTaintsPolicy: Honor
+        labelSelector:
+          matchLabels:
+            msmonitor.io/i3-component: insert
+    podDisruptionBudget:
+      minAvailable: 2
+    resources:
+      requests:
+        cpu: "1"
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+    networkPolicy:
+      ingress:
+        - from:
+            - podSelector:
+                matchLabels:
+                  msmonitor.io/i3-component: l4
+          ports:
+            - port: 8480
+  vmselect:
+    replicaCount: 2
+    podMetadata:
+      labels:
+        msmonitor.io/i3-component: select
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+    podDisruptionBudget:
+      minAvailable: 1
+    extraArgs:
+      dedup.minScrapeInterval: 1ms
+    resources:
+      requests:
+        cpu: "1"
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+    networkPolicy:
+      ingress:
+        - from:
+            - podSelector:
+                matchExpressions:
+                  - key: msmonitor.io/i3-component
+                    operator: In
+                    values: [auth, select]
+          ports:
+            - port: 8481
+  vmstorage:
+    replicaCount: 3
+    podMetadata:
+      labels:
+        msmonitor.io/i3-component: storage
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        minDomains: 3
+        whenUnsatisfiable: DoNotSchedule
+        nodeTaintsPolicy: Honor
+        labelSelector:
+          matchLabels:
+            msmonitor.io/i3-component: storage
+    podDisruptionBudget:
+      minAvailable: 2
+    extraArgs:
+      dedup.minScrapeInterval: 1ms
+    storageDataPath: /vm-data
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 10Gi
+    resources:
+      requests:
+        cpu: "1"
+        memory: 1Gi
+      limits:
+        memory: 2Gi
+    networkPolicy:
+      ingress:
+        - from:
+            - podSelector:
+                matchLabels:
+                  msmonitor.io/i3-component: insert
+          ports:
+            - port: 8400
+        - from:
+            - podSelector:
+                matchLabels:
+                  msmonitor.io/i3-component: select
+          ports:
+            - port: 8401
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vminsert-msmonitor-headless
+spec:
+  clusterIP: None
+  selector:
+    msmonitor.io/i3-component: insert
+  ports:
+    - name: http
+      port: 8480
+      targetPort: 8480
