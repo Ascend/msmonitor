@@ -1,0 +1,15 @@
+{
+  "id": "msmonitor-summary-datasource",
+  "type": "datasource",
+  "name": "MSMonitor Step 摘要",
+  "info": {
+    "author": { "name": "MSMonitor" },
+    "description": "在中心侧查询并聚合 Step 性能指标",
+    "version": "1.0.0",
+    "updated": "2026-11-22"
+  },
+  "dependencies": { "grafanaDependency": ">=12.2.0", "plugins": [] },
+  "routes": [
+    { "path": "summary", "method": "GET", "url": "{{ .Url }}", "reqSignedIn": true }
+  ]
+}

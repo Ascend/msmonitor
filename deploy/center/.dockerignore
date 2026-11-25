@@ -1,0 +1,11 @@
+*
+!grafana/
+!grafana/backend/
+!grafana/backend/*.py
+grafana/backend/test_*.py
+!grafana/provisioning/
+!grafana/provisioning/**
+!grafana/dashboards/
+!grafana/dashboards/*.json
+!grafana/plugins/
+!grafana/plugins/**

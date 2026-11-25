@@ -1,0 +1,15 @@
+apiVersion: 1
+datasources:
+  - name: MSMonitor Prometheus
+    uid: msmonitor-prometheus
+    type: prometheus
+    access: proxy
+    url: $MSMONITOR_PROMETHEUS_URL
+    isDefault: true
+    editable: false
+  - name: MSMonitor Step 摘要
+    uid: msmonitor-summary
+    type: msmonitor-summary-datasource
+    access: proxy
+    url: http://127.0.0.1:$MSMONITOR_SUMMARY_PORT
+    editable: false

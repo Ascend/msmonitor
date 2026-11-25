@@ -1,0 +1,207 @@
+{
+  "uid": "msmonitor-l1",
+  "title": "L1 step 耗时分析",
+  "description": "训练性能监控",
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": false,
+  "tags": [
+    "msmonitor"
+  ],
+  "timezone": "utc",
+  "graphTooltip": 0,
+  "refresh": "",
+  "time": {
+    "from": "2026-11-17T13:00:00.000Z",
+    "to": "2026-11-17T18:00:00.000Z"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "job",
+        "label": "job_name",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "msmonitor-prometheus"
+        },
+        "definition": "label_values(msmonitor_step_index,job_name)",
+        "query": {
+          "query": "label_values(msmonitor_step_index,job_name)",
+          "refId": "StandardVariableQuery"
+        },
+        "current": {
+          "text": "dp2-tp2-pp2",
+          "value": "dp2-tp2-pp2",
+          "selected": true
+        },
+        "refresh": 2,
+        "sort": 1,
+        "options": [],
+        "includeAll": false,
+        "multi": false
+      },
+      {
+        "name": "run",
+        "label": "run_id",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "msmonitor-prometheus"
+        },
+        "definition": "label_values(msmonitor_step_index{job_name=\"$job\"},run_id)",
+        "query": {
+          "query": "label_values(msmonitor_step_index{job_name=\"$job\"},run_id)",
+          "refId": "StandardVariableQuery"
+        },
+        "current": {
+          "text": "capture-20261116-kde-v2",
+          "value": "capture-20261116-kde-v2",
+          "selected": true
+        },
+        "refresh": 2,
+        "sort": 1,
+        "options": [],
+        "includeAll": false,
+        "multi": false
+      }
+    ]
+  },
+  "links": [
+    {
+      "type": "link",
+      "title": "L1 step 耗时分析",
+      "url": "/d/msmonitor-l1?msmonitor-current=1",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "asDropdown": false,
+      "tags": [],
+      "tooltip": "当前看板 · L1 step 耗时分析"
+    },
+    {
+      "type": "link",
+      "title": "L2 打点与通算掩盖",
+      "url": "/d/msmonitor-l2",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "asDropdown": false,
+      "tags": [],
+      "tooltip": "L2 打点与通算掩盖"
+    },
+    {
+      "type": "link",
+      "title": "L3 域与算子分析",
+      "url": "/d/msmonitor-l3",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "asDropdown": false,
+      "tags": [],
+      "tooltip": "L3 域与算子分析"
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "msmonitor-step-panel",
+      "title": "各 Rank 平均耗时",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "h": 7,
+        "w": 18
+      },
+      "options": {
+        "mode": "mean"
+      },
+      "transparent": false,
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "msmonitor-step-panel",
+      "title": "最近 Step 上报",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "h": 7,
+        "w": 6
+      },
+      "options": {
+        "mode": "recent"
+      },
+      "transparent": false,
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "msmonitor-step-panel",
+      "title": "快慢卡耗时差",
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "h": 7,
+        "w": 18
+      },
+      "options": {
+        "mode": "spread"
+      },
+      "transparent": false,
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "msmonitor-step-panel",
+      "title": "缺报 Rank 数",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "h": 7,
+        "w": 18
+      },
+      "options": {
+        "mode": "missing"
+      },
+      "transparent": false,
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "msmonitor-step-panel",
+      "title": "单 Rank 趋势",
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "h": 9,
+        "w": 24
+      },
+      "options": {
+        "mode": "single"
+      },
+      "transparent": false,
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    }
+  ]
+}

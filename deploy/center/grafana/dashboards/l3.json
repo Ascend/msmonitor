@@ -1,0 +1,275 @@
+{
+  "uid": "msmonitor-l3",
+  "title": "L3 域与算子分析",
+  "description": "训练性能监控",
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": false,
+  "tags": [
+    "msmonitor"
+  ],
+  "timezone": "utc",
+  "graphTooltip": 0,
+  "refresh": "",
+  "time": {
+    "from": "2026-11-17T13:00:00.000Z",
+    "to": "2026-11-17T18:00:00.000Z"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "job",
+        "label": "job_name",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "msmonitor-prometheus"
+        },
+        "definition": "label_values(msmonitor_step_index,job_name)",
+        "query": {
+          "query": "label_values(msmonitor_step_index,job_name)",
+          "refId": "StandardVariableQuery"
+        },
+        "current": {
+          "text": "dp2-tp2-pp2",
+          "value": "dp2-tp2-pp2",
+          "selected": true
+        },
+        "refresh": 2,
+        "sort": 1,
+        "options": [],
+        "includeAll": false,
+        "multi": false
+      },
+      {
+        "name": "run",
+        "label": "run_id",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "msmonitor-prometheus"
+        },
+        "definition": "label_values(msmonitor_step_index{job_name=\"$job\"},run_id)",
+        "query": {
+          "query": "label_values(msmonitor_step_index{job_name=\"$job\"},run_id)",
+          "refId": "StandardVariableQuery"
+        },
+        "current": {
+          "text": "capture-20261116-kde-v2",
+          "value": "capture-20261116-kde-v2",
+          "selected": true
+        },
+        "refresh": 2,
+        "sort": 1,
+        "options": [],
+        "includeAll": false,
+        "multi": false
+      },
+      {
+        "name": "step",
+        "label": "Step",
+        "type": "textbox",
+        "hide": 2,
+        "query": "12",
+        "current": {
+          "text": "12",
+          "value": "12",
+          "selected": true
+        },
+        "options": [
+          {
+            "text": "12",
+            "value": "12",
+            "selected": true
+          }
+        ]
+      }
+    ]
+  },
+  "links": [
+    {
+      "type": "link",
+      "title": "L1 step 耗时分析",
+      "url": "/d/msmonitor-l1",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "asDropdown": false,
+      "tags": [],
+      "tooltip": "L1 step 耗时分析"
+    },
+    {
+      "type": "link",
+      "title": "L2 打点与通算掩盖",
+      "url": "/d/msmonitor-l2",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "asDropdown": false,
+      "tags": [],
+      "tooltip": "L2 打点与通算掩盖"
+    },
+    {
+      "type": "link",
+      "title": "L3 域与算子分析",
+      "url": "/d/msmonitor-l3?msmonitor-current=1",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "asDropdown": false,
+      "tags": [],
+      "tooltip": "当前看板 · L3 域与算子分析"
+    }
+  ],
+  "panels": [
+    {
+      "id": 7,
+      "type": "msmonitor-step-panel",
+      "title": "算子累计耗时趋势",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "h": 15,
+        "w": 24
+      },
+      "options": {
+        "mode": "operator-trends"
+      },
+      "targets": []
+    },
+    {
+      "id": 4,
+      "type": "msmonitor-step-panel",
+      "title": "计算算子 · KDE 分布",
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "h": 18,
+        "w": 24
+      },
+      "options": {
+        "mode": "kde-kernel"
+      },
+      "transparent": false,
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "msmonitor-step-panel",
+      "title": "通信算子 · KDE 分布",
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "h": 18,
+        "w": 24
+      },
+      "options": {
+        "mode": "kde-communication"
+      },
+      "transparent": false,
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "type": "msmonitor-step-panel",
+      "gridPos": {
+        "x": 0,
+        "y": 51,
+        "h": 3,
+        "w": 24
+      },
+      "options": {
+        "mode": "step-picker"
+      },
+      "targets": []
+    },
+    {
+      "id": 1,
+      "type": "msmonitor-step-panel",
+      "title": "计算算子 · 域内耗时差异排行",
+      "gridPos": {
+        "x": 0,
+        "y": 54,
+        "h": 12,
+        "w": 24
+      },
+      "options": {
+        "mode": "tail"
+      },
+      "transparent": false,
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "msmonitor-step-panel",
+      "title": "计算算子 · 域整体耗时偏移排行",
+      "gridPos": {
+        "x": 0,
+        "y": 66,
+        "h": 12,
+        "w": 24
+      },
+      "options": {
+        "mode": "offset"
+      },
+      "transparent": false,
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "msmonitor-step-panel",
+      "title": "计算算子 · Rank Top N 耗时偏移",
+      "gridPos": {
+        "x": 0,
+        "y": 78,
+        "h": 13,
+        "w": 24
+      },
+      "options": {
+        "mode": "top"
+      },
+      "transparent": false,
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "msmonitor-step-panel",
+      "title": "单卡通信算子累计耗时",
+      "gridPos": {
+        "x": 0,
+        "y": 91,
+        "h": 14,
+        "w": 24
+      },
+      "options": {
+        "mode": "communication"
+      },
+      "transparent": false,
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    }
+  ]
+}

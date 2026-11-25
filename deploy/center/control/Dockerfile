@@ -5,15 +5,34 @@ FROM victoriametrics/vmselect:${VM_VERSION}-cluster AS vmselect
 FROM victoriametrics/vmauth:${VM_VERSION} AS vmauth
 
 FROM python:3.12-slim-bookworm AS i8-deps
+ARG PIP_INDEX_URL=https://pypi.org/simple
+ARG PIP_FALLBACK_INDEX_URL=
 WORKDIR /build-context
 COPY . .
-RUN if [ -d wheelhouse ]; then \
-        python -m pip install --prefix=/install --ignore-installed --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-index \
-            --find-links=wheelhouse -r requirements.txt; \
-    else \
-        python -m pip install --prefix=/install --ignore-installed --no-cache-dir --only-binary=:all: \
-            --timeout 60 --retries 8 -r requirements.txt; \
-    fi
+RUN set -eu; \
+ 	if [ -d wheelhouse ]; then \
+ 	    wheels=wheelhouse; \
+ 	else \
+        wheels=$(mktemp -d); \
+        download_dir=$wheels; \
+        trap 'rm -rf "$download_dir"' EXIT; \
+        download() { \
+            python -m pip --isolated download --disable-pip-version-check --no-cache-dir \
+                --only-binary=:all: --timeout 20 --retries 2 --index-url "$1" \
+                --dest "$wheels" -r requirements.txt; \
+        }; \
+        if ! download "$PIP_INDEX_URL"; then \
+            if [ -z "$PIP_FALLBACK_INDEX_URL" ] || [ "$PIP_INDEX_URL" = "$PIP_FALLBACK_INDEX_URL" ]; then \
+                echo "Python wheel download failed. Set PIP_INDEX_URL or supply a complete wheelhouse." >&2; \
+                exit 1; \
+            fi; \
+            echo "Primary PyPI index failed. Retrying with the configured fallback index." >&2; \
+            wheels=$(mktemp -d "$wheels/fallback.XXXXXX"); \
+            download "$PIP_FALLBACK_INDEX_URL"; \
+        fi; \
+    fi; \
+    python -m pip --isolated install --prefix=/install --ignore-installed --disable-pip-version-check \
+        --no-cache-dir --only-binary=:all: --no-index --find-links="$wheels" -r requirements.txt
 
 FROM python:3.12-slim-bookworm AS i8-service
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 UVICORN_HOST=0.0.0.0
@@ -45,7 +64,7 @@ COPY --from=vmauth /vmauth-prod /usr/local/bin/vmauth
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 UVICORN_HOST=0.0.0.0
 WORKDIR /app
 COPY --from=i8-deps /install/ /usr/local/
-COPY app.py registry.py center.py center_config.py standalone-haproxy.cfg ./
+COPY app.py registry.py center.py center_config.py visualization.py standalone-haproxy.cfg ./
 
 USER 10001:10001
 EXPOSE 8443
