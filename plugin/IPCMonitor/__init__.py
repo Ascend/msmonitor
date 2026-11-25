@@ -14,8 +14,9 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
-# 对外 API（__all__ 声明有意导出，规避 F401）
+# 对外 API 通过 __all__ 声明；C 扩展模块仅供内部使用，用 noqa 规避 F401
 from .dynamic_monitor_proxy import PyDynamicMonitorProxy
 from .monitor import ActivityKind, DcmiLayer, Monitor
+from ._ipcmonitor_C import ipcmonitor_C_module  # noqa: F401
 
 __all__ = ["PyDynamicMonitorProxy", "ActivityKind", "DcmiLayer", "Monitor"]

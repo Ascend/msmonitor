@@ -16,118 +16,171 @@
 #ifndef NPU_IPC_ENDPOINT_H
 #define NPU_IPC_ENDPOINT_H
 
-#include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
-#include <cstring>
-#include <cerrno>
-#include <stdexcept>
-#include "utils.h"
-#include "securec.h"
 
-namespace dynolog_npu {
-namespace ipc_monitor {
+#include <cerrno>
+#include <cstddef>
+#include <cstring>
+#include <stdexcept>
+
+#include "securec.h"
+#include "utils.h"
+
+namespace dynolog_npu
+{
+namespace ipc_monitor
+{
 
 using fileDesT = int;
 constexpr const char STR_END_CHAR = '\0';
 constexpr int SOCK_PATH_PERMISSION = 0600;
 
-struct NpuPayLoad {
+struct NpuPayLoad
+{
     size_t size;
     void *data;
     NpuPayLoad(size_t size, void *data) : size(size), data(data) {}
 };
 
-template <size_t MaxNumFileDes = 0> struct NpuIpcEndPointCtxt {
+template <size_t MaxNumFileDes = 0>
+struct NpuIpcEndPointCtxt
+{
     struct sockaddr_un messageName;
     size_t messageLen;
     fileDesT *fileDesPtr;
     struct msghdr msghdr;
     std::vector<struct iovec> iov;
     char ancillaryBuf[CMSG_SPACE(MaxNumFileDes * sizeof(fileDesT))];
-    explicit NpuIpcEndPointCtxt(size_t num) : iov(std::vector<struct iovec>(num)){};
+    explicit NpuIpcEndPointCtxt(size_t num) : iov(std::vector<struct iovec>(num)) {};
 };
 
-template <size_t MaxNumFileDes = 0> class NpuIpcEndPoint final {
+template <size_t MaxNumFileDes = 0>
+class NpuIpcEndPoint final
+{
     using Ctxt = NpuIpcEndPointCtxt<MaxNumFileDes>;
 
-public:
-    constexpr static size_t addressMaxLen = 108 - 2; // Max unix socket path length
-    explicit NpuIpcEndPoint(const std::string &addressName)
+   public:
+    constexpr static size_t addressMaxLen = 108 - 2;  // Max unix socket path length
+    explicit NpuIpcEndPoint(const std::string &addressName, bool isAbstract = true)
     {
         socketFd = socket(AF_UNIX, SOCK_DGRAM, 0);
-        if (socketFd == -1) {
+        if (socketFd == -1)
+        {
             throw std::runtime_error(std::strerror(errno) + IPC_ERROR(ErrCode::PARAM));
         }
         int ret = 0;
         struct sockaddr_un address;
-        size_t addressLen = SetSocketAdress(addressName, address, true);
-        if (address.sun_path[0] != STR_END_CHAR) {
+        // bind 场景下路径名 socket 尚不存在，跳过 send 侧“必须已存在且可写”的校验
+        size_t addressLen = SetSocketAdress(addressName, address, isAbstract, false);
+        if (address.sun_path[0] != STR_END_CHAR)
+        {
+            // 已有实例仍在监听同一路径时不能 unlink，否则会把它的 socket 摘掉后自己顶替，
+            // 与“同一 socket 独占、冲突时启动失败”的语义不符。
+            if (IsSocketInUse(address.sun_path))
+            {
+                close(socketFd);
+                socketFd = -1;
+                throw std::runtime_error("Socket path is already in use: " + std::string(address.sun_path) +
+                                         IPC_ERROR(ErrCode::PARAM));
+            }
+            socketPath_ = address.sun_path;
             ret = unlink(address.sun_path);
-        }
-        if (ret == -1) {
-            throw std::runtime_error("Unlink failed, error is " + std::string(strerror(errno)) + IPC_ERROR(ErrCode::PARAM));
+            // 无残留文件时 unlink 返回 ENOENT，属正常情况
+            if (ret == -1 && errno != ENOENT)
+            {
+                throw std::runtime_error("Unlink failed, error is " + std::string(strerror(errno)) +
+                                         IPC_ERROR(ErrCode::PARAM));
+            }
         }
 
         ret = bind(socketFd, ReinterpretConvert<const struct sockaddr *>(&address), addressLen);
-        if (ret == -1) {
+        if (ret == -1)
+        {
             throw std::runtime_error("Bind socket failed." + IPC_ERROR(ErrCode::PARAM));
         }
 
-        if (address.sun_path[0] != STR_END_CHAR) {
+        if (address.sun_path[0] != STR_END_CHAR)
+        {
             ret = chmod(address.sun_path, SOCK_PATH_PERMISSION);
-        }
-        if (ret == -1) {
-            throw std::runtime_error("Chmod failed, error is " + std::string(strerror(errno)) + IPC_ERROR(ErrCode::PARAM));
+            if (ret == -1)
+            {
+                throw std::runtime_error("Chmod failed, error is " + std::string(strerror(errno)) +
+                                         IPC_ERROR(ErrCode::PARAM));
+            }
+            // 记录创建时的 inode，析构时据此判断路径是否已被其他实例重新绑定。
+            if (stat(address.sun_path, &socketStat_) == 0)
+            {
+                hasSocketStat_ = true;
+            }
         }
     }
 
     ~NpuIpcEndPoint()
     {
         close(socketFd);
+        if (socketPath_.empty())
+        {
+            return;
+        }
+        struct stat current = {};
+        if (hasSocketStat_ && stat(socketPath_.c_str(), &current) == 0 && current.st_dev == socketStat_.st_dev &&
+            current.st_ino == socketStat_.st_ino)
+        {
+            (void)unlink(socketPath_.c_str());
+        }
     }
 
     [[nodiscard]] auto BuildSendNpuCtxt(const std::string &desAddrName, const std::vector<NpuPayLoad> &npuPayLoad,
-        const std::vector<fileDesT> &fileDes)
+                                        const std::vector<fileDesT> &fileDes, bool isAbstract = false)
     {
-        if (fileDes.size() > MaxNumFileDes) {
+        if (fileDes.size() > MaxNumFileDes)
+        {
             throw std::runtime_error("Request to fill more than max connections " + IPC_ERROR(ErrCode::PARAM));
         }
-        if (desAddrName.empty()) {
+        if (desAddrName.empty())
+        {
             throw std::runtime_error("Can not send to dest point, because dest socket name is empty " +
-                IPC_ERROR(ErrCode::PARAM));
+                                     IPC_ERROR(ErrCode::PARAM));
         }
         auto ctxt = BuildNpuCtxt_(npuPayLoad, fileDes.size());
-        ctxt->msghdr.msg_namelen = SetSocketAdress(desAddrName, ctxt->messageName, false);
-        if (!fileDes.empty()) {
-            if (fileDes.size() * sizeof(fileDesT) > sizeof(ctxt->fileDesPtr)) {
+        ctxt->msghdr.msg_namelen = SetSocketAdress(desAddrName, ctxt->messageName, isAbstract, true);
+        if (!fileDes.empty())
+        {
+            if (fileDes.size() * sizeof(fileDesT) > sizeof(ctxt->fileDesPtr))
+            {
                 throw std::runtime_error("Memcpy failed when fileDes size large than ctxt fileDesPtr " +
-                    IPC_ERROR(ErrCode::PARAM));
+                                         IPC_ERROR(ErrCode::PARAM));
             }
-            if (memcpy_s(ctxt->fileDesPtr, sizeof(ctxt->fileDesPtr),
-                         fileDes.data(), fileDes.size() * sizeof(fileDesT)) != EOK) {
+            if (memcpy_s(ctxt->fileDesPtr, sizeof(ctxt->fileDesPtr), fileDes.data(),
+                         fileDes.size() * sizeof(fileDesT)) != EOK)
+            {
                 throw std::runtime_error("Memcpy failed when fileDes size large than ctxt fileDesPtr " +
-                    IPC_ERROR(ErrCode::MEMORY));
+                                         IPC_ERROR(ErrCode::MEMORY));
             }
         }
         return ctxt;
     }
 
-    [[nodiscard]] bool TrySendMessage(Ctxt const & ctxt, bool retryOnConnRefused = true)
+    [[nodiscard]] bool TrySendMessage(Ctxt const &ctxt, bool retryOnConnRefused = true)
     {
         ssize_t retCode = sendmsg(socketFd, &ctxt.msghdr, MSG_DONTWAIT);
-        if (retCode > 0) {
+        if (retCode > 0)
+        {
             return true;
         }
-        if ((errno == EAGAIN || errno == EWOULDBLOCK) && retCode == -1) {
+        if ((errno == EAGAIN || errno == EWOULDBLOCK) && retCode == -1)
+        {
             return false;
         }
-        if (retryOnConnRefused && errno == ECONNREFUSED && retCode == -1) {
+        if (retryOnConnRefused && errno == ECONNREFUSED && retCode == -1)
+        {
             return false;
         }
         throw std::runtime_error("TrySendMessage occur " + std::string(std::strerror(errno)) + " " +
-            IPC_ERROR(ErrCode::PARAM));
+                                 IPC_ERROR(ErrCode::PARAM));
     }
 
     [[nodiscard]] auto BuildNpuRcvCtxt(const std::vector<NpuPayLoad> &npuPayLoad)
@@ -138,50 +191,61 @@ public:
     [[nodiscard]] bool TryRcvMessage(Ctxt &ctxt) noexcept
     {
         auto retCode = recvmsg(socketFd, &ctxt.msghdr, MSG_DONTWAIT);
-        if (retCode > 0) {
+        if (retCode > 0)
+        {
             return true;
         }
-        if (retCode == 0) {
+        if (retCode == 0)
+        {
             return false;
         }
-        if (errno == EWOULDBLOCK || errno == EAGAIN) {
+        if (errno == EWOULDBLOCK || errno == EAGAIN)
+        {
             return false;
         }
         throw std::runtime_error("TryRcvMessage occur " + std::string(std::strerror(errno)) + " " +
-            IPC_ERROR(ErrCode::PARAM));
+                                 IPC_ERROR(ErrCode::PARAM));
     }
 
     [[nodiscard]] bool TryPeekMessage(Ctxt &ctxt)
     {
         ssize_t ret = recvmsg(socketFd, &ctxt.msghdr, MSG_DONTWAIT | MSG_PEEK);
-        if (ret > 0) {
+        if (ret > 0)
+        {
             return true;
         }
-        if (ret == 0) {
+        if (ret == 0)
+        {
             return false;
         }
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
             return false;
         }
         throw std::runtime_error("TryPeekMessage occur " + std::string(std::strerror(errno)));
     }
 
-    const char *GetName(Ctxt const & ctxt, bool isAbstract) const
+    const char *GetName(Ctxt const &ctxt, bool isAbstract) const
     {
-        if (isAbstract) {
-            if (ctxt.messageName.sun_path[0] != STR_END_CHAR) {
+        if (isAbstract)
+        {
+            if (ctxt.messageName.sun_path[0] != STR_END_CHAR)
+            {
                 throw std::runtime_error("GetName() want to got abstract socket, but got " +
-                    std::string(ctxt.messageName.sun_path));
+                                         std::string(ctxt.messageName.sun_path));
             }
             return ctxt.messageName.sun_path + 1;
-        } else {
+        }
+        else
+        {
             auto socketDir = GetCurrentUserHomePath();
-            if (!socketDir.empty()) {
+            if (!socketDir.empty())
+            {
                 if (strncmp(socketDir.c_str(), ctxt.messageName.sun_path, socketDir.size()) != 0 ||
-                    ctxt.messageName.sun_path[socketDir.size()] != '/') {
-                    throw std::runtime_error(
-                        "Unexpected socket name: " + std::string(ctxt.messageName.sun_path) +
-                        ". Expected to start with " + std::string(socketDir));
+                    ctxt.messageName.sun_path[socketDir.size()] != '/')
+                {
+                    throw std::runtime_error("Unexpected socket name: " + std::string(ctxt.messageName.sun_path) +
+                                             ". Expected to start with " + std::string(socketDir));
                 }
                 return ctxt.messageName.sun_path + socketDir.size() + 1;
             }
@@ -192,37 +256,78 @@ public:
     std::vector<fileDesT> GetFileDes(const Ctxt &ctxt) const
     {
         struct cmsghdr *cmg = CMSG_FIRSTHDR(&ctxt.msghdl);
-        if (!cmg) {
+        if (!cmg)
+        {
             throw std::runtime_error("CMSG_FIRSTHDR returned nullptr.");
         }
         unsigned numFileDes = (cmg->cmsg_len - sizeof(struct cmsghdr)) / sizeof(fileDesT);
-        return { ctxt.fileDesPtr, ctxt.fileDesPtr + numFileDes };
+        return {ctxt.fileDesPtr, ctxt.fileDesPtr + numFileDes};
     }
 
-protected:
+   protected:
     fileDesT socketFd = -1;
-    size_t SetSocketAdress(const std::string &srcSocket, struct sockaddr_un &destSocket, bool isAbstract)
+    std::string socketPath_;
+    struct stat socketStat_ = {};
+    bool hasSocketStat_ = false;
+
+    // 探测路径型 socket 是否仍有活跃监听者：Unix 域数据报 connect 到无监听者的路径返回
+    // ECONNREFUSED，据此区分“已退出实例的残留文件”与“仍在运行的实例”。
+    static bool IsSocketInUse(const char *socketPath)
+    {
+        const size_t pathLen = std::strlen(socketPath);
+        struct sockaddr_un target;
+        if (pathLen >= sizeof(target.sun_path))
+        {
+            return false;
+        }
+        (void)memset_s(&target, sizeof(target), 0, sizeof(target));
+        target.sun_family = AF_UNIX;
+        if (memcpy_s(target.sun_path, sizeof(target.sun_path), socketPath, pathLen + 1) != EOK)
+        {
+            return false;
+        }
+        fileDesT probe = socket(AF_UNIX, SOCK_DGRAM, 0);
+        if (probe == -1)
+        {
+            return false;
+        }
+        const auto targetLen = static_cast<socklen_t>(offsetof(sockaddr_un, sun_path) + pathLen + 1);
+        const bool inUse = connect(probe, ReinterpretConvert<const struct sockaddr *>(&target), targetLen) == 0;
+        close(probe);
+        return inUse;
+    }
+
+    size_t SetSocketAdress(const std::string &srcSocket, struct sockaddr_un &destSocket, bool isAbstract,
+                           bool requireExist = true)
     {
         destSocket.sun_family = AF_UNIX;
-        if (isAbstract) {
+        if (isAbstract)
+        {
             destSocket.sun_path[0] = STR_END_CHAR;
-            if (srcSocket.empty()) {
+            if (srcSocket.empty())
+            {
                 return sizeof(sa_family_t);
             }
-            if (srcSocket.size() > addressMaxLen) {
+            if (srcSocket.size() > addressMaxLen)
+            {
                 throw std::runtime_error("Abstract UNIX Socket path cannot be larger than addressMaxLen");
             }
             srcSocket.copy(destSocket.sun_path + 1, srcSocket.size());
             destSocket.sun_path[srcSocket.size() + 1] = STR_END_CHAR;
             return sizeof(sa_family_t) + srcSocket.size() + 2;  // 2 for sun_path[0] and sun_path[srcSocket.size() + 1]
-        } else {
+        }
+        else
+        {
             auto homePath = GetCurrentUserHomePath();
-            if (!homePath.empty()) {
+            if (!homePath.empty())
+            {
                 std::string sockPath = homePath + "/" + srcSocket + ".sock";
-                if (sockPath.size() > addressMaxLen) {
+                if (sockPath.size() > addressMaxLen)
+                {
                     throw std::runtime_error("UNIX Socket path cannot be larger than addressMaxLen");
                 }
-                if (!(PathUtils::IsFileExist(sockPath) && PathUtils::IsFileWritable(sockPath))) {
+                if (requireExist && !(PathUtils::IsFileExist(sockPath) && PathUtils::IsFileWritable(sockPath)))
+                {
                     throw std::runtime_error("UNIX Socket path is not exist or not writable: " + sockPath);
                 }
                 sockPath.copy(destSocket.sun_path, sockPath.size());
@@ -237,10 +342,12 @@ protected:
     auto BuildNpuCtxt_(const std::vector<NpuPayLoad> &npuPayLoad, unsigned numFileDes)
     {
         auto ctxt = std::make_unique<Ctxt>(npuPayLoad.size());
-        if (memset_s(&ctxt->msghdr, sizeof(ctxt->msghdr), 0, sizeof(ctxt->msghdr)) != EOK) {
+        if (memset_s(&ctxt->msghdr, sizeof(ctxt->msghdr), 0, sizeof(ctxt->msghdr)) != EOK)
+        {
             throw std::runtime_error("Memset failed when build ctxt " + IPC_ERROR(ErrCode::MEMORY));
         }
-        for (size_t i = 0; i < npuPayLoad.size(); i++) {
+        for (size_t i = 0; i < npuPayLoad.size(); i++)
+        {
             ctxt->iov[i] = {npuPayLoad[i].data, npuPayLoad[i].size};
         }
         ctxt->msghdr.msg_name = &ctxt->messageName;
@@ -248,7 +355,8 @@ protected:
         ctxt->msghdr.msg_iov = ctxt->iov.data();
         ctxt->msghdr.msg_iovlen = npuPayLoad.size();
         ctxt->fileDesPtr = nullptr;
-        if (numFileDes == 0) {
+        if (numFileDes == 0)
+        {
             return ctxt;
         }
         const size_t fileDesSize = sizeof(fileDesT) * numFileDes;
@@ -256,7 +364,8 @@ protected:
         ctxt->msghdr.msg_controllen = CMSG_SPACE(fileDesSize);
 
         struct cmsghdr *cmsg = CMSG_FIRSTHDR(&ctxt->msghdr);
-        if (!cmsg) {
+        if (!cmsg)
+        {
             throw std::runtime_error("CMSG_FIRSTHDR returned nullptr.");
         }
         cmsg->cmsg_level = SOL_SOCKET;
@@ -266,7 +375,7 @@ protected:
         return ctxt;
     }
 };
-} // namespace ipc_monitor
-} // namespace dynolog_npu
+}  // namespace ipc_monitor
+}  // namespace dynolog_npu
 
-#endif // NPU_IPC_ENDPOINT_H
+#endif  // NPU_IPC_ENDPOINT_H

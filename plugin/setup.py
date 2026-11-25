@@ -72,9 +72,14 @@ setup(
     name="mindstudio_monitor",
     version=os.getenv("WHL_VERSION", "26.0.0"),
     description="mindstudio monitor",
-    packages=find_namespace_packages(include=["IPCMonitor*"]),
+    packages=find_namespace_packages(include=["IPCMonitor*", "msmonitor_cli*"]),
     include_package_data=True,
     ext_modules=[CMakeExtension('IPCMonitor')],
     cmdclass=dict(build_ext=CMakeBuild, build_py=CustomBuildPy),
     install_requires=["pybind11", "xlsxwriter"],
+    entry_points={
+        "console_scripts": [
+            "msmonitor = msmonitor_cli.main:main",
+        ],
+    },
 )
