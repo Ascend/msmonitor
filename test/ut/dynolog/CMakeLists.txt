@@ -59,3 +59,37 @@ target_compile_options(test_DynologUtils PRIVATE
 target_link_options(test_DynologUtils PRIVATE
     -Wl,-z,relro,-z,now,-z,noexecstack
 )
+
+find_package(OpenSSL REQUIRED)
+
+add_executable(test_SimpleJsonServerTls
+    test_SimpleJsonServerTls.cpp
+    ${MSMONITOR_DYNOLOG_DIR}/dynolog/src/rpc/SimpleJsonServer.cpp
+    ${MSMONITOR_DYNOLOG_DIR}/dynolog/src/utils.cpp
+)
+
+target_include_directories(test_SimpleJsonServerTls PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/stubs
+    ${MSMONITOR_DYNOLOG_DIR}
+)
+
+target_link_libraries(test_SimpleJsonServerTls PRIVATE
+    pthread
+    ${glog_LIBRARIES}
+    ${googletest_LIBRARIES}
+    ${fmt_LIBRARIES}
+    OpenSSL::SSL
+    OpenSSL::Crypto
+)
+
+add_test(NAME test_SimpleJsonServerTls COMMAND test_SimpleJsonServerTls)
+
+target_compile_options(test_SimpleJsonServerTls PRIVATE
+    -fPIC
+    -fstack-protector-all
+    -ftrapv
+)
+
+target_link_options(test_SimpleJsonServerTls PRIVATE
+    -Wl,-z,relro,-z,now,-z,noexecstack
+)

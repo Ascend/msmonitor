@@ -1,26 +1,31 @@
 /*
- * Copyright (C) 2025-2025. Huawei Technologies Co., Ltd. All rights reserved.
+ * -------------------------------------------------------------------------
+ * This file is part of the MindStudio project.
+ * Copyright (c) 2025 Huawei Technologies Co.,Ltd.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * MindStudio is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *          http://license.coscl.org.cn/MulanPSL2
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ * -------------------------------------------------------------------------
  */
 
 #pragma once
 
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 
-#include "dynolog/src/gpumon/DcgmGroupInfo.h"
 #include "dynolog/src/ServiceHandler.h"
+#include "dynolog/src/gpumon/DcgmGroupInfo.h"
 #include "dynolog/src/rpc/SimpleJsonServer.h"
 #include "dynolog/src/rpc/SimpleJsonServerInl.h"
 #include "dynolog/src/tracing/IPCMonitor.h"
@@ -40,24 +45,29 @@ DECLARE_bool(enable_ipc_monitor);
 DECLARE_bool(enable_gpu_monitor);
 DECLARE_bool(enable_perf_monitor);
 
-namespace dynolog {
+namespace dynolog
+{
 
-class ThreadManager {
-public:
+class ThreadManager
+{
+   public:
     ThreadManager() : still_alive_(true) {}
     ~ThreadManager() { stop(); }
 
     void run(int argc, char** argv);
 
-private:
+   private:
     void start_threads();
     void stop();
     void gpu_monitor_loop();
     void kernel_monitor_loop();
     void perf_monitor_loop();
+    void wait_until(const std::chrono::steady_clock::time_point& wakeup);
 
-private:
+   private:
     std::atomic<bool> still_alive_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
     std::shared_ptr<gpumon::DcgmGroupInfo> dcgm_;
     std::shared_ptr<tracing::IPCMonitor> ipcmon_;
     std::unique_ptr<std::thread> ipcmon_thread_;
@@ -67,5 +77,4 @@ private:
     std::unique_ptr<std::thread> km_thread_;
     std::unique_ptr<SimpleJsonServer<ServiceHandler>> server_;
 };
-}
-
+}  // namespace dynolog

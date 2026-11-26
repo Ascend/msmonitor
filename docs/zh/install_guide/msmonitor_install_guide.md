@@ -143,6 +143,12 @@ dyno CLI与dynolog daemon之间的RPC通信使用TLS证书密钥加密，在启�
 
 用户应使用与自己需求相符的密钥生成和存储机制，并保证密钥安全性与保密性。当前仅支持RSA-SHA256和RSA-SHA512两种证书签名算法。
 
+客户端证书必须包含 keyUsage 和 extendedKeyUsage 扩展，且 extendedKeyUsage 必须包含 clientAuth；服务端证书必须包含 keyUsage 扩展。TLS 模式下 ca.crl 为必选文件，缺失或无效时启动将失败。
+
+当前仅支持单 CA 部署：ca.crt 中只能包含一张 CA 证书，且 ca.crl 必须由该 CA 签发。若 ca.crt 包含多个根证书而 ca.crl 只覆盖其中一张，dynolog 会在启动阶段校验失败，并提示 `CA certificate is not covered by CRL`。
+
+`ca.crl` 带有 nextUpdate 有效期，请务必在 nextUpdate 之前重新生成并替换 ca.crl，然后重启 dynolog。当前版本不会在运行期自动重新加载 CRL；CRL 过期后所有新的 TLS 握手都会被拒绝，日志中会出现 `CRL has expired`。daemon 会在 CRL 剩余有效期不足 7 天时（启动时以及运行期有连接时，每小时最多一次）打印告警，请结合该告警提前续期。
+
 服务端证书目录结构：
 
 ```text
@@ -150,7 +156,7 @@ ssl_certs
 ├── ca.crt (根证书，用于验证其他证书的合法性，必选)
 ├── server.crt (服务器端的证书，用于向客户端证明服务器身份，必选)
 ├── server.key (服务器端的私钥文件，与server.crt配对使用，支持加密，必选)
-└── ca.crl (证书吊销列表，包含已被吊销的证书信息，可选)
+└── ca.crl (证书吊销列表，包含已被吊销的证书信息，必选)
 ```
 
 客户端证书目录结构：
@@ -160,5 +166,5 @@ ssl_certs
 ├── ca.crt (根证书，用于验证其他证书的合法性，必选)
 ├── client.crt (客户端证书，用于向服务器证明客户端身份，必选)
 ├── client.key (客户端的私钥文件，与client.crt配对使用，支持加密，必选)
-└── ca.crl (证书吊销列表，包含已被吊销的证书信息，可选)
+└── ca.crl (证书吊销列表，包含已被吊销的证书信息，必选)
 ```
