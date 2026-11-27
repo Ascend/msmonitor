@@ -87,6 +87,7 @@ target_compile_options(IPCMonitor PRIVATE
 
 target_link_options(IPCMonitor PRIVATE
     -Wl,-z,relro,-z,now,-z,noexecstack
+    -Wl,--exclude-libs,libcurl.a:libsnappy.a:libssl.a:libcrypto.a
     -s
 )
 
