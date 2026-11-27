@@ -13,6 +13,8 @@
 #include <vector>
 
 #include "Processor.h"
+#include "StepDataAnalyser.h"
+#include "metric/StepMetricExporter.h"
 #include "trace/StepTraceExporter.h"
 
 namespace msmonitor::process
@@ -21,7 +23,7 @@ namespace
 {
 using namespace std::chrono_literals;
 
-// Turn each complete line into one synthetic step. The real analyser is added separately.
+// Turn each complete line into one synthetic step to exercise reader and queue behavior.
 class RecordingAnalyser final : public StepAnalyser
 {
    public:
@@ -235,44 +237,53 @@ TEST_F(ProcessorTest, GroupsTracesAndFlushesTailWhileExportingEachMetric)
     EXPECT_EQ(std::distance(std::filesystem::directory_iterator(output), std::filesystem::directory_iterator()), 3);
 }
 
-TEST_F(ProcessorTest, PublishesFullTraceBeforeFlushAndRetainsNewestFiles)
+TEST_F(ProcessorTest, AnalysesDeviceStepAfterLateEventsAndBuildsMetrics)
 {
-    TraceOptions traceOptions;
-    traceOptions.outputDir = options.inputDir / "traces";
-    traceOptions.stepsPerFile = 2;
-    traceOptions.keepFiles = 1;
-    StepTraceExporter exporter(traceOptions);
-    const auto output = traceOptions.outputDir / "rank_2";
-    const auto crossing = std::make_shared<StepEvent>(
-        StepEvent{1500, 2500, {{"kind", "Marker"}, {"name", "crossing"}}});
-    const auto writeStep = [&](std::uint64_t id)
-    {
-        auto step = std::make_shared<StepDataOutput>();
-        step->rank = 2;
-        step->boundary = {id, id * 1000, (id + 1) * 1000};
-        if (id < 3)
-        {
-            step->events.push_back(crossing);
-        }
-        exporter.WriteStep(std::move(step));
-    };
-    writeStep(1);
-    EXPECT_FALSE(std::filesystem::exists(output));
-    writeStep(2);
-    std::ifstream file(output / "step_1_2" / "trace.json");
-    ASSERT_TRUE(file.is_open());
-    const auto trace = nlohmann::json::parse(file);
-    std::size_t crossingCount = 0;
-    for (const auto &event : trace.at("traceEvents"))
-    {
-        crossingCount += event.value("name", "") == "crossing";
-    }
-    EXPECT_EQ(crossingCount, 1U);
-    writeStep(3);
-    EXPECT_FALSE(std::filesystem::exists(output / "step_3"));
-    exporter.Flush();
-    EXPECT_TRUE(std::filesystem::exists(output / "step_3" / "trace.json"));
-    EXPECT_FALSE(std::filesystem::exists(output / "step_1_2"));
+    StepDataAnalyser stepAnalyser(options);
+    std::vector<StepDataPtr> steps;
+    const EmitStepData emit = [&](StepDataPtr step) { steps.push_back(std::move(step)); };
+    const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
+    read(R"({"kind":"Marker","name":"step 99","sourceKind":"Host","domain":"default","startNs":100,"endNs":200})");
+    read(R"({"kind":"Marker","name":"step 98","sourceKind":"Device","domain":"custom","startNs":100,"endNs":200})");
+    read(R"({"kind":"Marker","name":"step 7","sourceKind":"Device","domain":"default","startNs":100,"endNs":200})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    EXPECT_TRUE(steps.empty());
+
+    read(R"({"kind":"Communication","name":"AllReduce","deviceId":0,"streamId":1,"startNs":140,"endNs":180})");
+    read(R"({"kind":"Kernel","name":"Add_hash","deviceId":0,"streamId":2,"startNs":120,"endNs":160})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    EXPECT_TRUE(steps.empty());
+
+    read(R"({"kind":"Marker","name":"step 8","sourceKind":"Device","domain":"default","startNs":200,"endNs":300})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    ASSERT_EQ(steps.size(), 1U);
+    EXPECT_EQ(steps.front()->completion, StepCompletion::QuietBatch);
+    EXPECT_EQ(steps.front()->boundary.stepId, 7U);
+    const auto &device = steps.front()->analysis->devices.at(0);
+    EXPECT_EQ(device.overlap, (Intervals{{140, 160}}));
+    EXPECT_EQ(device.uncoveredCommunication, (Intervals{{160, 180}}));
+
+    StepSummary summary;
+    StepMetricExporter exporter({}, [](const StepMetricData &) {},
+                                [&](StepSummary result) { summary = std::move(result); });
+    exporter.ExportStep(*steps.front());
+    EXPECT_TRUE(summary.valid);
+    EXPECT_EQ(summary.stepId, 7U);
+    const KernelKey add{0, 2, "Kernel", "Add", "Kernel"};
+    EXPECT_EQ(summary.operators.at(add).count, 1U);
+    EXPECT_EQ(summary.kernels.at(add).size(), 1U);
+
+    stepAnalyser.Finish(false, emit);
+    ASSERT_EQ(steps.size(), 2U);
+    EXPECT_EQ(steps.back()->boundary.stepId, 8U);
+}
+
+TEST_F(ProcessorTest, RejectsMalformedDeviceStepNumber)
+{
+    StepDataAnalyser stepAnalyser(options);
+    EXPECT_THROW(stepAnalyser.ProcessLine({{}, 1,
+        R"({"kind":"Marker","name":"step 7x","sourceKind":"Device","domain":"default","startNs":100,"endNs":200})"}),
+        std::invalid_argument);
 }
 
 TEST_F(ProcessorTest, FollowsAppendsAndRotatedFilesUntilStopped)

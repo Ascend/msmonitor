@@ -52,17 +52,11 @@ file(GLOB_RECURSE IPC_SOURCES
 
 file(GLOB_RECURSE SECUREC_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/third_party/securec/src/*.c)
 
-# 数据处理实现位于 plugin/process，编进 IPCMonitor_C 扩展随 whl 分发。
-set(MSMONITOR_BUILD_TRACE ON)
-set(MSMONITOR_BUILD_REMOTE_WRITE ON)
-add_subdirectory(process)
-
 set(SOURCES
     bindings.cpp
     ${IPC_SOURCES}
     ${SECUREC_SOURCES}
     ${sqlite3_SOURCES}
-    process/ProcessRunner.cpp
 )
 
 add_library(IPCMonitor MODULE ${SOURCES})
@@ -80,10 +74,7 @@ target_link_libraries(IPCMonitor PRIVATE
     dl
     ${glog_LIBRARIES}
     ${CMAKE_CURRENT_SOURCE_DIR}/stub/libmspti.so
-    # ProcessRunner.cpp 依赖的 Processor/JsonlReader 由 process 子目录编译成静态库
-    msmonitor_process_core
-    msmonitor_trace
-    msmonitor_remote_write
+    msmonitor_process
 )
 
 target_compile_options(IPCMonitor PRIVATE
@@ -103,6 +94,10 @@ set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -O0 -g")
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -D_FORTIFY_SOURCE=2 -O2")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -D_FORTIFY_SOURCE=2 -O2")
+
+# Include the complete process runtime in the wheel's native extension.
+set(MSMONITOR_BUILD_PROCESS_RUNNER ON)
+add_subdirectory(process)
 
 add_custom_command(
     TARGET IPCMonitor POST_BUILD

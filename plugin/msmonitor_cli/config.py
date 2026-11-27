@@ -127,9 +127,6 @@ class MonitorConfig:
     trace_steps_per_file: int = 5
     trace_keep_files: int = 100
 
-    server_host: str = ""
-    # Legacy endpoint metadata. The Remote Write URL determines the destination.
-    server_port: int = 0
     # 默认同时输出 trace 与 metric；只写其中一个表示只输出该项。
     monitor_target: List[str] = field(default_factory=lambda: ["trace", "metric"])
     remote_write_url: str = ""
@@ -156,7 +153,6 @@ def _apply_values(cfg: MonitorConfig, values: Dict[str, Any]) -> None:
                 "json_rotate_log_files",
                 "trace_steps_per_file",
                 "trace_keep_files",
-                "server_port",
             ):
                 setattr(cfg, key, int(value))
             else:
@@ -193,8 +189,6 @@ def validate_collector(cfg: MonitorConfig) -> None:
     """校验 collector 侧参数。"""
     if cfg.token and cfg.token_file:
         raise ConfigError("--token and --token-file are mutually exclusive; specify only one")
-    if cfg.server_port and not 0 < cfg.server_port < 65536:
-        raise ConfigError("--server-port must be within [1, 65535]")
     if "metric" in cfg.monitor_target:
         missing = [
             name

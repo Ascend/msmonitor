@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <atomic>
-#include <charconv>
 #include <condition_variable>
 #include <cstdint>
 #include <fstream>
@@ -31,23 +30,6 @@ using process::Options;
 using process::Processor;
 using RankFile = detail::RankFile;
 
-std::optional<process::StepBoundary> DecodeDeviceStep(const process::StepEvent &event) {
-    const auto &data = event.data;
-    const auto name = data.value("name", "");
-    constexpr std::string_view prefix{"step "};
-    if (data.value("sourceKind", "") != "Device" || data.value("domain", "") != "default" ||
-        name.rfind(prefix, 0) != 0) {
-        return {};
-    }
-    std::uint64_t id{};
-    const auto end = name.data() + name.size();
-    const auto parsed = std::from_chars(name.data() + prefix.size(), end, id);
-    if (parsed.ec != std::errc{} || parsed.ptr != end) {
-        throw std::invalid_argument("invalid device step marker");
-    }
-    return process::StepBoundary{id, event.startNs, event.endNs};
-}
-
 class DisabledMetrics final : public process::MetricExporter {
     void ExportStep(const process::StepDataOutput &) override {}
 };
@@ -70,8 +52,7 @@ class RankWorker {
         : rank_(rankFile.rank), processId_(rankFile.processId) {
         LOG(INFO) << "rank worker init: rank=" << rank_ << " pid=" << processId_
                   << " input_dir=" << config.inputDir.string() << " job_id=" << config.jobId
-                  << " trace=" << config.enableTrace << " metric=" << config.enableMetric
-                  << " server=" << config.serverHost << ":" << config.serverPort;
+                  << " trace=" << config.enableTrace << " metric=" << config.enableMetric;
 
         Options options;
         options.inputDir = config.inputDir;
@@ -80,7 +61,7 @@ class RankWorker {
         options.pollInterval = config.pollInterval;
         options.queueCapacity = config.queueCapacity;
         options.recursiveInput = false;
-        analyser_ = std::make_unique<process::StepDataAnalyser>(options, DecodeDeviceStep);
+        analyser_ = std::make_unique<process::StepDataAnalyser>(options);
         if (config.enableMetric) {
             metricExporter_ = std::make_unique<process::StepMetricReporter>(
                 config.jobId, runId, config.remoteWriteUrl, config.token, config.caFile);

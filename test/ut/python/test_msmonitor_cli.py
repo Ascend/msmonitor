@@ -64,8 +64,6 @@ def _args(**kwargs):
         report_interval_s=None,
         json_rotate_log_lines=None,
         json_rotate_log_files=None,
-        server_host=None,
-        server_port=None,
         remote_write_url=None,
         token_file=None,
         token=None,
@@ -194,8 +192,6 @@ class ValidateTest(unittest.TestCase):
     def test_validate_should_allow_metric_when_center_given(self):
         self._validate(
             monitor_target="metric",
-            server_host="10.0.0.1",
-            server_port=8443,
             remote_write_url="https://center/api/write",
             token_file="/t",
             ca_file="/ca",
@@ -204,8 +200,6 @@ class ValidateTest(unittest.TestCase):
     def test_validate_should_allow_metric_when_plain_token_given(self):
         self._validate(
             monitor_target="metric",
-            server_host="10.0.0.1",
-            server_port=8443,
             remote_write_url="https://center/api/write",
             token="plain-token",
             ca_file="/ca",
@@ -264,7 +258,6 @@ class ParserTest(unittest.TestCase):
                     output_dir=tmp,
                     job_id="job-1",
                     monitor_target="metric",
-                    server_host="10.0.0.1",
                     remote_write_url="https://c/w",
                     token_file="/t",
                     ca_file="/ca",
@@ -334,6 +327,21 @@ class LogDirTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {"MSMONITOR_LOG_PATH": target}):
             self.assertEqual(commands._log_dir(cfg), Path(target))
 
+    def test_spawn_should_pass_log_directory_and_optional_token_to_child(self):
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch.dict(os.environ, {"KEEP_EXISTING": "yes"}, clear=True),
+            mock.patch.object(commands.subprocess, "Popen") as popen,
+        ):
+            log_path = Path(tmp) / "processor.log"
+            commands._spawn_detached(["collector"], log_path)
+            commands._spawn_detached(["processor"], log_path, token="test-token")
+        collector_env, processor_env = (call.kwargs["env"] for call in popen.call_args_list)
+        self.assertEqual(collector_env["MSMONITOR_LOG_PATH"], tmp)
+        self.assertEqual(collector_env["KEEP_EXISTING"], "yes")
+        self.assertNotIn("MSMONITOR_TOKEN", collector_env)
+        self.assertEqual(processor_env, dict(collector_env, MSMONITOR_TOKEN="test-token"))
+
 
 class ProcessorTest(unittest.TestCase):
     """数据处理子进程：只透传 start 参数，不自行决定产物目录。"""
@@ -351,8 +359,6 @@ class ProcessorTest(unittest.TestCase):
     def test_argv_should_pass_start_params_when_built(self):
         cfg = self._cfg(
             job_id="job-9",
-            server_host="10.0.0.1",
-            server_port=9000,
             remote_write_url="https://c/w",
             token_file="/t",
             ca_file="/ca",
@@ -363,8 +369,6 @@ class ProcessorTest(unittest.TestCase):
             "--output-dir",
             "--job-id",
             "job-9",
-            "10.0.0.1",
-            "9000",
             "https://c/w",
             "/t",
             "/ca",
@@ -382,6 +386,41 @@ class ProcessorTest(unittest.TestCase):
 
     def test_stop_processor_should_return_none_without_pid(self):
         self.assertIsNone(commands._stop_processor(self._cfg()))
+
+    def test_collector_should_receive_output_log_directory(self):
+        cfg = self._cfg()
+        process = mock.Mock(pid=2468)
+        with (
+            mock.patch.object(commands, "_running_pid", side_effect=[None, 2468]),
+            mock.patch.object(commands, "_purge_runtime_files"),
+            mock.patch.object(commands, "_collector_log_path", return_value=Path(cfg.output_dir) / "collector.log"),
+            mock.patch.object(commands, "_prune_logs"),
+            mock.patch.object(commands, "_spawn_detached", return_value=process) as spawn,
+        ):
+            self.assertEqual(commands._ensure_collector(cfg), 2468)
+        spawn.assert_called_once_with(
+            [sys.executable, "-m", commands.COLLECTOR_MODULE], Path(cfg.output_dir) / "collector.log"
+        )
+
+    def test_processor_should_receive_output_log_directory_and_token(self):
+        cfg = self._cfg(token="test-secret")
+        with tempfile.TemporaryDirectory() as tmp:
+            pid_path = Path(tmp) / "processor.pid"
+            process = mock.Mock(pid=2469)
+            process.poll.return_value = None
+            with (
+                mock.patch.object(commands, "_running_processor_pid", return_value=None),
+                mock.patch.object(commands, "_processor_log_path", return_value=Path(tmp) / "processor.log"),
+                mock.patch.object(commands, "_processor_pid_path", return_value=pid_path),
+                mock.patch.object(commands, "_prune_logs"),
+                mock.patch.object(commands, "_spawn_detached", return_value=process) as spawn,
+                mock.patch.object(commands.time, "time", side_effect=[0.0, 1.0]),
+                mock.patch.object(commands.time, "sleep"),
+            ):
+                self.assertEqual(commands._ensure_processor(cfg), 2469)
+            spawn.assert_called_once_with(
+                commands._processor_argv(cfg), Path(tmp) / "processor.log", token="test-secret"
+            )
 
 
 class ProcessorMainTest(unittest.TestCase):
@@ -408,8 +447,6 @@ class ProcessorMainTest(unittest.TestCase):
                 "enable_metric",
                 "trace_steps_per_file",
                 "trace_keep_files",
-                "server_host",
-                "server_port",
                 "remote_write_url",
                 "token_file",
                 "token",
@@ -422,7 +459,6 @@ class ProcessorMainTest(unittest.TestCase):
         doc = processor._config(self._parse(["--output-dir", "/d"]))
         self.assertEqual(doc["trace_steps_per_file"], defaults.trace_steps_per_file)
         self.assertEqual(doc["trace_keep_files"], defaults.trace_keep_files)
-        self.assertEqual(doc["server_port"], defaults.server_port)
         self.assertTrue(doc["enable_trace"])
         self.assertTrue(doc["enable_metric"])
 

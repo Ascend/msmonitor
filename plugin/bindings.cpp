@@ -27,6 +27,7 @@
 #include "ipc_monitor/monitor/ActivityData.h"
 #include "ipc_monitor/monitor/Monitor.h"
 #include "ipc_monitor/mspti_monitor/MsptiMonitor.h"
+#include "ipc_monitor/utils/utils.h"
 #include "process/ProcessRunner.h"
 
 namespace py = pybind11;
@@ -327,6 +328,7 @@ PYBIND11_MODULE(IPCMonitor_C, m)
         {
             try
             {
+                dynolog_npu::ipc_monitor::InitMsMonitorLog();
                 // 先释放旧实例，保证同一 socket 路径同一时刻只由一个实例持有。
                 g_ipcServer.reset();
                 g_ipcServer = std::make_unique<dynolog_npu::ipc_monitor::NpuIpcServer>(name);
@@ -368,13 +370,12 @@ PYBIND11_MODULE(IPCMonitor_C, m)
         "process_start",
         [](const py::dict& config) -> bool
         {
+            dynolog_npu::ipc_monitor::InitMsMonitorLog();
             msmonitor::process_runner::RunnerConfig cfg;
             cfg.inputDir = DictString(config, "input_dir");
             cfg.jobId = DictString(config, "job_id");
             cfg.traceStepsPerFile = DictInt(config, "trace_steps_per_file", cfg.traceStepsPerFile);
             cfg.traceKeepFiles = DictInt(config, "trace_keep_files", 100);
-            cfg.serverHost = DictString(config, "server_host");
-            cfg.serverPort = DictInt(config, "server_port", 8443);
             cfg.remoteWriteUrl = DictString(config, "remote_write_url");
             cfg.tokenFile = DictString(config, "token_file");
             cfg.token = DictString(config, "token");

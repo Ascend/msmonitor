@@ -13,7 +13,7 @@ class StepMetricReporter final : public MetricExporter {
 
   private:
     void AppendStep(const StepMetricData &step);
-    void ReportSummary(const StepSummary &summary);
+    void AppendSummary(const StepSummary &summary);
 
     std::string job_;
     std::string run_;

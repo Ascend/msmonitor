@@ -64,8 +64,6 @@ def _build_parser() -> argparse.ArgumentParser:
         default=_DEFAULTS.trace_keep_files,
         help="trace files to keep; older files are removed",
     )
-    parser.add_argument("--server-host", default=_DEFAULTS.server_host)
-    parser.add_argument("--server-port", type=int, default=_DEFAULTS.server_port)
     parser.add_argument("--remote-write-url", default=_DEFAULTS.remote_write_url)
     parser.add_argument("--token-file", default=_DEFAULTS.token_file)
     parser.add_argument("--ca-file", default=_DEFAULTS.ca_file)
@@ -86,8 +84,6 @@ def _config(args) -> dict:
         "enable_metric": "metric" in targets,
         "trace_steps_per_file": args.trace_steps_per_file,
         "trace_keep_files": args.trace_keep_files,
-        "server_host": args.server_host,
-        "server_port": args.server_port,
         "remote_write_url": args.remote_write_url,
         "token_file": args.token_file,
         # 明文 token 由 start 通过环境变量传递，不出现在命令行里
@@ -127,15 +123,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     # remote_write_url 可能带查询串，只记录是否配置。
     print(
         "=== msmonitor processor start pid={} input_dir={} job_id={} "
-        "trace_steps_per_file={} trace_keep_files={} monitor_target={} server={}:{} remote_write={} ===".format(
+        "trace_steps_per_file={} trace_keep_files={} monitor_target={} remote_write={} ===".format(
             os.getpid(),
             args.output_dir,
             args.job_id,
             args.trace_steps_per_file,
             args.trace_keep_files,
             args.monitor_target,
-            args.server_host,
-            args.server_port,
             bool(args.remote_write_url),
         ),
         flush=True,

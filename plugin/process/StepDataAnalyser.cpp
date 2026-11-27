@@ -5,11 +5,14 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <charconv>
+#include <chrono>
 #include <deque>
 #include <iterator>
 #include <limits>
 #include <map>
 #include <stdexcept>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 
@@ -19,6 +22,29 @@ namespace msmonitor::process
 {
 namespace
 {
+
+std::optional<StepBoundary> DecodeDeviceStep(const StepEvent &event)
+{
+    const auto &data = event.data;
+    if (data.value("sourceKind", "") != "Device" || data.value("domain", "") != "default")
+    {
+        return {};
+    }
+    const auto name = data.value("name", "");
+    constexpr std::string_view prefix{"step "};
+    if (name.rfind(prefix, 0) != 0)
+    {
+        return {};
+    }
+    std::uint64_t id{};
+    const auto end = name.data() + name.size();
+    const auto parsed = std::from_chars(name.data() + prefix.size(), end, id);
+    if (parsed.ec != std::errc{} || parsed.ptr != end)
+    {
+        throw std::invalid_argument("invalid device step marker");
+    }
+    return StepBoundary{id, event.startNs, event.endNs};
+}
 
 std::uint64_t ReadTimestamp(const nlohmann::json &data, const char *key)
 {
@@ -192,6 +218,7 @@ struct StepDataAnalyser::Impl
     void BuildAndPublishStep(const StepBoundary &boundary, std::uint64_t retainFrom, StepCompletion completion,
                              const EmitStepData &emit)
     {
+        const auto analysisStart = std::chrono::steady_clock::now();
         auto output = std::make_shared<StepDataOutput>();
         output->boundary = boundary;
         output->rank = options_.rank;
@@ -242,13 +269,17 @@ struct StepDataAnalyser::Impl
                          << ", step: " << boundary.stepId << ", count: " << unassigned;
         }
         output->analysis = AnalyseStepIntervals(*output);
+        const auto analysisUs =
+            std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - analysisStart);
         const auto eventCount = output->events.size();
         const auto ownedEventCount = output->ownedEvents.size();
+        const auto deviceCount = output->analysis->devices.size();
         emit(std::move(output));
         publishedEnd_ = std::max(publishedEnd_.value_or(0), boundary.endNs);
-        VLOG(1) << "Process published step, rank: " << options_.rank << ", step: " << boundary.stepId
-                << ", events: " << eventCount << ", owned events: " << ownedEventCount
-                << ", completion: " << CompletionReason(completion);
+        LOG(INFO) << "Process step analysis complete, rank: " << options_.rank << ", step: " << boundary.stepId
+                  << ", events: " << eventCount << ", owned_events: " << ownedEventCount
+                  << ", devices: " << deviceCount << ", analysis_us: " << analysisUs.count()
+                  << ", completion: " << CompletionReason(completion);
     }
 
     Options options_;
@@ -264,6 +295,8 @@ struct StepDataAnalyser::Impl
     std::uint64_t batchId_{0};
     bool eventsSorted_{true};
 };
+
+StepDataAnalyser::StepDataAnalyser(Options options) : StepDataAnalyser(std::move(options), DecodeDeviceStep) {}
 
 StepDataAnalyser::StepDataAnalyser(Options options, StepMarkerDecoder decodeStep,
                                    std::function<void(const nlohmann::json &)> metadataSink)

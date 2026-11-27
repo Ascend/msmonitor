@@ -4,6 +4,8 @@
 
 #include <glog/logging.h>
 
+#include <chrono>
+#include <numeric>
 #include <stdexcept>
 #include <utility>
 
@@ -43,6 +45,13 @@ void StepTraceExporter::Flush()
         return;
     }
     const auto &first = *steps_.front();
+    const auto rank = first.rank;
+    const auto firstStep = first.boundary.stepId;
+    const auto lastStep = steps_.back()->boundary.stepId;
+    const auto stepCount = steps_.size();
+    const auto eventCount = std::accumulate(steps_.begin(), steps_.end(), std::size_t{0},
+        [](std::size_t count, const StepDataPtr &step) { return count + step->events.size(); });
+    const auto traceStart = std::chrono::steady_clock::now();
     const auto parent = options_.outputDir / ("rank_" + std::to_string(first.rank));
     auto directoryName = "step_" + std::to_string(first.boundary.stepId);
     if (steps_.size() > 1)
@@ -67,8 +76,11 @@ void StepTraceExporter::Flush()
         WriteMindStudioDb(first, staging / fileName);
     }
     std::filesystem::rename(staging, directory);
+    const auto traceUs =
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - traceStart);
+    std::error_code sizeError;
+    const auto outputBytes = std::filesystem::file_size(directory / fileName, sizeError);
     steps_.clear();
-    VLOG(1) << "Process trace written: " << directory.string();
     if (options_.keepFiles != 0)
     {
         stepDirectories_.push_back(directory);
@@ -83,5 +95,11 @@ void StepTraceExporter::Flush()
             stepDirectories_.pop_front();
         }
     }
+    LOG(INFO) << "Process trace file written, rank: " << rank << ", steps: " << firstStep << "-" << lastStep
+              << ", step_count: " << stepCount << ", events: " << eventCount << ", format: "
+              << (options_.format == TraceFormat::ChromeTrace ? "chrome_trace" : "mindstudio_db")
+              << ", output_bytes: " << (sizeError ? "unknown" : std::to_string(outputBytes))
+              << ", write_us: " << traceUs.count()
+              << ", path: " << directory.string();
 }
 }  // namespace msmonitor::process

@@ -7,12 +7,12 @@
 namespace msmonitor::process
 {
 
-// One rank-local analyser. The caller explicitly decodes its chosen step marker scope.
-// msmonitor range markers already contain startNs/endNs; do not assume a marker name convention.
+// One rank-local analyser. By default, device MSTX ranges named "step N" define step boundaries.
 // Selected step ranges may overlap; events are shared by every intersecting step.
 class StepDataAnalyser final : public StepAnalyser
 {
    public:
+    explicit StepDataAnalyser(Options options);
     StepDataAnalyser(Options options, StepMarkerDecoder decodeStep,
                      std::function<void(const nlohmann::json &)> metadataSink = {});
     ~StepDataAnalyser() override;

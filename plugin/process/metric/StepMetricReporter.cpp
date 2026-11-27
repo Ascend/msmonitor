@@ -2,6 +2,10 @@
 // Licensed under Mulan PSL v2. See the repository license.
 #include "StepMetricReporter.h"
 
+#include <chrono>
+
+#include <glog/logging.h>
+
 namespace msmonitor::process {
 namespace {
 using Labels = std::map<std::string, std::string>;
@@ -20,11 +24,29 @@ StepMetricReporter::StepMetricReporter(
     : job_(std::move(job)), run_(std::move(run)), transport_(std::move(url), std::move(token), std::move(caFile)),
       exporter_(
           {}, [this](const StepMetricData &step) { AppendStep(step); },
-          [this](const StepSummary &summary) { ReportSummary(summary); }) {}
+          [this](const StepSummary &summary) { AppendSummary(summary); }) {}
 
 void StepMetricReporter::ExportStep(const StepDataOutput &step) {
+    const auto exportStart = std::chrono::steady_clock::now();
     samples_.clear();
     exporter_.ExportStep(step);
+    const auto reportStart = std::chrono::steady_clock::now();
+    const auto computeUs = std::chrono::duration_cast<std::chrono::microseconds>(reportStart - exportStart);
+    try {
+        transport_.Write(samples_);
+    } catch (...) {
+        const auto reportUs =
+            std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - reportStart);
+        LOG(ERROR) << "Process step metrics report failed, rank: " << step.rank << ", step: " << step.boundary.stepId
+                   << ", samples: " << samples_.size() << ", remote_write_us: " << reportUs.count();
+        throw;
+    }
+    const auto reportEnd = std::chrono::steady_clock::now();
+    const auto reportUs = std::chrono::duration_cast<std::chrono::microseconds>(reportEnd - reportStart);
+    const auto totalUs = std::chrono::duration_cast<std::chrono::microseconds>(reportEnd - exportStart);
+    LOG(INFO) << "Process step metrics complete, rank: " << step.rank << ", step: " << step.boundary.stepId
+              << ", samples: " << samples_.size() << ", metric_compute_us: " << computeUs.count()
+              << ", remote_write_us: " << reportUs.count() << ", total_us: " << totalUs.count();
 }
 
 void StepMetricReporter::AppendStep(const StepMetricData &step) {
@@ -49,7 +71,7 @@ void StepMetricReporter::AppendStep(const StepMetricData &step) {
     }
 }
 
-void StepMetricReporter::ReportSummary(const StepSummary &summary) {
+void StepMetricReporter::AppendSummary(const StepSummary &summary) {
     const auto end = summary.endNs;
     const Labels labels{{"job_name", job_}, {"run_id", run_}, {"rank", std::to_string(summary.rank)}};
     AppendSamples(samples_, labels, end,
@@ -86,6 +108,5 @@ void StepMetricReporter::ReportSummary(const StepSummary &summary) {
                     {"operator_cluster_max_seconds", cluster.maximum}});
         }
     }
-    transport_.Write(samples_);
 }
 } // namespace msmonitor::process

@@ -58,24 +58,13 @@ msmonitor start --output-dir /data/msmonitor --monitor-target trace
 | --- | --- | --- |
 | --output-dir | 必选 | 采集结果目录，自动解析为绝对路径，同时作为 processor 的输入目录；后续 `collect start` 复用该值。 |
 | --job-id | 可选 | 作业标识，供数据中心区分任务；后续 `collect start` 复用该值。 |
-| --trace-steps-per-file | 可选 | 每个 rank 的单个 Chrome Trace 文件最多包含的 step 数，默认 5。设为 0 或 1 时逐 step 落盘。正常停止时写出最后一批。 |
+| --trace-steps-per-file | 可选 | 每个 rank 的单个 Chrome Trace 文件最多包含的 step 数，默认 5。 |
 | --trace-keep-files | 可选 | 本次运行中每个 rank worker 保留的最近 trace 文件数，默认值 100，0 表示不清理。 |
-| --server-host | 可选 | 中心主机名，仅用于启动日志。 |
-| --server-port | 可选 | 中心端口，仅用于启动日志，取值范围 [1, 65535]。 |
 | --remote-write-url | metric 必填 | 上报指标的完整 HTTPS URL，含租户写入路径。 |
 | --token-file | 可选 | 认证 token 文件路径，与 `--token` 二选一，两者同时指定会报错。 |
 | --token | 可选 | 明文认证 token，与 `--token-file` 二选一，两者同时指定会报错；无需在每台机器上准备 token 文件。 |
 | --ca-file | 可选 | 私有 CA 的公共证书路径。省略时使用系统信任库。 |
 | --monitor-target | 可选 | `trace` 导出本地 trace 文件，`metric` 通过 Remote Write 上报。默认 `trace,metric`。启用 metric 时提供 `--remote-write-url` 和 `--token-file` 或 `--token`。 |
-
-已经部署中心时，可同时开启本地 trace 和指标上报。私有 CA 部署示例如下。
-
-```bash
-msmonitor start --output-dir /data/msmonitor/job-42 --job-id job-42 \
-    --remote-write-url https://monitor.example.com/insert/10/prometheus/api/v1/write \
-    --token-file /run/secrets/msmonitor-write-token --ca-file /run/secrets/msmonitor-ca.pem
-msmonitor collect start --report-interval-s 1
-```
 
 命令执行成功后会打印 collector 的 pid、采集结果目录与日志路径。
 
@@ -90,8 +79,8 @@ msmonitor collect start --report-interval-s 1
 # 按默认采集类型（Marker、Communication、Kernel）采集
 msmonitor collect start
 
-# 保留 Marker 用于划分 step，采集 Kernel，上报周期 10 秒，每个文件最多 5000 行，保留 5 份
-msmonitor collect start --mspti-activity-kind Marker,Kernel \
+# 采集 Kernel 类数据，上报周期10s，单文件最多5000行，保留5份
+msmonitor collect start --mspti-activity-kind Kernel \
     --report-interval-s 10 --json-rotate-log-lines 5000 --json-rotate-log-files 5
 ```
 
@@ -133,8 +122,6 @@ msmonitor stop
 * Jsonl 格式：每行数据包含一条采集到的性能数据，方便用户后续分析；单个文件的最大行数与保留份数由 `--json-rotate-log-lines`、`--json-rotate-log-files` 控制。
 
 processor 读取结果目录第一层的 `msmonitor_<pid>_<timestamp>_<rank>.jsonl` 文件。每个 rank 用自己的设备侧 MSTX range 划分 step，range 名称为 `step N`，domain 为 `default`，N 为数字。训练框架已有这种打点时可直接使用。缺少这一打点时，原始 JSONL 可以采集，逐 step 的指标和 trace 无法生成。
-
-Chrome Trace 写入 `<output-dir>/trace/<run_id>/<pid>/rank_<rank>/step_<first>_<last>/trace.json`。单 step 文件的目录名为 `step_<id>`。指标含 step 耗时、通算覆盖、MSTX range、算子统计和 KDE 分簇。每个 rank 每完成一个 step 就上报该 step 的指标。排障时先检查 JSONL 中的设备侧 step 打点，再根据 processor 日志检查解析、落盘和上报。
 
 ## 附录
 
