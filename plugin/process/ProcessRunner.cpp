@@ -53,8 +53,7 @@ class DisabledMetrics final : public process::MetricExporter {
 };
 
 class DisabledTrace final : public process::TraceExporter {
-    std::filesystem::path WriteStep(const process::StepDataOutput &) override { return {}; }
-    void CompressStep(const std::filesystem::path &) override {}
+    void WriteStep(process::StepDataPtr) override {}
 };
 
 // 目录遍历明显变慢时放宽扫描间隔，避免持续压满 NFS；本地盘上不会生效。
@@ -92,6 +91,7 @@ class RankWorker {
             process::TraceOptions traceOptions;
             traceOptions.outputDir = config.inputDir / "trace" / runId / std::to_string(processId_);
             traceOptions.keepFiles = static_cast<std::size_t>(config.traceKeepFiles);
+            traceOptions.stepsPerFile = std::max(1, config.traceStepsPerFile);
             traceExporter_ = std::make_unique<process::StepTraceExporter>(std::move(traceOptions));
         } else {
             traceExporter_ = std::make_unique<DisabledTrace>();
@@ -103,18 +103,13 @@ class RankWorker {
 
     std::uint64_t ProcessId() const { return processId_; }
 
-    // 线程因异常退出后置位，供 Reconcile 判断是否需要重建。
-    bool Failed() const { return failed_.load(); }
-
     void Start() {
         thread_ = std::thread([this]() {
             try {
                 processor_->Run();
             } catch (const std::exception &e) {
-                failed_.store(true);
                 LOG(ERROR) << "rank=" << rank_ << " processor exited: " << e.what();
             } catch (...) {
-                failed_.store(true);
                 LOG(ERROR) << "rank=" << rank_ << " processor exited with unknown error";
             }
         });
@@ -137,7 +132,6 @@ class RankWorker {
     std::unique_ptr<process::TraceExporter> traceExporter_;
     std::unique_ptr<Processor> processor_;
     std::thread thread_;
-    std::atomic<bool> failed_{false};
 };
 
 class RankSupervisor {
@@ -286,11 +280,8 @@ class RankSupervisor {
         for (const auto &entry : latestFiles) {
             const auto found = workers_.find(entry.first);
             if (found != workers_.end() && found->second->ProcessId() == entry.second.processId) {
-                if (!found->second->Failed()) {
-                    continue;
-                }
-                // 线程因异常退出后不会自恢复，pid 未变也要重建流水线
-                LOG(WARNING) << "rank=" << entry.first << " worker exited unexpectedly, restart";
+                // A restart without a checkpoint would replay exports and repeat deterministic failures.
+                continue;
             }
             if (found != workers_.end()) {
                 found->second->Stop();
@@ -336,6 +327,9 @@ bool Start(const RunnerConfig &config) {
     if (g_supervisor) {
         LOG(WARNING) << "process runner already started";
         return false;
+    }
+    if (config.traceStepsPerFile < 0 || config.traceKeepFiles < 0) {
+        throw std::invalid_argument("trace step count and retention must be non-negative");
     }
     LOG(INFO) << "process runner start: input_dir=" << config.inputDir.string()
               << " scan_interval_ms=" << config.scanInterval.count()

@@ -53,7 +53,7 @@ class StepDatabase
         database_.reset(raw);
         Check(status);
         Check(sqlite3_busy_timeout(database_.get(), DbConstants::BusyTimeoutMs));
-        // This disposable staging DB is published only after a successful close and ZIP.
+        // Publish the staging DB only after a successful close.
         // Avoid durable journal I/O for every step; crashes leave unpublished staging files.
         Execute("PRAGMA journal_mode=MEMORY");
         Execute("PRAGMA synchronous=OFF");

@@ -371,7 +371,7 @@ PYBIND11_MODULE(IPCMonitor_C, m)
             msmonitor::process_runner::RunnerConfig cfg;
             cfg.inputDir = DictString(config, "input_dir");
             cfg.jobId = DictString(config, "job_id");
-            cfg.traceStepsPerFile = DictInt(config, "trace_steps_per_file", 5);
+            cfg.traceStepsPerFile = DictInt(config, "trace_steps_per_file", cfg.traceStepsPerFile);
             cfg.traceKeepFiles = DictInt(config, "trace_keep_files", 100);
             cfg.serverHost = DictString(config, "server_host");
             cfg.serverPort = DictInt(config, "server_port", 8443);

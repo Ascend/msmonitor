@@ -1,3 +1,4 @@
+set(MSMONITOR_BUILD_TRACE ON)
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../../../../plugin/process" process_core)
 
 # Threads::Threads 是 IMPORTED target，只对 find_package 所在目录及其子目录可见，
@@ -32,5 +33,6 @@ if(ENABLE_UT_COVERAGE)
 endif()
 
 # Processor/JsonlReader 的 UT 链接静态库；Rank 文件名解析只用到头文件。
-add_process_ut(test_Processor)
+add_process_ut(test_Processor ${sqlite3_SOURCES})
+target_link_libraries(test_Processor PRIVATE msmonitor_trace ${CMAKE_DL_LIBS})
 add_process_ut(test_ParseRankFileName)

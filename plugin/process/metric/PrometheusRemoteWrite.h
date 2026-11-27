@@ -3,6 +3,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -20,11 +21,11 @@ struct MetricSample {
 class PrometheusRemoteWrite final {
   public:
     explicit PrometheusRemoteWrite(std::string url, std::string token = {}, std::string caFile = {});
-    void Write(const std::vector<MetricSample> &samples) const;
+    ~PrometheusRemoteWrite();
+    void Write(const std::vector<MetricSample> &samples);
 
   private:
-    std::string url_;
-    std::string token_;
-    std::string caFile_;
+    struct Connection;
+    std::unique_ptr<Connection> connection_;
 };
 } // namespace msmonitor::process

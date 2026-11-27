@@ -6,11 +6,14 @@
 #include <cstdlib>
 #include <fstream>
 #include <future>
+#include <iterator>
+#include <map>
 #include <stdexcept>
 #include <thread>
 #include <vector>
 
 #include "Processor.h"
+#include "trace/StepTraceExporter.h"
 
 namespace msmonitor::process
 {
@@ -87,24 +90,17 @@ class RecordingMetrics final : public MetricExporter
 class RecordingTrace final : public TraceExporter
 {
    public:
-    std::filesystem::path WriteStep(const StepDataOutput &step) override
+    void WriteStep(StepDataPtr step) override
     {
-        steps.push_back(step.boundary.stepId);
-        return "step_" + std::to_string(step.boundary.stepId);
-    }
-
-    void CompressStep(const std::filesystem::path &directory) override
-    {
-        archives.push_back(directory.string());
-        if (onCompress)
+        steps.push_back(step->boundary.stepId);
+        if (onWrite)
         {
-            onCompress();
+            onWrite();
         }
     }
 
-    std::function<void()> onCompress;
+    std::function<void()> onWrite;
     std::vector<std::uint64_t> steps;
-    std::vector<std::string> archives;
 };
 
 class ProcessorTest : public ::testing::Test
@@ -157,9 +153,9 @@ TEST_F(ProcessorTest, ReadsSelectedRankInOrderAndDrainsBothExporters)
     // A metric blocked on the first step must not prevent trace export of that same step.
     std::promise<void> firstTrace;
     auto traceReady = firstTrace.get_future();
-    trace.onCompress = [&]
+    trace.onWrite = [&]
     {
-        if (trace.archives.size() == 1)
+        if (trace.steps.size() == 1)
         {
             firstTrace.set_value();
         }
@@ -180,7 +176,6 @@ TEST_F(ProcessorTest, ReadsSelectedRankInOrderAndDrainsBothExporters)
     EXPECT_EQ(analyser.lines, (std::vector<std::string>{"{\"id\":1}", "{\"id\":2}", "{\"id\":3}"}));
     EXPECT_EQ(metrics.steps, (std::vector<std::uint64_t>{1, 2, 3}));
     EXPECT_EQ(trace.steps, metrics.steps);
-    EXPECT_EQ(trace.archives, (std::vector<std::string>{"step_1", "step_2", "step_3"}));
 }
 
 TEST_F(ProcessorTest, RejectsNullStep)
@@ -195,6 +190,89 @@ TEST_F(ProcessorTest, RejectsNullStep)
     } nullAnalyser;
     Processor processor(options, nullAnalyser, metrics, trace);
     EXPECT_THROW(processor.Run(), std::invalid_argument);
+}
+
+TEST_F(ProcessorTest, GroupsTracesAndFlushesTailWhileExportingEachMetric)
+{
+    Append("msmonitor_10_100_2.jsonl", "{}\n{}\n{}\n{}\n{}\n");
+    TraceOptions traceOptions;
+    traceOptions.outputDir = options.inputDir / "traces";
+    traceOptions.stepsPerFile = 2;
+    StepTraceExporter traceExporter(traceOptions);
+    Processor processor(options, analyser, metrics, traceExporter);
+    analyser.onBatch = [&](const ReadBatch &) { processor.RequestStop(); };
+    processor.Run();
+
+    EXPECT_EQ(metrics.steps, (std::vector<std::uint64_t>{1, 2, 3, 4, 5}));
+    const auto output = traceOptions.outputDir / "rank_2";
+    for (const auto &[directory, expected] :
+         std::map<std::string, std::vector<std::uint64_t>>{{"step_1_2", {1, 2}}, {"step_3_4", {3, 4}},
+                                                            {"step_5", {5}}})
+    {
+        std::ifstream file(output / directory / "trace.json");
+        ASSERT_TRUE(file.is_open());
+        const auto document = nlohmann::json::parse(file);
+        std::vector<std::uint64_t> ids;
+        for (const auto &step : document.at("metadata").at("steps"))
+        {
+            ids.push_back(step.at("stepId").get<std::uint64_t>());
+        }
+        EXPECT_EQ(ids, expected);
+        std::vector<std::string> markers;
+        for (const auto &event : document.at("traceEvents"))
+        {
+            if (event.value("cat", "") == "Step")
+            {
+                markers.push_back(event.at("name").get<std::string>());
+            }
+        }
+        ASSERT_EQ(markers.size(), expected.size());
+        for (std::size_t i = 0; i < expected.size(); ++i)
+        {
+            EXPECT_EQ(markers[i], "step " + std::to_string(expected[i]));
+        }
+    }
+    EXPECT_EQ(std::distance(std::filesystem::directory_iterator(output), std::filesystem::directory_iterator()), 3);
+}
+
+TEST_F(ProcessorTest, PublishesFullTraceBeforeFlushAndRetainsNewestFiles)
+{
+    TraceOptions traceOptions;
+    traceOptions.outputDir = options.inputDir / "traces";
+    traceOptions.stepsPerFile = 2;
+    traceOptions.keepFiles = 1;
+    StepTraceExporter exporter(traceOptions);
+    const auto output = traceOptions.outputDir / "rank_2";
+    const auto crossing = std::make_shared<StepEvent>(
+        StepEvent{1500, 2500, {{"kind", "Marker"}, {"name", "crossing"}}});
+    const auto writeStep = [&](std::uint64_t id)
+    {
+        auto step = std::make_shared<StepDataOutput>();
+        step->rank = 2;
+        step->boundary = {id, id * 1000, (id + 1) * 1000};
+        if (id < 3)
+        {
+            step->events.push_back(crossing);
+        }
+        exporter.WriteStep(std::move(step));
+    };
+    writeStep(1);
+    EXPECT_FALSE(std::filesystem::exists(output));
+    writeStep(2);
+    std::ifstream file(output / "step_1_2" / "trace.json");
+    ASSERT_TRUE(file.is_open());
+    const auto trace = nlohmann::json::parse(file);
+    std::size_t crossingCount = 0;
+    for (const auto &event : trace.at("traceEvents"))
+    {
+        crossingCount += event.value("name", "") == "crossing";
+    }
+    EXPECT_EQ(crossingCount, 1U);
+    writeStep(3);
+    EXPECT_FALSE(std::filesystem::exists(output / "step_3"));
+    exporter.Flush();
+    EXPECT_TRUE(std::filesystem::exists(output / "step_3" / "trace.json"));
+    EXPECT_FALSE(std::filesystem::exists(output / "step_1_2"));
 }
 
 TEST_F(ProcessorTest, FollowsAppendsAndRotatedFilesUntilStopped)
@@ -231,7 +309,6 @@ TEST_F(ProcessorTest, FollowsAppendsAndRotatedFilesUntilStopped)
     EXPECT_EQ(analyser.lines, (std::vector<std::string>{"{\"id\":1}", "{\"id\":2}"}));
     EXPECT_EQ(metrics.steps, (std::vector<std::uint64_t>{1, 2}));
     EXPECT_EQ(trace.steps, metrics.steps);
-    EXPECT_EQ(trace.archives.size(), 2U);
 }
 
 TEST_F(ProcessorTest, PropagatesExporterFailureWithBoundedQueues)
@@ -302,7 +379,7 @@ TEST_F(ProcessorTest, StopsWithPartialTailAndDrainsCompleteLines)
     EXPECT_EQ(analyser.complete, false);
     EXPECT_EQ(analyser.lines, std::vector<std::string>{"{}"});
     EXPECT_EQ(metrics.steps, std::vector<std::uint64_t>{1});
-    EXPECT_EQ(trace.archives, std::vector<std::string>{"step_1"});
+    EXPECT_EQ(trace.steps, metrics.steps);
 }
 
 TEST_F(ProcessorTest, ContinuesWhenRotationRemovesAnUnreadFile)

@@ -6,6 +6,6 @@
 
 namespace msmonitor::process
 {
-void WriteChromeTrace(const StepDataOutput &step, const std::filesystem::path &file);
+void WriteChromeTrace(const std::vector<StepDataPtr> &steps, const std::filesystem::path &file);
 void WriteMindStudioDb(const StepDataOutput &step, const std::filesystem::path &file);
 }  // namespace msmonitor::process

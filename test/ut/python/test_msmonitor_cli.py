@@ -211,6 +211,22 @@ class ValidateTest(unittest.TestCase):
             ca_file="/ca",
         )
 
+    def test_validate_should_allow_metric_with_system_trust(self):
+        self._validate(monitor_target="metric", remote_write_url="https://center/api/write", token_file="/t")
+
+    def test_validate_should_preserve_trace_steps_per_file_values(self):
+        self.assertEqual(MonitorConfig().trace_steps_per_file, 5)
+        for steps in (0, 1, 5, 10):
+            with self.subTest(steps=steps):
+                self._validate(trace_steps_per_file=steps)
+        with self.assertRaises(ConfigError):
+            self._validate(trace_steps_per_file=-1)
+
+    def test_validate_should_reject_unsafe_metric_url(self):
+        for url in ("http://center/api/write", "https://token@center/api/write", "https://center:0/api/write"):
+            with self.subTest(url=url), self.assertRaises(ConfigError):
+                self._validate(monitor_target="metric", remote_write_url=url, token_file="/t")
+
     def test_validate_should_reject_both_token_and_token_file_when_given(self):
         with self.assertRaises(ConfigError):
             self._validate(token="plain-token", token_file="/t")
@@ -274,7 +290,7 @@ class ParserTest(unittest.TestCase):
 
     def test_start_should_only_report_when_running(self):
         # start 只执行一次，重复执行只提示现有实例，不再拉起或补齐任何进程
-        started = {"output_dir": os.path.abspath(tempfile.gettempdir())}
+        started = {"output_dir": str(Path(tempfile.gettempdir()).resolve())}
         with (
             mock.patch.object(commands, "_running_pid", return_value=4321),
             mock.patch.object(commands, "_read_started_config", return_value=started),

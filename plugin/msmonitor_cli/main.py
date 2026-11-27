@@ -277,7 +277,7 @@ def _add_collector_arguments(parser: argparse.ArgumentParser) -> None:
         type=_int32,
         default=None,
         metavar="<STEPS>",
-        help="steps contained in each trace file written by the data processing component",
+        help="maximum steps per rank's trace file; 0 writes one step per file",
         default_text=str(_DEFAULTS.trace_steps_per_file),
     )
     _add_option(
@@ -295,7 +295,7 @@ def _add_collector_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         type=_bounded_text,
         metavar="<HOST>",
-        help="data center service host",
+        help="optional data center host metadata; the Remote Write URL sets the destination",
     )
     _add_option(
         parser,
@@ -303,7 +303,7 @@ def _add_collector_arguments(parser: argparse.ArgumentParser) -> None:
         type=_port,
         default=None,
         metavar="<PORT>",
-        help="data center service port; required when metric is selected",
+        help="optional data center port metadata; the Remote Write URL sets the destination",
     )
     _add_option(
         parser,
@@ -311,7 +311,7 @@ def _add_collector_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         type=_bounded_text,
         metavar="<URL>",
-        help="full URL used to write processed metrics to the data center",
+        help="full HTTPS URL used to write processed metrics to the data center",
     )
     _add_option(
         parser,
@@ -335,7 +335,7 @@ def _add_collector_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         type=_bounded_text,
         metavar="<FILE>",
-        help="path to the CA certificate file",
+        help="CA certificate for private PKI; defaults to the system trust store",
     )
     _add_option(
         parser,
@@ -406,7 +406,7 @@ def build_parser() -> argparse.ArgumentParser:
             ),
             (
                 "Send collection config to running training processes",
-                "msmonitor collect start --mspti-activity-kind Kernel",
+                "msmonitor collect start --mspti-activity-kind Marker,Kernel",
             ),
             (
                 "Stop collection only; the collector keeps running",

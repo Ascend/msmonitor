@@ -41,10 +41,12 @@ struct Processor::Impl
         LOG(INFO) << "Process started, rank: " << options_.rank << ", input: " << options_.inputDir.string();
         try
         {
-            metricThread_ = StartExportWorker("metric export", metricQueue_,
-                                              [this](const StepDataOutput &step) { metricExporter_.ExportStep(step); });
-            traceThread_ = StartExportWorker("trace export", traceQueue_,
-                                             [this](const StepDataOutput &step) { WriteAndCompressTrace(step); });
+            metricThread_ = StartExportWorker(
+                "metric export", metricQueue_, [this](const StepDataPtr &step) { metricExporter_.ExportStep(*step); },
+                [] {});
+            traceThread_ = StartExportWorker(
+                "trace export", traceQueue_, [this](const StepDataPtr &step) { traceExporter_.WriteStep(step); },
+                [this] { traceExporter_.Flush(); });
             ReadJsonlAndPublishSteps();
         }
         catch (...)
@@ -72,35 +74,29 @@ struct Processor::Impl
 
    private:
     // Each consumer drains its own queue and reports failures with the current step.
-    template <typename ExportStep>
-    std::thread StartExportWorker(const char *stage, StepQueue &queue, ExportStep exportStep)
+    template <typename ExportStep, typename FinishExport>
+    std::thread StartExportWorker(const char *stage, StepQueue &queue, ExportStep exportStep, FinishExport finish)
     {
         return std::thread(
-            [this, stage, &queue, exportStep]
+            [this, stage, &queue, exportStep, finish]
             {
                 StepDataPtr step;
                 try
                 {
                     while ((step = queue.Pop()))
                     {
-                        exportStep(*step);
+                        exportStep(step);
                         VLOG(1) << "Process step exported, rank: " << step->rank << ", step: " << step->boundary.stepId
                                 << ", stage: " << stage;
                         step.reset();
                     }
+                    finish();
                 }
                 catch (...)
                 {
                     Fail(stage, std::current_exception(), step.get());
                 }
             });
-    }
-
-    // Write and close each step Trace/DB before compressing its output directory.
-    void WriteAndCompressTrace(const StepDataOutput &step)
-    {
-        const auto directory = traceExporter_.WriteStep(step);
-        traceExporter_.CompressStep(directory);
     }
 
     void ReadJsonlAndPublishSteps()

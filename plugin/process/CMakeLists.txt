@@ -43,7 +43,6 @@ endif()
 
 option(MSMONITOR_BUILD_TRACE "Build Chrome Trace and MindStudio DB export" OFF)
 if(MSMONITOR_BUILD_TRACE)
-    find_package(LibArchive REQUIRED)
     set(MSMONITOR_SQLITE_SOURCE
         "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/sqlite-amalgamation-3500300/sqlite3.c"
         CACHE FILEPATH "SQLite amalgamation for the trace exporter")
@@ -65,5 +64,5 @@ if(MSMONITOR_BUILD_TRACE)
     set_target_properties(msmonitor_trace PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_include_directories(msmonitor_trace PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../ipc_monitor")
     target_link_libraries(msmonitor_trace PUBLIC msmonitor_process_core
-        PRIVATE ${MSMONITOR_TRACE_SQLITE_TARGET} LibArchive::LibArchive)
+        PRIVATE ${MSMONITOR_TRACE_SQLITE_TARGET})
 endif()

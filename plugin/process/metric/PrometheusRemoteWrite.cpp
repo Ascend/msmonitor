@@ -37,15 +37,22 @@ void Bytes(std::string &out, std::uint64_t field, const std::string &value) {
 
 std::size_t Response(char *, std::size_t size, std::size_t count, void *) { return size * count; }
 
-void Post(const std::string &url, const std::string &token, const std::string &caFile, const std::string &request) {
+} // namespace
+
+struct PrometheusRemoteWrite::Connection {
+    Connection(const std::string &url, const std::string &token, const std::string &caFile);
+    void Post(const std::string &request);
+
+    std::unique_ptr<curl_slist, decltype(&curl_slist_free_all)> headers{nullptr, curl_slist_free_all};
+    std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> handle{curl_easy_init(), curl_easy_cleanup};
     std::string compressed;
-    snappy::Compress(request.data(), request.size(), &compressed);
-    using Curl = std::unique_ptr<CURL, decltype(&curl_easy_cleanup)>;
-    Curl handle(curl_easy_init(), curl_easy_cleanup);
+};
+
+PrometheusRemoteWrite::Connection::Connection(const std::string &url, const std::string &token,
+                                               const std::string &caFile) {
     if (!handle) {
         throw std::runtime_error("curl initialization failed");
     }
-    std::unique_ptr<curl_slist, decltype(&curl_slist_free_all)> headers(nullptr, curl_slist_free_all);
     for (const auto *header : {"Content-Type: application/x-protobuf", "Content-Encoding: snappy",
              "X-Prometheus-Remote-Write-Version: 0.1.0", "User-Agent: msmonitor-process/1.0"}) {
         auto *next = curl_slist_append(headers.get(), header);
@@ -64,11 +71,16 @@ void Post(const std::string &url, const std::string &token, const std::string &c
         curl_easy_setopt(handle.get(), CURLOPT_CAINFO, caFile.c_str());
     }
     curl_easy_setopt(handle.get(), CURLOPT_HTTPHEADER, headers.get());
-    curl_easy_setopt(handle.get(), CURLOPT_POSTFIELDS, compressed.data());
-    curl_easy_setopt(handle.get(), CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(compressed.size()));
     curl_easy_setopt(handle.get(), CURLOPT_TIMEOUT, TransportConstants::TimeoutSeconds);
     curl_easy_setopt(handle.get(), CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(handle.get(), CURLOPT_WRITEFUNCTION, Response);
+}
+
+void PrometheusRemoteWrite::Connection::Post(const std::string &request) {
+    // Reuse the rank worker's connection and compression buffer across requests.
+    snappy::Compress(request.data(), request.size(), &compressed);
+    curl_easy_setopt(handle.get(), CURLOPT_POSTFIELDS, compressed.data());
+    curl_easy_setopt(handle.get(), CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(compressed.size()));
     for (std::size_t attempt = 0; attempt < TransportConstants::Attempts; ++attempt) {
         const auto result = curl_easy_perform(handle.get());
         long status = 0;
@@ -83,20 +95,28 @@ void Post(const std::string &url, const std::string &token, const std::string &c
         std::this_thread::sleep_for(std::chrono::seconds(attempt + 1));
     }
 }
-} // namespace
 
 PrometheusRemoteWrite::PrometheusRemoteWrite(std::string url, std::string token, std::string caFile)
-    : url_(std::move(url)), token_(std::move(token)), caFile_(std::move(caFile)) {
-    if (url_.rfind("http://", 0) != 0 && url_.rfind("https://", 0) != 0) {
+{
+    if (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0) {
         throw std::invalid_argument("Remote Write requires an HTTP(S) URL");
+    }
+    if (!token.empty() && url.rfind("https://", 0) != 0) {
+        throw std::invalid_argument("Remote Write bearer authentication requires HTTPS");
+    }
+    if (std::any_of(token.begin(), token.end(), [](unsigned char ch) { return ch <= ' ' || ch == 127; })) {
+        throw std::invalid_argument("Remote Write bearer token contains whitespace or a control character");
     }
     static const auto initialized = curl_global_init(CURL_GLOBAL_DEFAULT);
     if (initialized != CURLE_OK) {
         throw std::runtime_error("curl global initialization failed");
     }
+    connection_ = std::make_unique<Connection>(url, token, caFile);
 }
 
-void PrometheusRemoteWrite::Write(const std::vector<MetricSample> &samples) const {
+PrometheusRemoteWrite::~PrometheusRemoteWrite() = default;
+
+void PrometheusRemoteWrite::Write(const std::vector<MetricSample> &samples) {
     std::map<std::map<std::string, std::string>, std::map<std::int64_t, double>> series;
     for (const auto &sample : samples) {
         if (!std::isfinite(sample.value)) {
@@ -134,13 +154,13 @@ void PrometheusRemoteWrite::Write(const std::vector<MetricSample> &samples) cons
         }
         Bytes(request, 1, timeSeries);
         if (++batchSize == TransportConstants::SeriesPerRequest) {
-            Post(url_, token_, caFile_, request);
+            connection_->Post(request);
             request.clear();
             batchSize = 0;
         }
     }
     if (!request.empty()) {
-        Post(url_, token_, caFile_, request);
+        connection_->Post(request);
     }
 }
 } // namespace msmonitor::process
