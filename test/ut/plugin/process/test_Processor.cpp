@@ -3,14 +3,20 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <future>
+#include <iterator>
+#include <map>
 #include <stdexcept>
 #include <thread>
 #include <vector>
 
 #include "Processor.h"
+#include "StepDataAnalyser.h"
+#include "metric/StepMetricExporter.h"
+#include "trace/StepTraceExporter.h"
 
 namespace msmonitor::process
 {
@@ -18,7 +24,7 @@ namespace
 {
 using namespace std::chrono_literals;
 
-// Turn each complete line into one synthetic step. The real analyser is added separately.
+// Turn each complete line into one synthetic step to exercise reader and queue behavior.
 class RecordingAnalyser final : public StepAnalyser
 {
    public:
@@ -58,7 +64,10 @@ class RecordingAnalyser final : public StepAnalyser
     {
         while (published_ < lines.size())
         {
-            emit(std::make_shared<StepDataOutput>(StepDataOutput{{++published_, 1, 2}, Rank()}));
+            auto step = std::make_shared<StepDataOutput>();
+            step->boundary = {++published_, 1, 2};
+            step->rank = Rank();
+            emit(std::move(step));
         }
     }
 
@@ -84,24 +93,17 @@ class RecordingMetrics final : public MetricExporter
 class RecordingTrace final : public TraceExporter
 {
    public:
-    std::filesystem::path WriteStep(const StepDataOutput &step) override
+    void WriteStep(StepDataPtr step) override
     {
-        steps.push_back(step.boundary.stepId);
-        return "step_" + std::to_string(step.boundary.stepId);
-    }
-
-    void CompressStep(const std::filesystem::path &directory) override
-    {
-        archives.push_back(directory.string());
-        if (onCompress)
+        steps.push_back(step->boundary.stepId);
+        if (onWrite)
         {
-            onCompress();
+            onWrite();
         }
     }
 
-    std::function<void()> onCompress;
+    std::function<void()> onWrite;
     std::vector<std::uint64_t> steps;
-    std::vector<std::string> archives;
 };
 
 class ProcessorTest : public ::testing::Test
@@ -154,9 +156,9 @@ TEST_F(ProcessorTest, ReadsSelectedRankInOrderAndDrainsBothExporters)
     // A metric blocked on the first step must not prevent trace export of that same step.
     std::promise<void> firstTrace;
     auto traceReady = firstTrace.get_future();
-    trace.onCompress = [&]
+    trace.onWrite = [&]
     {
-        if (trace.archives.size() == 1)
+        if (trace.steps.size() == 1)
         {
             firstTrace.set_value();
         }
@@ -177,7 +179,6 @@ TEST_F(ProcessorTest, ReadsSelectedRankInOrderAndDrainsBothExporters)
     EXPECT_EQ(analyser.lines, (std::vector<std::string>{"{\"id\":1}", "{\"id\":2}", "{\"id\":3}"}));
     EXPECT_EQ(metrics.steps, (std::vector<std::uint64_t>{1, 2, 3}));
     EXPECT_EQ(trace.steps, metrics.steps);
-    EXPECT_EQ(trace.archives, (std::vector<std::string>{"step_1", "step_2", "step_3"}));
 }
 
 TEST_F(ProcessorTest, RejectsNullStep)
@@ -192,6 +193,228 @@ TEST_F(ProcessorTest, RejectsNullStep)
     } nullAnalyser;
     Processor processor(options, nullAnalyser, metrics, trace);
     EXPECT_THROW(processor.Run(), std::invalid_argument);
+}
+
+TEST_F(ProcessorTest, GroupsTracesAndFlushesTailWhileExportingEachMetric)
+{
+    Append("msmonitor_10_100_2.jsonl", "{}\n{}\n{}\n{}\n{}\n");
+    TraceOptions traceOptions;
+    traceOptions.outputDir = options.inputDir / "traces";
+    traceOptions.stepsPerFile = 2;
+    StepTraceExporter traceExporter(traceOptions);
+    Processor processor(options, analyser, metrics, traceExporter);
+    analyser.onBatch = [&](const ReadBatch &) { processor.RequestStop(); };
+    processor.Run();
+
+    EXPECT_EQ(metrics.steps, (std::vector<std::uint64_t>{1, 2, 3, 4, 5}));
+    const auto output = traceOptions.outputDir / "rank_2";
+    for (const auto &[directory, expected] :
+         std::map<std::string, std::vector<std::uint64_t>>{{"step_1_2", {1, 2}}, {"step_3_4", {3, 4}}, {"step_5", {5}}})
+    {
+        std::ifstream file(output / directory / "trace.json");
+        ASSERT_TRUE(file.is_open());
+        const auto document = nlohmann::json::parse(file);
+        std::vector<std::uint64_t> ids;
+        for (const auto &step : document.at("metadata").at("steps"))
+        {
+            ids.push_back(step.at("stepId").get<std::uint64_t>());
+        }
+        EXPECT_EQ(ids, expected);
+        std::vector<std::string> markers;
+        for (const auto &event : document.at("traceEvents"))
+        {
+            if (event.value("cat", "") == "Step")
+            {
+                markers.push_back(event.at("name").get<std::string>());
+            }
+        }
+        ASSERT_EQ(markers.size(), expected.size());
+        for (std::size_t i = 0; i < expected.size(); ++i)
+        {
+            EXPECT_EQ(markers[i], "step " + std::to_string(expected[i]));
+        }
+    }
+    EXPECT_EQ(std::distance(std::filesystem::directory_iterator(output), std::filesystem::directory_iterator()), 3);
+}
+
+TEST_F(ProcessorTest, AnalysesDeviceStepAfterLateEventsAndBuildsMetrics)
+{
+    StepDataAnalyser stepAnalyser(options);
+    std::vector<StepDataPtr> steps;
+    const EmitStepData emit = [&](StepDataPtr step) { steps.push_back(std::move(step)); };
+    const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
+    read(R"({"kind":"Marker","name":"host range","sourceKind":"Host","domain":"default","startNs":100,"endNs":200})");
+    read(R"({"kind":"Marker","name":"step 98","sourceKind":"Device","domain":"custom","startNs":100,"endNs":200})");
+    read(R"({"kind":"Marker","name":"step 7","sourceKind":"Device","domain":"default","startNs":100,"endNs":200})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    EXPECT_TRUE(steps.empty());
+
+    read(R"({"kind":"Communication","name":"AllReduce","deviceId":0,"streamId":1,"startNs":140,"endNs":180})");
+    read(R"({"kind":"Kernel","name":"Add_hash","deviceId":0,"streamId":2,"startNs":120,"endNs":160})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    EXPECT_TRUE(steps.empty());
+
+    read(R"({"kind":"Marker","name":"step 8","sourceKind":"Device","domain":"default","startNs":200,"endNs":300})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    ASSERT_EQ(steps.size(), 1U);
+    EXPECT_EQ(steps.front()->completion, StepCompletion::QuietBatch);
+    EXPECT_EQ(steps.front()->boundary.stepId, 7U);
+    const auto &device = steps.front()->analysis->devices.at(0);
+    EXPECT_EQ(device.overlap, (Intervals{{140, 160}}));
+    EXPECT_EQ(device.uncoveredCommunication, (Intervals{{160, 180}}));
+
+    StepSummary summary;
+    StepMetricExporter exporter(
+        {}, [](const StepMetricData &) {}, [&](StepSummary result) { summary = std::move(result); });
+    exporter.ExportStep(*steps.front());
+    EXPECT_TRUE(summary.valid);
+    EXPECT_EQ(summary.stepId, 7U);
+    const KernelKey add{0, 2, "Kernel", "Add", "Kernel"};
+    EXPECT_EQ(summary.operators.at(add).count, 1U);
+    EXPECT_EQ(summary.kernels.at(add).size(), 1U);
+
+    stepAnalyser.Finish(false, emit);
+    ASSERT_EQ(steps.size(), 2U);
+    EXPECT_EQ(steps.back()->boundary.stepId, 8U);
+}
+
+TEST_F(ProcessorTest, KeepsStepLikeUserRangeWithoutCreatingBoundary)
+{
+    StepDataAnalyser stepAnalyser(options);
+    stepAnalyser.ProcessLine(
+        {{},
+         1,
+         R"({"kind":"Marker","name":"step 7","sourceKind":"Device","domain":"default","startNs":100,"endNs":200})"});
+    stepAnalyser.ProcessLine(
+        {{},
+         2,
+         R"({"kind":"Marker","name":"step warmup","sourceKind":"Device","domain":"default","startNs":110,"endNs":120})"});
+    std::vector<StepDataPtr> steps;
+    stepAnalyser.Finish(true, [&](StepDataPtr step) { steps.push_back(std::move(step)); });
+    ASSERT_EQ(steps.size(), 1U);
+    EXPECT_EQ(steps.front()->boundary.stepId, 7U);
+    ASSERT_EQ(steps.front()->events.size(), 2U);
+    EXPECT_TRUE(std::any_of(steps.front()->events.begin(), steps.front()->events.end(),
+                            [](const auto &event) { return event->data.at("name") == "step warmup"; }));
+}
+
+TEST_F(ProcessorTest, AcceptsLateRecordForPendingOverlappingStep)
+{
+    StepDataAnalyser stepAnalyser(options);
+    std::vector<StepDataPtr> steps;
+    const EmitStepData emit = [&](StepDataPtr step) { steps.push_back(std::move(step)); };
+    const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
+    read(R"({"kind":"Marker","name":"step 1","sourceKind":"Device","domain":"default","startNs":100,"endNs":200})");
+    read(R"({"kind":"Marker","name":"step 2","sourceKind":"Device","domain":"default","startNs":150,"endNs":250})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    read(R"({"kind":"Kernel","deviceId":0,"streamId":1,"startNs":210,"endNs":220})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    ASSERT_EQ(steps.size(), 1U);
+    read(R"({"kind":"Kernel","deviceId":0,"streamId":1,"startNs":170,"endNs":180})");
+    stepAnalyser.Finish(true, emit);
+    ASSERT_EQ(steps.size(), 2U);
+    EXPECT_EQ(steps[1]->boundary.stepId, 2U);
+    EXPECT_EQ(steps[1]->analysis->devices.at(0).computing, (Intervals{{170, 180}, {210, 220}}));
+}
+
+TEST_F(ProcessorTest, KeepsProcessingAfterLateRecords)
+{
+    StepDataAnalyser stepAnalyser(options);
+    std::vector<StepDataPtr> steps;
+    const EmitStepData emit = [&](StepDataPtr step) { steps.push_back(std::move(step)); };
+    const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
+    const char *first =
+        R"({"kind":"Marker","name":"step 1","sourceKind":"Device","domain":"default","startNs":100,"endNs":200})";
+    read(first);
+    stepAnalyser.EndBatch({true, false}, emit);
+    read(R"({"kind":"Kernel","deviceId":0,"streamId":1,"startNs":210,"endNs":220})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    ASSERT_EQ(steps.size(), 1U);
+    read(first);
+    read(R"({"kind":"Kernel","deviceId":0,"streamId":1,"startNs":170,"endNs":200})");
+    read(R"({"kind":"Marker","name":"step 2","sourceKind":"Host","domain":"default","startNs":198,"endNs":298})");
+    read(R"({"kind":"Marker","name":"step 2","sourceKind":"Device","domain":"default","startNs":200,"endNs":300})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    read(R"({"kind":"Kernel","deviceId":0,"streamId":1,"startNs":310,"endNs":320})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    ASSERT_EQ(steps.size(), 2U);
+    EXPECT_EQ(steps[1]->completion, StepCompletion::QuietBatch);
+    EXPECT_EQ(steps[1]->boundary.stepId, 2U);
+    ASSERT_EQ(steps[1]->events.size(), 3U);
+    ASSERT_TRUE(steps[1]->hostBoundary);
+    EXPECT_EQ(steps[1]->hostBoundary->startNs, 198U);
+    EXPECT_EQ(steps[1]->analysis->devices.at(0).computing, (Intervals{{210, 220}}));
+}
+
+TEST_F(ProcessorTest, UsesSeparateHostAndDeviceWindowsForPairedSteps)
+{
+    StepDataAnalyser stepAnalyser(options);
+    const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
+    read(
+        R"({"kind":"Marker","name":"step 1","sourceKind":"Host","domain":"default","id":18,"startNs":80,"endNs":180})");
+    std::vector<StepDataPtr> steps;
+    const EmitStepData emit = [&](StepDataPtr step) { steps.push_back(std::move(step)); };
+    stepAnalyser.EndBatch({true, false}, emit);
+    read(R"({"kind":"Marker","name":"after step","sourceKind":"Host","startNs":350,"endNs":360})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    EXPECT_TRUE(steps.empty());
+    read(
+        R"({"kind":"Marker","name":"step 1","sourceKind":"Device","domain":"default","id":18,"startNs":100,"endNs":200})");
+    read(
+        R"({"kind":"Marker","name":"step 2","sourceKind":"Device","domain":"default","id":19,"startNs":200,"endNs":300})");
+    read(
+        R"({"kind":"Marker","name":"step 2","sourceKind":"Host","domain":"default","id":19,"startNs":180,"endNs":280})");
+    read(R"({"kind":"Marker","name":"cpu","sourceKind":"Host","startNs":185,"endNs":195})");
+    read(R"({"kind":"Kernel","name":"npu","deviceId":0,"streamId":1,"startNs":185,"endNs":195})");
+    stepAnalyser.Finish(true, emit);
+    ASSERT_EQ(steps.size(), 2U);
+    EXPECT_EQ(steps[1]->boundary.startNs, 200U);
+    ASSERT_TRUE(steps[1]->hostBoundary);
+    EXPECT_EQ(steps[1]->hostBoundary->startNs, 180U);
+    ASSERT_EQ(steps[0]->ownedEvents.size(), 1U);
+    ASSERT_EQ(steps[1]->ownedEvents.size(), 1U);
+    EXPECT_EQ(steps[0]->ownedEvents.front()->data.at("name"), "npu");
+    EXPECT_EQ(steps[1]->ownedEvents.front()->data.at("name"), "cpu");
+}
+
+TEST_F(ProcessorTest, FallsBackToHostWindowWithoutDeviceMarker)
+{
+    StepDataAnalyser stepAnalyser(options);
+    const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
+    read(
+        R"({"kind":"Marker","name":"step 1","sourceKind":"Host","domain":"default","id":18,"startNs":80,"endNs":180})");
+    read(R"({"kind":"Marker","name":"cpu","sourceKind":"Host","startNs":85,"endNs":95})");
+    std::vector<StepDataPtr> steps;
+    const EmitStepData emit = [&](StepDataPtr step) { steps.push_back(std::move(step)); };
+    stepAnalyser.EndBatch({true, false}, emit);
+    read(R"({"kind":"Marker","name":"after step","sourceKind":"Host","startNs":190,"endNs":195})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    EXPECT_TRUE(steps.empty());
+    stepAnalyser.EndBatch({false, false}, emit);
+    read(R"({"kind":"Marker","name":"later range","sourceKind":"Host","startNs":195,"endNs":199})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    ASSERT_EQ(steps.size(), 1U);
+    EXPECT_EQ(steps[0]->boundary.startNs, 80U);
+    EXPECT_EQ(steps[0]->boundary.endNs, 180U);
+    ASSERT_EQ(steps[0]->ownedEvents.size(), 1U);
+    EXPECT_EQ(steps[0]->ownedEvents.front()->data.at("name"), "cpu");
+}
+
+TEST_F(ProcessorTest, DoesNotPairConflictingMarkerIds)
+{
+    StepDataAnalyser stepAnalyser(options);
+    const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
+    read(
+        R"({"kind":"Marker","name":"step 1","sourceKind":"Host","domain":"default","id":18,"startNs":80,"endNs":180})");
+    read(
+        R"({"kind":"Marker","name":"step 1","sourceKind":"Device","domain":"default","id":19,"startNs":100,"endNs":200})");
+    std::vector<StepDataPtr> steps;
+    stepAnalyser.Finish(true, [&](StepDataPtr step) { steps.push_back(std::move(step)); });
+    ASSERT_EQ(steps.size(), 1U);
+    EXPECT_FALSE(steps[0]->hostBoundary);
+    EXPECT_EQ(steps[0]->boundary.startNs, 100U);
+    ASSERT_EQ(steps[0]->events.size(), 1U);
+    EXPECT_EQ(steps[0]->events.front()->data.at("sourceKind"), "Device");
 }
 
 TEST_F(ProcessorTest, FollowsAppendsAndRotatedFilesUntilStopped)
@@ -228,7 +451,6 @@ TEST_F(ProcessorTest, FollowsAppendsAndRotatedFilesUntilStopped)
     EXPECT_EQ(analyser.lines, (std::vector<std::string>{"{\"id\":1}", "{\"id\":2}"}));
     EXPECT_EQ(metrics.steps, (std::vector<std::uint64_t>{1, 2}));
     EXPECT_EQ(trace.steps, metrics.steps);
-    EXPECT_EQ(trace.archives.size(), 2U);
 }
 
 TEST_F(ProcessorTest, PropagatesExporterFailureWithBoundedQueues)
@@ -299,7 +521,7 @@ TEST_F(ProcessorTest, StopsWithPartialTailAndDrainsCompleteLines)
     EXPECT_EQ(analyser.complete, false);
     EXPECT_EQ(analyser.lines, std::vector<std::string>{"{}"});
     EXPECT_EQ(metrics.steps, std::vector<std::uint64_t>{1});
-    EXPECT_EQ(trace.archives, std::vector<std::string>{"step_1"});
+    EXPECT_EQ(trace.steps, metrics.steps);
 }
 
 TEST_F(ProcessorTest, ContinuesWhenRotationRemovesAnUnreadFile)

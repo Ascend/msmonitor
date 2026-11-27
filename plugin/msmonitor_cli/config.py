@@ -22,12 +22,14 @@
 
 from __future__ import annotations
 
+import math
 import os
 import signal
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
+from urllib.parse import urlsplit
 
 # 采集数据只导出 Jsonl，仅支持这些类型。
 JSONL_EXPORTABLE_KINDS = (
@@ -125,9 +127,6 @@ class MonitorConfig:
     trace_steps_per_file: int = 5
     trace_keep_files: int = 100
 
-    server_host: str = ""
-    # 端口没有默认值，选择 metric 时必须显式指定。
-    server_port: int = 0
     # 默认同时输出 trace 与 metric；只写其中一个表示只输出该项。
     monitor_target: List[str] = field(default_factory=lambda: ["trace", "metric"])
     remote_write_url: str = ""
@@ -154,7 +153,6 @@ def _apply_values(cfg: MonitorConfig, values: Dict[str, Any]) -> None:
                 "json_rotate_log_files",
                 "trace_steps_per_file",
                 "trace_keep_files",
-                "server_port",
             ):
                 setattr(cfg, key, int(value))
             else:
@@ -191,22 +189,26 @@ def validate_collector(cfg: MonitorConfig) -> None:
     """校验 collector 侧参数。"""
     if cfg.token and cfg.token_file:
         raise ConfigError("--token and --token-file are mutually exclusive; specify only one")
-    if cfg.server_port and not 0 < cfg.server_port < 65536:
-        raise ConfigError("--server-port must be within [1, 65535]")
     if "metric" in cfg.monitor_target:
         missing = [
             name
             for name, value in (
-                ("--server-host", cfg.server_host),
-                ("--server-port", cfg.server_port),
                 ("--remote-write-url", cfg.remote_write_url),
                 ("--token or --token-file", cfg.token or cfg.token_file),
-                ("--ca-file", cfg.ca_file),
             )
             if not value
         ]
         if missing:
             raise ConfigError("--monitor-target metric requires: {}".format(", ".join(missing)))
+        try:
+            endpoint = urlsplit(cfg.remote_write_url)
+            valid_endpoint = endpoint.scheme == "https" and endpoint.hostname and endpoint.username is None
+            port = endpoint.port
+        except ValueError:
+            valid_endpoint = False
+            port = None
+        if not valid_endpoint or port == 0 or any(ch.isspace() for ch in cfg.remote_write_url):
+            raise ConfigError("--remote-write-url must be an HTTPS URL without embedded credentials")
     if cfg.trace_steps_per_file < 0:
         raise ConfigError("--trace-steps-per-file must not be negative")
     if cfg.trace_keep_files < 0:
@@ -222,8 +224,8 @@ def validate_collect(cfg: MonitorConfig) -> None:
     if cfg.report_interval_s < 0 or cfg.report_interval_s > 0xFFFFFFFF:
         raise ConfigError("--report-interval-s must be within [0, 4294967295] (uint32)")
 
-    if cfg.duration_s < 0:
-        raise ConfigError("--duration must not be negative")
+    if not math.isfinite(cfg.duration_s) or cfg.duration_s < 0:
+        raise ConfigError("--duration must be finite and non-negative")
 
     # 采集导出固定为 Jsonl，只支持可导出文本流的类型
     unsupported = [kind for kind in cfg.activity_kind if kind not in JSONL_EXPORTABLE_KINDS]

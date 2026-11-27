@@ -8,6 +8,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -17,7 +18,9 @@
 
 #include "ProcessRunnerDetail.h"
 #include "Processor.h"
-#include "RankStages.h"
+#include "StepDataAnalyser.h"
+#include "metric/StepMetricReporter.h"
+#include "trace/StepTraceExporter.h"
 
 namespace msmonitor::process_runner
 {
@@ -27,10 +30,17 @@ namespace
 using detail::ParseRankFileName;
 using process::Options;
 using process::Processor;
-using process::RankAnalyser;
-using process::RankMetricExporter;
-using process::RankTraceExporter;
 using RankFile = detail::RankFile;
+
+class DisabledMetrics final : public process::MetricExporter
+{
+    void ExportStep(const process::StepDataOutput &) override {}
+};
+
+class DisabledTrace final : public process::TraceExporter
+{
+    void WriteStep(process::StepDataPtr) override {}
+};
 
 // 目录遍历明显变慢时放宽扫描间隔，避免持续压满 NFS；本地盘上不会生效。
 constexpr std::chrono::milliseconds MAX_SCAN_INTERVAL{60000};
@@ -43,13 +53,12 @@ constexpr std::chrono::seconds MISSING_INPUT_DIR_GRACE{60};
 class RankWorker
 {
    public:
-    RankWorker(const RunnerConfig &config, const RankFile &rankFile)
-        : rank_(rankFile.rank), processId_(rankFile.processId), analyser_(rankFile.rank)
+    RankWorker(const RunnerConfig &config, const RankFile &rankFile, const std::string &runId)
+        : rank_(rankFile.rank), processId_(rankFile.processId)
     {
         LOG(INFO) << "rank worker init: rank=" << rank_ << " pid=" << processId_
                   << " input_dir=" << config.inputDir.string() << " job_id=" << config.jobId
-                  << " trace=" << config.enableTrace << " metric=" << config.enableMetric
-                  << " server=" << config.serverHost << ":" << config.serverPort;
+                  << " trace=" << config.enableTrace << " metric=" << config.enableMetric;
 
         Options options;
         options.inputDir = config.inputDir;
@@ -57,15 +66,39 @@ class RankWorker
         options.processId = processId_;
         options.pollInterval = config.pollInterval;
         options.queueCapacity = config.queueCapacity;
-        processor_ = std::make_unique<Processor>(std::move(options), analyser_, metricExporter_, traceExporter_);
+        options.recursiveInput = false;
+        analyser_ = std::make_unique<process::StepDataAnalyser>(options);
+        if (config.enableMetric)
+        {
+            metricExporter_ = std::make_unique<process::StepMetricReporter>(config.jobId, runId, config.remoteWriteUrl,
+                                                                            config.token, config.caFile);
+        }
+        else
+        {
+            metricExporter_ = std::make_unique<DisabledMetrics>();
+        }
+        if (config.enableTrace)
+        {
+            process::TraceOptions traceOptions;
+            traceOptions.outputDir = config.inputDir / "trace" / runId / std::to_string(processId_);
+            traceOptions.keepFiles = static_cast<std::size_t>(config.traceKeepFiles);
+            traceOptions.stepsPerFile = std::max(1, config.traceStepsPerFile);
+            traceExporter_ = std::make_unique<process::StepTraceExporter>(std::move(traceOptions));
+        }
+        else
+        {
+            traceExporter_ = std::make_unique<DisabledTrace>();
+        }
+        processor_ = std::make_unique<Processor>(std::move(options), *analyser_, *metricExporter_, *traceExporter_);
     }
 
     ~RankWorker() { Stop(); }
+    RankWorker(const RankWorker &) = delete;
+    RankWorker &operator=(const RankWorker &) = delete;
+    RankWorker(RankWorker &&) = delete;
+    RankWorker &operator=(RankWorker &&) = delete;
 
     std::uint64_t ProcessId() const { return processId_; }
-
-    // 线程因异常退出后置位，供 Reconcile 判断是否需要重建。
-    bool Failed() const { return failed_.load(); }
 
     void Start()
     {
@@ -78,12 +111,10 @@ class RankWorker
                 }
                 catch (const std::exception &e)
                 {
-                    failed_.store(true);
                     LOG(ERROR) << "rank=" << rank_ << " processor exited: " << e.what();
                 }
                 catch (...)
                 {
-                    failed_.store(true);
                     LOG(ERROR) << "rank=" << rank_ << " processor exited with unknown error";
                 }
             });
@@ -103,20 +134,27 @@ class RankWorker
     std::int64_t rank_;
     std::uint64_t processId_;
     // stage 必须先于 processor_ 声明：Processor 只持有它们的引用。
-    RankAnalyser analyser_;
-    RankMetricExporter metricExporter_;
-    RankTraceExporter traceExporter_;
+    std::unique_ptr<process::StepDataAnalyser> analyser_;
+    std::unique_ptr<process::MetricExporter> metricExporter_;
+    std::unique_ptr<process::TraceExporter> traceExporter_;
     std::unique_ptr<Processor> processor_;
     std::thread thread_;
-    std::atomic<bool> failed_{false};
 };
 
 class RankSupervisor
 {
    public:
-    explicit RankSupervisor(RunnerConfig config) : config_(std::move(config)) {}
+    explicit RankSupervisor(RunnerConfig config)
+        : config_(std::move(config)),
+          runId_(std::to_string(std::chrono::system_clock::now().time_since_epoch().count()))
+    {
+    }
 
     ~RankSupervisor() { Stop(); }
+    RankSupervisor(const RankSupervisor &) = delete;
+    RankSupervisor &operator=(const RankSupervisor &) = delete;
+    RankSupervisor(RankSupervisor &&) = delete;
+    RankSupervisor &operator=(RankSupervisor &&) = delete;
 
     void Start()
     {
@@ -290,19 +328,15 @@ class RankSupervisor
             const auto found = workers_.find(entry.first);
             if (found != workers_.end() && found->second->ProcessId() == entry.second.processId)
             {
-                if (!found->second->Failed())
-                {
-                    continue;
-                }
-                // 线程因异常退出后不会自恢复，pid 未变也要重建流水线
-                LOG(WARNING) << "rank=" << entry.first << " worker exited unexpectedly, restart";
+                // A restart without a checkpoint would replay exports and repeat deterministic failures.
+                continue;
             }
             if (found != workers_.end())
             {
                 found->second->Stop();
                 workers_.erase(found);
             }
-            auto worker = std::make_unique<RankWorker>(config_, entry.second);
+            auto worker = std::make_unique<RankWorker>(config_, entry.second, runId_);
             worker->Start();
             workers_[entry.first] = std::move(worker);
         }
@@ -323,6 +357,7 @@ class RankSupervisor
     }
 
     RunnerConfig config_;
+    std::string runId_;
     std::atomic<bool> stopped_{false};
     bool warnedMissingInputDir_{false};
     // 目录一旦出现过，运行中消失先按抖动处理，宽限期后才回收 worker
@@ -348,11 +383,29 @@ bool Start(const RunnerConfig &config)
         LOG(WARNING) << "process runner already started";
         return false;
     }
+    if (config.traceStepsPerFile < 0 || config.traceKeepFiles < 0)
+    {
+        throw std::invalid_argument("trace step count and retention must be non-negative");
+    }
     LOG(INFO) << "process runner start: input_dir=" << config.inputDir.string()
               << " scan_interval_ms=" << config.scanInterval.count()
               << " poll_interval_ms=" << config.pollInterval.count() << " queue_capacity=" << config.queueCapacity
               << " trace_steps_per_file=" << config.traceStepsPerFile << " trace_keep_files=" << config.traceKeepFiles;
-    g_supervisor = std::make_unique<RankSupervisor>(config);
+    auto resolved = config;
+    if (resolved.enableMetric)
+    {
+        if (!resolved.tokenFile.empty())
+        {
+            std::ifstream tokenFile(resolved.tokenFile);
+            if (!(tokenFile >> resolved.token) || resolved.token.empty())
+            {
+                throw std::invalid_argument("could not read Remote Write token file");
+            }
+        }
+        // Validate transport configuration before starting any rank workers.
+        process::PrometheusRemoteWrite transport(resolved.remoteWriteUrl, resolved.token, resolved.caFile);
+    }
+    g_supervisor = std::make_unique<RankSupervisor>(std::move(resolved));
     g_supervisor->Start();
     return true;
 }

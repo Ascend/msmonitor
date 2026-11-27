@@ -35,10 +35,7 @@ class TraceExporter
    public:
     virtual ~TraceExporter() = default;
 
-    // Write output/rank_x/step_x/ and close files before returning. Publish each step only once.
-    virtual std::filesystem::path WriteStep(const StepDataOutput &step) = 0;
-
-    // Create sibling step_x.zip; preserve the directory on failure. Cleanup on success is configurable.
-    virtual void CompressStep(const std::filesystem::path &directory) = 0;
+    virtual void WriteStep(StepDataPtr step) = 0;
+    virtual void Flush() {}
 };
 }  // namespace msmonitor::process

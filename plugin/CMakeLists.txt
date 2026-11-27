@@ -33,6 +33,7 @@ include(utils)
 find_package(glog MODULE REQUIRED)
 find_package(nlohmannjson MODULE REQUIRED)
 find_package(sqlite3 MODULE REQUIRED)
+set_source_files_properties(${sqlite3_SOURCES} PROPERTIES COMPILE_DEFINITIONS SQLITE_DEFAULT_MEMSTATUS=0)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/ipc_monitor
@@ -50,16 +51,14 @@ file(GLOB_RECURSE IPC_SOURCES
 )
 
 file(GLOB_RECURSE SECUREC_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/third_party/securec/src/*.c)
-
-# 数据处理实现位于 plugin/process，编进 IPCMonitor_C 扩展随 whl 分发。
-add_subdirectory(process)
+# The process trace library supplies the shared DB schema implementation.
+list(REMOVE_ITEM IPC_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ipc_monitor/db/DataBase.cpp")
 
 set(SOURCES
     bindings.cpp
     ${IPC_SOURCES}
     ${SECUREC_SOURCES}
     ${sqlite3_SOURCES}
-    process/ProcessRunner.cpp
 )
 
 add_library(IPCMonitor MODULE ${SOURCES})
@@ -77,8 +76,7 @@ target_link_libraries(IPCMonitor PRIVATE
     dl
     ${glog_LIBRARIES}
     ${CMAKE_CURRENT_SOURCE_DIR}/stub/libmspti.so
-    # ProcessRunner.cpp 依赖的 Processor/JsonlReader 由 process 子目录编译成静态库
-    msmonitor_process_core
+    msmonitor_process
 )
 
 target_compile_options(IPCMonitor PRIVATE
@@ -89,6 +87,7 @@ target_compile_options(IPCMonitor PRIVATE
 
 target_link_options(IPCMonitor PRIVATE
     -Wl,-z,relro,-z,now,-z,noexecstack
+    -Wl,--exclude-libs,libcurl.a:libsnappy.a:libssl.a:libcrypto.a
     -s
 )
 
@@ -98,6 +97,10 @@ set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -O0 -g")
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -D_FORTIFY_SOURCE=2 -O2")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -D_FORTIFY_SOURCE=2 -O2")
+
+# Include the complete process runtime in the wheel's native extension.
+set(MSMONITOR_BUILD_PROCESS_RUNNER ON)
+add_subdirectory(process)
 
 add_custom_command(
     TARGET IPCMonitor POST_BUILD

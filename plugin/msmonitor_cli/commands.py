@@ -82,8 +82,6 @@ def _cli_values(args) -> Dict[str, Any]:
         "json_rotate_log_files": getattr(args, "json_rotate_log_files", None),
         "trace_steps_per_file": getattr(args, "trace_steps_per_file", None),
         "trace_keep_files": getattr(args, "trace_keep_files", None),
-        "server_host": getattr(args, "server_host", None),
-        "server_port": getattr(args, "server_port", None),
         "remote_write_url": getattr(args, "remote_write_url", None),
         "token_file": getattr(args, "token_file", None),
         "token": getattr(args, "token", None),
@@ -162,8 +160,6 @@ def _write_started_config(cfg: MonitorConfig) -> None:
         "monitor_target": ",".join(cfg.monitor_target),
         "trace_steps_per_file": cfg.trace_steps_per_file,
         "trace_keep_files": cfg.trace_keep_files,
-        "server_host": cfg.server_host,
-        "server_port": cfg.server_port,
         "remote_write_url": cfg.remote_write_url,
         "token_file": cfg.token_file,
         "ca_file": cfg.ca_file,
@@ -327,9 +323,12 @@ def _collector_log_path(cfg: MonitorConfig) -> Path:
     return _log_path(cfg, "collector")
 
 
-def _spawn_detached(argv: List[str], log_path: Path, env: Optional[Dict[str, str]] = None) -> subprocess.Popen:
-    """以脱离会话的方式拉起子进程，stdout/stderr 写入日志。"""
+def _spawn_detached(argv: List[str], log_path: Path, *, token: str = "") -> subprocess.Popen:
+    """Start a detached child with stdout, stderr and native logs in the same directory."""
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ, MSMONITOR_LOG_PATH=str(log_path.parent))
+    if token:
+        env["MSMONITOR_TOKEN"] = token
     with open(log_path, "ab") as log:
         return subprocess.Popen(  # nosec B603
             argv,
@@ -406,13 +405,9 @@ def _processor_argv(cfg: MonitorConfig) -> List[str]:
         str(cfg.trace_steps_per_file),
         "--trace-keep-files",
         str(cfg.trace_keep_files),
-        "--server-port",
-        str(cfg.server_port),
     ]
     if cfg.job_id:
         argv += ["--job-id", cfg.job_id]
-    if cfg.server_host:
-        argv += ["--server-host", cfg.server_host]
     if cfg.remote_write_url:
         argv += ["--remote-write-url", cfg.remote_write_url]
     if cfg.token_file:
@@ -430,11 +425,8 @@ def _ensure_processor(cfg: MonitorConfig) -> Optional[int]:
 
     log_path = _processor_log_path(cfg)
     _prune_logs(log_path.parent, "processor")
-    # 明文 token 只走环境变量，避免出现在命令行（ps 可见）和状态文件里
-    env = None
-    if cfg.token:
-        env = dict(os.environ, MSMONITOR_TOKEN=cfg.token)
-    proc = _spawn_detached(_processor_argv(cfg), log_path, env)
+    # Keep bearer credentials out of argv and state files.
+    proc = _spawn_detached(_processor_argv(cfg), log_path, token=cfg.token)
     _processor_pid_path(cfg).write_text(str(proc.pid), encoding="utf-8")
 
     deadline = time.time() + 0.5

@@ -92,16 +92,6 @@ def _rotate_files(value: str) -> int:
     return number
 
 
-def _port(value: str) -> int:
-    try:
-        number = int(value)
-    except ValueError:
-        raise argparse.ArgumentTypeError("expected an integer: {!r}".format(value))
-    if not 1 <= number <= 65535:
-        raise argparse.ArgumentTypeError("must be within [1, 65535]")
-    return number
-
-
 def _bounded_text(value: str) -> str:
     if len(value) > STRING_MAX_LEN:
         raise argparse.ArgumentTypeError("must not exceed {} characters".format(STRING_MAX_LEN))
@@ -277,7 +267,7 @@ def _add_collector_arguments(parser: argparse.ArgumentParser) -> None:
         type=_int32,
         default=None,
         metavar="<STEPS>",
-        help="steps contained in each trace file written by the data processing component",
+        help="maximum steps per rank's trace file; 0 writes one step per file",
         default_text=str(_DEFAULTS.trace_steps_per_file),
     )
     _add_option(
@@ -291,27 +281,11 @@ def _add_collector_arguments(parser: argparse.ArgumentParser) -> None:
     )
     _add_option(
         parser,
-        "--server-host",
-        default=None,
-        type=_bounded_text,
-        metavar="<HOST>",
-        help="data center service host",
-    )
-    _add_option(
-        parser,
-        "--server-port",
-        type=_port,
-        default=None,
-        metavar="<PORT>",
-        help="data center service port; required when metric is selected",
-    )
-    _add_option(
-        parser,
         "--remote-write-url",
         default=None,
         type=_bounded_text,
         metavar="<URL>",
-        help="full URL used to write processed metrics to the data center",
+        help="full HTTPS URL used to write processed metrics to the data center",
     )
     _add_option(
         parser,
@@ -335,7 +309,7 @@ def _add_collector_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         type=_bounded_text,
         metavar="<FILE>",
-        help="path to the CA certificate file",
+        help="CA certificate for private PKI; defaults to the system trust store",
     )
     _add_option(
         parser,
@@ -406,7 +380,7 @@ def build_parser() -> argparse.ArgumentParser:
             ),
             (
                 "Send collection config to running training processes",
-                "msmonitor collect start --mspti-activity-kind Kernel",
+                "msmonitor collect start",
             ),
             (
                 "Stop collection only; the collector keeps running",
@@ -429,9 +403,8 @@ def build_parser() -> argparse.ArgumentParser:
                 "msmonitor start --output-dir /data/msmonitor --monitor-target trace",
             ),
             (
-                "Start and report trace and metrics to the data center",
+                "Write traces locally and send metrics to the data center",
                 "msmonitor start --output-dir /data/msmonitor --monitor-target trace,metric "
-                "--server-host 10.0.0.1 --server-port 8443 "
                 "--remote-write-url https://center/api/write "
                 "--token-file /etc/msmonitor/token --ca-file /etc/msmonitor/ca.pem",
             ),

@@ -42,8 +42,8 @@ class CMakeBuild(build_ext):
         ext_dir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
         cmake_args = [
             '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + ext_dir,
-            '-DPYTHON_EXECUTABLE=' + sys.executable,
-            '-DCMAKE_PREFIX_PATH=' + pybind11.get_cmake_dir(),
+            '-DPython_EXECUTABLE=' + sys.executable,
+            '-DCMAKE_PREFIX_PATH=' + ';'.join([pybind11.get_cmake_dir(), sys.prefix]),
             '-DCMAKE_INSTALL_PREFIX=' + ext_dir,
             '-DCMAKE_BUILD_TYPE=' + cfg,
         ]

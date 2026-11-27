@@ -23,8 +23,6 @@ struct RunnerConfig
     // trace 产物切分：每个 trace 文件包含的 step 数、保留的 trace 文件数。
     int traceStepsPerFile{5};
     int traceKeepFiles{100};
-    std::string serverHost;
-    int serverPort{8443};
     std::string remoteWriteUrl;
     std::string tokenFile;
     // 明文 token，与 tokenFile 二选一，由 CLI 通过环境变量传入。

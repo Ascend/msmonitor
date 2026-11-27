@@ -76,6 +76,8 @@ def apply_ctrl(state: Dict[str, Optional[object]], doc) -> bool:
 
 
 def main() -> int:
+    import pwd
+
     state_dir = STATE_DIR
     state_dir.mkdir(parents=True, exist_ok=True)
 
@@ -88,7 +90,8 @@ def main() -> int:
         )
         return 1
 
-    sock_path = Path(os.path.expanduser("~")) / "{}.sock".format(ipc.serve_name())
+    # The native IPC endpoint uses the account home even when HOME is overridden.
+    sock_path = Path(pwd.getpwuid(os.getuid()).pw_dir) / "{}.sock".format(ipc.serve_name())
     (state_dir / SOCKET_FILE).write_text(str(sock_path), encoding="utf-8")
     (state_dir / READY_FILE).write_text(str(os.getpid()), encoding="utf-8")
     print(

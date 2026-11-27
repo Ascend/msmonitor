@@ -75,7 +75,8 @@ const TableColumns& Database::GetTableCols(const std::string& tableName)
     if (iter == tableColumns_.end())
     {
         LOG(ERROR) << "Table " << tableName << " is not found";
-        return {};
+        static const TableColumns empty;
+        return empty;
     }
     return iter->second;
 }
