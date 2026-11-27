@@ -58,7 +58,10 @@ class RecordingAnalyser final : public StepAnalyser
     {
         while (published_ < lines.size())
         {
-            emit(std::make_shared<StepDataOutput>(StepDataOutput{{++published_, 1, 2}, Rank()}));
+            auto step = std::make_shared<StepDataOutput>();
+            step->boundary = {++published_, 1, 2};
+            step->rank = Rank();
+            emit(std::move(step));
         }
     }
 

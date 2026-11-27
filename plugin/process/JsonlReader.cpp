@@ -142,26 +142,26 @@ ReadBatch JsonlReader::Poll(const LineConsumer &consume)
 std::vector<JsonlReader::FileSnapshot> JsonlReader::SnapshotFiles()
 {
     std::vector<FileSnapshot> files;
-    for (const auto &entry : std::filesystem::recursive_directory_iterator(options_.inputDir))
+    const auto snapshotFile = [&](const std::filesystem::directory_entry &entry)
     {
         const auto name = entry.path().filename().string();
         if (name.rfind(ProcessConstants::FilePrefix, 0) != 0 ||
             entry.path().extension() != ProcessConstants::FileExtension)
         {
-            continue;
+            return;
         }
         const auto identity = ParseFileIdentity(entry.path());
         if (!identity || identity->rank != options_.rank ||
             (options_.processId && identity->processId != *options_.processId))
         {
-            continue;
+            return;
         }
         std::uintmax_t size;
         try
         {
             if (!std::filesystem::is_regular_file(entry.symlink_status()))
             {
-                continue;
+                return;
             }
             size = entry.file_size();
         }
@@ -172,7 +172,7 @@ std::vector<JsonlReader::FileSnapshot> JsonlReader::SnapshotFiles()
                 throw;
             }
             LOG(WARNING) << "Process JSONL removed during scan, rank: " << options_.rank << ", file: " << entry.path();
-            continue;
+            return;
         }
         if (processId_ && identity->processId != *processId_)
         {
@@ -181,6 +181,20 @@ std::vector<JsonlReader::FileSnapshot> JsonlReader::SnapshotFiles()
         }
         processId_ = identity->processId;
         files.push_back({entry.path(), size});
+    };
+    if (options_.recursiveInput)
+    {
+        for (const auto &entry : std::filesystem::recursive_directory_iterator(options_.inputDir))
+        {
+            snapshotFile(entry);
+        }
+    }
+    else
+    {
+        for (const auto &entry : std::filesystem::directory_iterator(options_.inputDir))
+        {
+            snapshotFile(entry);
+        }
     }
     std::sort(files.begin(), files.end(), [](const auto &left, const auto &right) { return left.file < right.file; });
     return files;

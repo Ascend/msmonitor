@@ -33,6 +33,7 @@ include(utils)
 find_package(glog MODULE REQUIRED)
 find_package(nlohmannjson MODULE REQUIRED)
 find_package(sqlite3 MODULE REQUIRED)
+set_source_files_properties(${sqlite3_SOURCES} PROPERTIES COMPILE_DEFINITIONS SQLITE_DEFAULT_MEMSTATUS=0)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/ipc_monitor
@@ -52,6 +53,8 @@ file(GLOB_RECURSE IPC_SOURCES
 file(GLOB_RECURSE SECUREC_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/third_party/securec/src/*.c)
 
 # 数据处理实现位于 plugin/process，编进 IPCMonitor_C 扩展随 whl 分发。
+set(MSMONITOR_BUILD_TRACE ON)
+set(MSMONITOR_BUILD_REMOTE_WRITE ON)
 add_subdirectory(process)
 
 set(SOURCES
@@ -79,6 +82,8 @@ target_link_libraries(IPCMonitor PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/stub/libmspti.so
     # ProcessRunner.cpp 依赖的 Processor/JsonlReader 由 process 子目录编译成静态库
     msmonitor_process_core
+    msmonitor_trace
+    msmonitor_remote_write
 )
 
 target_compile_options(IPCMonitor PRIVATE
