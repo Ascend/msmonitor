@@ -5,14 +5,16 @@
 #include "MetricTypes.h"
 #include "ProcessStages.h"
 
-namespace msmonitor::process {
+namespace msmonitor::process
+{
 // One instance per rank, used exclusively by the existing metric worker.
-class StepMetricExporter final : public MetricExporter {
-  public:
+class StepMetricExporter final : public MetricExporter
+{
+   public:
     StepMetricExporter(MetricOptions options, StepMetricSink stepSink, StepSummarySink summarySink);
     void ExportStep(const StepDataOutput &step) override;
 
-  private:
+   private:
     StepMetricData CollectStepMetrics(const StepDataOutput &step) const;
     StepSummary BuildStepSummary(StepMetricData step) const;
 
@@ -20,4 +22,4 @@ class StepMetricExporter final : public MetricExporter {
     StepMetricSink stepSink_;
     StepSummarySink summarySink_;
 };
-} // namespace msmonitor::process
+}  // namespace msmonitor::process

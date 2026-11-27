@@ -43,8 +43,8 @@ TEST_F(StepTraceExporterTest, PublishesFullTraceBeforeFlushAndRetainsNewestFiles
     traceOptions.keepFiles = 1;
     StepTraceExporter exporter(traceOptions);
     const auto output = traceOptions.outputDir / "rank_2";
-    const auto crossing = std::make_shared<StepEvent>(
-        StepEvent{1500, 2500, {{"kind", "Marker"}, {"name", "crossing"}}});
+    const auto crossing =
+        std::make_shared<StepEvent>(StepEvent{1500, 2500, {{"kind", "Marker"}, {"name", "crossing"}}});
     const auto writeStep = [&](std::uint64_t id)
     {
         auto step = std::make_shared<StepDataOutput>();
@@ -84,8 +84,9 @@ TEST_F(StepTraceExporterTest, WritesMindStudioDbWithStepAndDeviceEvents)
     auto step = std::make_shared<StepDataOutput>();
     step->rank = 2;
     step->boundary = {7, 100, 200};
-    step->events.push_back(std::make_shared<StepEvent>(StepEvent{
-        120, 180, {{"kind", "Marker"}, {"sourceKind", "Device"}, {"deviceId", 0}, {"streamId", 3}}}));
+    step->events.push_back(std::make_shared<StepEvent>(StepEvent{115, 125, {{"kind", "FutureActivity"}}}));
+    step->events.push_back(std::make_shared<StepEvent>(
+        StepEvent{120, 180, {{"kind", "Marker"}, {"sourceKind", "Device"}, {"deviceId", 0}, {"streamId", 3}}}));
     exporter.WriteStep(step);
 
     const auto path = outputDir / "rank_2" / "step_7" / "trace.db";

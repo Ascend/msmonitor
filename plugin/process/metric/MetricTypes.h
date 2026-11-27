@@ -2,14 +2,16 @@
 // Licensed under Mulan PSL v2. See the repository license.
 #pragma once
 
-#include <map>
 #include <limits>
+#include <map>
 #include <tuple>
 
 #include "StepAnalysis.h"
 
-namespace msmonitor::process {
-struct MetricConstants final {
+namespace msmonitor::process
+{
+struct MetricConstants final
+{
     static constexpr double NsPerSecond{1e9};
     static constexpr std::size_t KdeGrid{512};
     static constexpr std::size_t MinKdeSamples{12};
@@ -23,41 +25,48 @@ struct MetricConstants final {
     static constexpr std::uint64_t AllDevices{std::numeric_limits<std::uint64_t>::max()};
 };
 
-struct MetricOptions {
+struct MetricOptions
+{
     std::size_t maxGroups{MetricConstants::MaxGroups};
     std::size_t maxSamplesPerGroup{MetricConstants::MaxSamplesPerGroup};
     std::size_t maxSamplesPerStep{MetricConstants::MaxSamplesPerStep};
     bool includeOperatorSamples{false};
 };
 
-struct RangeKey {
+struct RangeKey
+{
     std::string source;
     std::string domain;
     std::string name;
-    bool operator<(const RangeKey &other) const {
+    bool operator<(const RangeKey &other) const
+    {
         return std::tie(source, domain, name) < std::tie(other.source, other.domain, other.name);
     }
 };
 
-struct DurationTotals {
+struct DurationTotals
+{
     std::uint64_t count{0};
     double sum{0};
 };
 
-struct KernelKey {
+struct KernelKey
+{
     std::uint64_t device;
     std::uint64_t stream;
     std::string type;
     std::string name;
     std::string kind{"Kernel"};
 
-    bool operator<(const KernelKey &other) const {
+    bool operator<(const KernelKey &other) const
+    {
         return std::tie(device, stream, type, name, kind) <
-            std::tie(other.device, other.stream, other.type, other.name, other.kind);
+               std::tie(other.device, other.stream, other.type, other.name, other.kind);
     }
 };
 
-struct OperatorStatistics {
+struct OperatorStatistics
+{
     std::uint64_t count;
     double total;
     double mean;
@@ -67,7 +76,8 @@ struct OperatorStatistics {
     double p99;
 };
 
-struct StepMetricData {
+struct StepMetricData
+{
     std::int64_t rank;
     StepBoundary boundary;
     StepCompletion completion;
@@ -77,7 +87,8 @@ struct StepMetricData {
     std::map<KernelKey, std::vector<double>> kernels;
 };
 
-struct KernelCluster {
+struct KernelCluster
+{
     std::uint64_t count;
     double p50;
     double p99;
@@ -85,7 +96,8 @@ struct KernelCluster {
     double maximum;
 };
 
-struct StepSummary {
+struct StepSummary
+{
     std::int64_t rank{-1};
     std::uint64_t stepId{0};
     std::uint64_t startNs{0};
@@ -105,4 +117,4 @@ using StepSummarySink = std::function<void(StepSummary)>;
 double Quantile(std::vector<double> values, double probability);
 std::vector<KernelCluster> ClusterDurations(const std::vector<double> &durations);
 OperatorStatistics SummariseDurations(std::vector<double> &samples);
-} // namespace msmonitor::process
+}  // namespace msmonitor::process

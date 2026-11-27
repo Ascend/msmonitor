@@ -49,8 +49,9 @@ void StepTraceExporter::Flush()
     const auto firstStep = first.boundary.stepId;
     const auto lastStep = steps_.back()->boundary.stepId;
     const auto stepCount = steps_.size();
-    const auto eventCount = std::accumulate(steps_.begin(), steps_.end(), std::size_t{0},
-        [](std::size_t count, const StepDataPtr &step) { return count + step->events.size(); });
+    const auto eventCount =
+        std::accumulate(steps_.begin(), steps_.end(), std::size_t{0},
+                        [](std::size_t count, const StepDataPtr &step) { return count + step->events.size(); });
     const auto traceStart = std::chrono::steady_clock::now();
     const auto parent = options_.outputDir / ("rank_" + std::to_string(first.rank));
     auto directoryName = "step_" + std::to_string(first.boundary.stepId);
@@ -96,10 +97,9 @@ void StepTraceExporter::Flush()
         }
     }
     LOG(INFO) << "Process trace file written, rank: " << rank << ", steps: " << firstStep << "-" << lastStep
-              << ", step_count: " << stepCount << ", events: " << eventCount << ", format: "
-              << (options_.format == TraceFormat::ChromeTrace ? "chrome_trace" : "mindstudio_db")
+              << ", step_count: " << stepCount << ", events: " << eventCount
+              << ", format: " << (options_.format == TraceFormat::ChromeTrace ? "chrome_trace" : "mindstudio_db")
               << ", output_bytes: " << (sizeError ? "unknown" : std::to_string(outputBytes))
-              << ", write_us: " << traceUs.count()
-              << ", path: " << directory.string();
+              << ", write_us: " << traceUs.count() << ", path: " << directory.string();
 }
 }  // namespace msmonitor::process

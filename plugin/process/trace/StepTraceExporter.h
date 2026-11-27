@@ -3,6 +3,8 @@
 #pragma once
 
 #include <deque>
+#include <filesystem>
+#include <vector>
 
 #include "ProcessStages.h"
 

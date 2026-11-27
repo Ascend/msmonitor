@@ -27,6 +27,12 @@ struct FileIdentity
 
 struct InputFile
 {
+    explicit InputFile(int descriptor) : fd(descriptor) {}
+    InputFile(const InputFile &) = delete;
+    InputFile &operator=(const InputFile &) = delete;
+    InputFile(InputFile &&) = delete;
+    InputFile &operator=(InputFile &&) = delete;
+
     int fd;
     ~InputFile()
     {

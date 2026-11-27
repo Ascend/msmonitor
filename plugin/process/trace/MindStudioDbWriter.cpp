@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Huawei Technologies Co.,Ltd.
 // Licensed under Mulan PSL v2. See the repository license.
+#include <glog/logging.h>
 #include <sqlite3.h>
 
 #include <algorithm>
@@ -297,7 +298,7 @@ void WriteMarker(StepDatabase &db, const StepEvent &event, std::uint64_t taskId,
     }
 }
 
-void WriteActivity(StepDatabase &db, const StepEvent &event, std::uint64_t taskId, std::uint64_t processId)
+bool WriteActivity(StepDatabase &db, const StepEvent &event, std::uint64_t taskId, std::uint64_t processId)
 {
     const auto &data = event.data;
     const auto kind = data.value("kind", "");
@@ -321,8 +322,9 @@ void WriteActivity(StepDatabase &db, const StepEvent &event, std::uint64_t taskI
     }
     else
     {
-        throw std::runtime_error("unsupported activity for MindStudio DB: " + kind);
+        return false;
     }
+    return true;
 }
 
 void WriteMetadata(StepDatabase &db, const StepDataOutput &step, std::uint64_t processId,
@@ -413,6 +415,7 @@ void WriteMindStudioDb(const StepDataOutput &step, const std::filesystem::path &
         }
     }
     std::uint64_t taskId = 0;
+    std::size_t skipped = 0;
     for (const auto &event : step.events)
     {
         const auto &data = event->data;
@@ -422,7 +425,12 @@ void WriteMindStudioDb(const StepDataOutput &step, const std::filesystem::path &
         {
             devices.insert(data.at("deviceId").get<std::uint64_t>());
         }
-        WriteActivity(db, *event, taskId++, processId);
+        skipped += !WriteActivity(db, *event, taskId++, processId);
+    }
+    if (skipped != 0)
+    {
+        LOG(WARNING) << "MindStudio DB skipped unsupported events, rank: " << step.rank
+                     << ", step: " << step.boundary.stepId << ", count: " << skipped;
     }
     WriteMetadata(db, step, processId, devices, sessionStart, sessionEnd);
     WriteStepAnalysis(db, step);

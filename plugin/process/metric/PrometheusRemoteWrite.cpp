@@ -2,34 +2,40 @@
 // Licensed under Mulan PSL v2. See the repository license.
 #include "PrometheusRemoteWrite.h"
 
+#include <curl/curl.h>
+#include <snappy.h>
+
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <memory>
 #include <stdexcept>
 #include <thread>
-#include <chrono>
 
-#include <curl/curl.h>
-#include <snappy.h>
-
-namespace msmonitor::process {
-namespace {
-struct TransportConstants final {
+namespace msmonitor::process
+{
+namespace
+{
+struct TransportConstants final
+{
     static constexpr std::size_t SeriesPerRequest{256};
     static constexpr std::size_t Attempts{3};
     static constexpr long TimeoutSeconds{15};
 };
 
-void Varint(std::string &out, std::uint64_t value) {
-    while (value >= 128) {
+void Varint(std::string &out, std::uint64_t value)
+{
+    while (value >= 128)
+    {
         out.push_back(static_cast<char>((value & 127) | 128));
         value >>= 7;
     }
     out.push_back(static_cast<char>(value));
 }
 
-void Bytes(std::string &out, std::uint64_t field, const std::string &value) {
+void Bytes(std::string &out, std::uint64_t field, const std::string &value)
+{
     Varint(out, (field << 3) | 2);
     Varint(out, value.size());
     out += value;
@@ -37,9 +43,20 @@ void Bytes(std::string &out, std::uint64_t field, const std::string &value) {
 
 std::size_t Response(char *, std::size_t size, std::size_t count, void *) { return size * count; }
 
-} // namespace
+template <typename Value>
+void SetCurlOption(CURL *handle, CURLoption option, Value value)
+{
+    const auto result = curl_easy_setopt(handle, option, value);
+    if (result != CURLE_OK)
+    {
+        throw std::runtime_error(std::string("Cannot configure Remote Write: ") + curl_easy_strerror(result));
+    }
+}
 
-struct PrometheusRemoteWrite::Connection {
+}  // namespace
+
+struct PrometheusRemoteWrite::Connection
+{
     Connection(const std::string &url, const std::string &token, const std::string &caFile);
     void Post(const std::string &request);
 
@@ -49,48 +66,58 @@ struct PrometheusRemoteWrite::Connection {
 };
 
 PrometheusRemoteWrite::Connection::Connection(const std::string &url, const std::string &token,
-                                               const std::string &caFile) {
-    if (!handle) {
+                                              const std::string &caFile)
+{
+    if (!handle)
+    {
         throw std::runtime_error("curl initialization failed");
     }
     for (const auto *header : {"Content-Type: application/x-protobuf", "Content-Encoding: snappy",
-             "X-Prometheus-Remote-Write-Version: 0.1.0", "User-Agent: msmonitor-process/1.0"}) {
+                               "X-Prometheus-Remote-Write-Version: 0.1.0", "User-Agent: msmonitor-process/1.0"})
+    {
         auto *next = curl_slist_append(headers.get(), header);
-        if (!next) {
+        if (!next)
+        {
             throw std::bad_alloc();
         }
         headers.release();
         headers.reset(next);
     }
-    curl_easy_setopt(handle.get(), CURLOPT_URL, url.c_str());
-    if (!token.empty()) {
-        curl_easy_setopt(handle.get(), CURLOPT_HTTPAUTH, CURLAUTH_BEARER);
-        curl_easy_setopt(handle.get(), CURLOPT_XOAUTH2_BEARER, token.c_str());
+    SetCurlOption(handle.get(), CURLOPT_URL, url.c_str());
+    if (!token.empty())
+    {
+        SetCurlOption(handle.get(), CURLOPT_HTTPAUTH, CURLAUTH_BEARER);
+        SetCurlOption(handle.get(), CURLOPT_XOAUTH2_BEARER, token.c_str());
     }
-    if (!caFile.empty()) {
-        curl_easy_setopt(handle.get(), CURLOPT_CAINFO, caFile.c_str());
+    if (!caFile.empty())
+    {
+        SetCurlOption(handle.get(), CURLOPT_CAINFO, caFile.c_str());
     }
-    curl_easy_setopt(handle.get(), CURLOPT_HTTPHEADER, headers.get());
-    curl_easy_setopt(handle.get(), CURLOPT_TIMEOUT, TransportConstants::TimeoutSeconds);
-    curl_easy_setopt(handle.get(), CURLOPT_NOSIGNAL, 1L);
-    curl_easy_setopt(handle.get(), CURLOPT_WRITEFUNCTION, Response);
+    SetCurlOption(handle.get(), CURLOPT_HTTPHEADER, headers.get());
+    SetCurlOption(handle.get(), CURLOPT_TIMEOUT, TransportConstants::TimeoutSeconds);
+    SetCurlOption(handle.get(), CURLOPT_NOSIGNAL, 1L);
+    SetCurlOption(handle.get(), CURLOPT_WRITEFUNCTION, Response);
 }
 
-void PrometheusRemoteWrite::Connection::Post(const std::string &request) {
+void PrometheusRemoteWrite::Connection::Post(const std::string &request)
+{
     // Reuse the rank worker's connection and compression buffer across requests.
     snappy::Compress(request.data(), request.size(), &compressed);
-    curl_easy_setopt(handle.get(), CURLOPT_POSTFIELDS, compressed.data());
-    curl_easy_setopt(handle.get(), CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(compressed.size()));
-    for (std::size_t attempt = 0; attempt < TransportConstants::Attempts; ++attempt) {
+    SetCurlOption(handle.get(), CURLOPT_POSTFIELDS, compressed.data());
+    SetCurlOption(handle.get(), CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(compressed.size()));
+    for (std::size_t attempt = 0; attempt < TransportConstants::Attempts; ++attempt)
+    {
         const auto result = curl_easy_perform(handle.get());
         long status = 0;
         curl_easy_getinfo(handle.get(), CURLINFO_RESPONSE_CODE, &status);
-        if (result == CURLE_OK && status >= 200 && status < 300) {
+        if (result == CURLE_OK && status >= 200 && status < 300)
+        {
             return;
         }
-        if ((result == CURLE_OK && status != 429 && status < 500) || attempt + 1 == TransportConstants::Attempts) {
-            throw std::runtime_error(
-                "Remote Write failed: HTTP " + std::to_string(status) + ", " + curl_easy_strerror(result));
+        if ((result == CURLE_OK && status != 429 && status < 500) || attempt + 1 == TransportConstants::Attempts)
+        {
+            throw RemoteWriteError("Remote Write failed: HTTP " + std::to_string(status) + ", " +
+                                   curl_easy_strerror(result));
         }
         std::this_thread::sleep_for(std::chrono::seconds(attempt + 1));
     }
@@ -98,17 +125,21 @@ void PrometheusRemoteWrite::Connection::Post(const std::string &request) {
 
 PrometheusRemoteWrite::PrometheusRemoteWrite(std::string url, std::string token, std::string caFile)
 {
-    if (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0) {
+    if (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0)
+    {
         throw std::invalid_argument("Remote Write requires an HTTP(S) URL");
     }
-    if (!token.empty() && url.rfind("https://", 0) != 0) {
+    if (!token.empty() && url.rfind("https://", 0) != 0)
+    {
         throw std::invalid_argument("Remote Write bearer authentication requires HTTPS");
     }
-    if (std::any_of(token.begin(), token.end(), [](unsigned char ch) { return ch <= ' ' || ch == 127; })) {
+    if (std::any_of(token.begin(), token.end(), [](unsigned char ch) { return ch <= ' ' || ch == 127; }))
+    {
         throw std::invalid_argument("Remote Write bearer token contains whitespace or a control character");
     }
     static const auto initialized = curl_global_init(CURL_GLOBAL_DEFAULT);
-    if (initialized != CURLE_OK) {
+    if (initialized != CURLE_OK)
+    {
         throw std::runtime_error("curl global initialization failed");
     }
     connection_ = std::make_unique<Connection>(url, token, caFile);
@@ -116,36 +147,44 @@ PrometheusRemoteWrite::PrometheusRemoteWrite(std::string url, std::string token,
 
 PrometheusRemoteWrite::~PrometheusRemoteWrite() = default;
 
-void PrometheusRemoteWrite::Write(const std::vector<MetricSample> &samples) {
+void PrometheusRemoteWrite::Write(const std::vector<MetricSample> &samples)
+{
     std::map<std::map<std::string, std::string>, std::map<std::int64_t, double>> series;
-    for (const auto &sample : samples) {
-        if (!std::isfinite(sample.value)) {
+    for (const auto &sample : samples)
+    {
+        if (!std::isfinite(sample.value))
+        {
             throw std::invalid_argument("non-finite metric sample");
         }
         auto labels = sample.labels;
         labels["__name__"] = sample.name;
         const auto [position, inserted] = series[labels].emplace(sample.timestampMs, sample.value);
-        if (!inserted && position->second != sample.value) {
+        if (!inserted && position->second != sample.value)
+        {
             throw std::runtime_error("conflicting samples at the same millisecond");
         }
     }
     std::string request;
     std::size_t batchSize = 0;
-    for (const auto &[labels, values] : series) {
+    for (const auto &[labels, values] : series)
+    {
         std::string timeSeries;
-        for (const auto &[name, value] : labels) {
+        for (const auto &[name, value] : labels)
+        {
             std::string label;
             Bytes(label, 1, name);
             Bytes(label, 2, value);
             Bytes(timeSeries, 1, label);
         }
-        for (const auto &[timestamp, value] : values) {
+        for (const auto &[timestamp, value] : values)
+        {
             std::string point;
             Varint(point, 9);
             std::uint64_t bits;
             static_assert(sizeof(bits) == sizeof(value));
             std::memcpy(&bits, &value, sizeof(bits));
-            for (unsigned shift = 0; shift < 64; shift += 8) {
+            for (unsigned shift = 0; shift < 64; shift += 8)
+            {
                 point.push_back(static_cast<char>((bits >> shift) & 255));
             }
             Varint(point, 16);
@@ -153,14 +192,16 @@ void PrometheusRemoteWrite::Write(const std::vector<MetricSample> &samples) {
             Bytes(timeSeries, 2, point);
         }
         Bytes(request, 1, timeSeries);
-        if (++batchSize == TransportConstants::SeriesPerRequest) {
+        if (++batchSize == TransportConstants::SeriesPerRequest)
+        {
             connection_->Post(request);
             request.clear();
             batchSize = 0;
         }
     }
-    if (!request.empty()) {
+    if (!request.empty())
+    {
         connection_->Post(request);
     }
 }
-} // namespace msmonitor::process
+}  // namespace msmonitor::process

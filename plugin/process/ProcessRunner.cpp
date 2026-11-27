@@ -22,19 +22,23 @@
 #include "metric/StepMetricReporter.h"
 #include "trace/StepTraceExporter.h"
 
-namespace msmonitor::process_runner {
-namespace {
+namespace msmonitor::process_runner
+{
+namespace
+{
 
 using detail::ParseRankFileName;
 using process::Options;
 using process::Processor;
 using RankFile = detail::RankFile;
 
-class DisabledMetrics final : public process::MetricExporter {
+class DisabledMetrics final : public process::MetricExporter
+{
     void ExportStep(const process::StepDataOutput &) override {}
 };
 
-class DisabledTrace final : public process::TraceExporter {
+class DisabledTrace final : public process::TraceExporter
+{
     void WriteStep(process::StepDataPtr) override {}
 };
 
@@ -46,10 +50,12 @@ constexpr std::chrono::milliseconds MAX_SCAN_INTERVAL{60000};
 constexpr std::chrono::seconds MISSING_INPUT_DIR_GRACE{60};
 
 // 每个 rank 一条流水线一个线程：任务长驻且数量固定，进程内不再二次池化。
-class RankWorker {
-  public:
+class RankWorker
+{
+   public:
     RankWorker(const RunnerConfig &config, const RankFile &rankFile, const std::string &runId)
-        : rank_(rankFile.rank), processId_(rankFile.processId) {
+        : rank_(rankFile.rank), processId_(rankFile.processId)
+    {
         LOG(INFO) << "rank worker init: rank=" << rank_ << " pid=" << processId_
                   << " input_dir=" << config.inputDir.string() << " job_id=" << config.jobId
                   << " trace=" << config.enableTrace << " metric=" << config.enableMetric;
@@ -62,49 +68,69 @@ class RankWorker {
         options.queueCapacity = config.queueCapacity;
         options.recursiveInput = false;
         analyser_ = std::make_unique<process::StepDataAnalyser>(options);
-        if (config.enableMetric) {
-            metricExporter_ = std::make_unique<process::StepMetricReporter>(
-                config.jobId, runId, config.remoteWriteUrl, config.token, config.caFile);
-        } else {
+        if (config.enableMetric)
+        {
+            metricExporter_ = std::make_unique<process::StepMetricReporter>(config.jobId, runId, config.remoteWriteUrl,
+                                                                            config.token, config.caFile);
+        }
+        else
+        {
             metricExporter_ = std::make_unique<DisabledMetrics>();
         }
-        if (config.enableTrace) {
+        if (config.enableTrace)
+        {
             process::TraceOptions traceOptions;
             traceOptions.outputDir = config.inputDir / "trace" / runId / std::to_string(processId_);
             traceOptions.keepFiles = static_cast<std::size_t>(config.traceKeepFiles);
             traceOptions.stepsPerFile = std::max(1, config.traceStepsPerFile);
             traceExporter_ = std::make_unique<process::StepTraceExporter>(std::move(traceOptions));
-        } else {
+        }
+        else
+        {
             traceExporter_ = std::make_unique<DisabledTrace>();
         }
         processor_ = std::make_unique<Processor>(std::move(options), *analyser_, *metricExporter_, *traceExporter_);
     }
 
     ~RankWorker() { Stop(); }
+    RankWorker(const RankWorker &) = delete;
+    RankWorker &operator=(const RankWorker &) = delete;
+    RankWorker(RankWorker &&) = delete;
+    RankWorker &operator=(RankWorker &&) = delete;
 
     std::uint64_t ProcessId() const { return processId_; }
 
-    void Start() {
-        thread_ = std::thread([this]() {
-            try {
-                processor_->Run();
-            } catch (const std::exception &e) {
-                LOG(ERROR) << "rank=" << rank_ << " processor exited: " << e.what();
-            } catch (...) {
-                LOG(ERROR) << "rank=" << rank_ << " processor exited with unknown error";
-            }
-        });
+    void Start()
+    {
+        thread_ = std::thread(
+            [this]()
+            {
+                try
+                {
+                    processor_->Run();
+                }
+                catch (const std::exception &e)
+                {
+                    LOG(ERROR) << "rank=" << rank_ << " processor exited: " << e.what();
+                }
+                catch (...)
+                {
+                    LOG(ERROR) << "rank=" << rank_ << " processor exited with unknown error";
+                }
+            });
     }
 
-    void Stop() {
-        if (!thread_.joinable()) {
+    void Stop()
+    {
+        if (!thread_.joinable())
+        {
             return;
         }
         processor_->RequestStop();
         thread_.join();
     }
 
-  private:
+   private:
     std::int64_t rank_;
     std::uint64_t processId_;
     // stage 必须先于 processor_ 声明：Processor 只持有它们的引用。
@@ -115,49 +141,69 @@ class RankWorker {
     std::thread thread_;
 };
 
-class RankSupervisor {
-  public:
+class RankSupervisor
+{
+   public:
     explicit RankSupervisor(RunnerConfig config)
         : config_(std::move(config)),
-          runId_(std::to_string(std::chrono::system_clock::now().time_since_epoch().count())) {}
+          runId_(std::to_string(std::chrono::system_clock::now().time_since_epoch().count()))
+    {
+    }
 
     ~RankSupervisor() { Stop(); }
+    RankSupervisor(const RankSupervisor &) = delete;
+    RankSupervisor &operator=(const RankSupervisor &) = delete;
+    RankSupervisor(RankSupervisor &&) = delete;
+    RankSupervisor &operator=(RankSupervisor &&) = delete;
 
-    void Start() {
+    void Start()
+    {
         supervisor_ = std::thread([this]() { Run(); });
     }
 
-    void Stop() {
-        if (stopped_.exchange(true)) {
+    void Stop()
+    {
+        if (stopped_.exchange(true))
+        {
             return;
         }
         // 唤醒等待中的扫描线程，避免最长等一个扫描周期才能退出
         waitCv_.notify_all();
-        if (supervisor_.joinable()) {
+        if (supervisor_.joinable())
+        {
             supervisor_.join();
         }
-        for (auto &entry : workers_) {
+        for (auto &entry : workers_)
+        {
             entry.second->Stop();
         }
         workers_.clear();
     }
 
-  private:
-    void Run() {
+   private:
+    void Run()
+    {
         auto interval = config_.scanInterval;
-        while (!stopped_.load()) {
+        while (!stopped_.load())
+        {
             const auto begin = std::chrono::steady_clock::now();
-            try {
+            try
+            {
                 Reconcile();
-            } catch (const std::exception &e) {
+            }
+            catch (const std::exception &e)
+            {
                 // 单个 rank 建流水线失败不能把 supervisor 线程带崩（否则 std::terminate）
                 LOG(ERROR) << "reconcile failed: " << e.what();
-            } catch (...) {
+            }
+            catch (...)
+            {
                 LOG(ERROR) << "reconcile failed with unknown error";
             }
             const auto cost =
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - begin);
-            if (cost > config_.scanInterval / 2) {
+            if (cost > config_.scanInterval / 2)
+            {
                 LOG(WARNING) << "scan slow: " << cost.count() << "ms, ranks=" << workers_.size()
                              << ", input_dir=" << config_.inputDir.string();
             }
@@ -172,34 +218,41 @@ class RankSupervisor {
 
     // 目录可能尚不存在：开跑前只提示一次并继续等待训练侧落盘。
     // 返回 false 表示本轮遍历不完整，调用方应跳过增删，避免误判 rank 消失。
-    bool Scan(std::map<std::int64_t, RankFile> &latestFiles) {
+    bool Scan(std::map<std::int64_t, RankFile> &latestFiles)
+    {
         latestFiles.clear();
         std::error_code ec;
         const bool dirExists = std::filesystem::exists(config_.inputDir, ec);
-        if (ec) {
+        if (ec)
+        {
             // 权限、NFS 抖动等错误不能当成"目录为空"，否则会回收全部 worker
             LOG(WARNING) << "scan failed: " << ec.message();
             return false;
         }
-        if (!dirExists) {
-            if (!warnedMissingInputDir_) {
+        if (!dirExists)
+        {
+            if (!warnedMissingInputDir_)
+            {
                 LOG(WARNING) << "input_dir not found: " << config_.inputDir.string();
                 warnedMissingInputDir_ = true;
             }
             // 开跑前目录还没建好：此时没有 worker 可回收，保持空结果
-            if (!inputDirSeen_) {
+            if (!inputDirSeen_)
+            {
                 return true;
             }
             // 运行中目录消失多为 NFS 抖动/卸载：宽限期内按"遍历不完整"处理，保留 worker，
             // 避免恢复后重建流水线从 offset 0 重读历史行造成指标重复。
             const auto now = std::chrono::steady_clock::now();
-            if (!inputDirMissing_) {
+            if (!inputDirMissing_)
+            {
                 inputDirMissing_ = true;
                 inputDirMissingSince_ = now;
                 LOG(WARNING) << "input_dir disappeared, keep workers for up to " << MISSING_INPUT_DIR_GRACE.count()
                              << "s";
             }
-            if (now - inputDirMissingSince_ < MISSING_INPUT_DIR_GRACE) {
+            if (now - inputDirMissingSince_ < MISSING_INPUT_DIR_GRACE)
+            {
                 return false;
             }
             // 超过宽限期视为产物目录已被清理：回收一次 worker，回到等待目录出现的状态
@@ -208,7 +261,8 @@ class RankSupervisor {
             inputDirSeen_ = false;
             return true;
         }
-        if (warnedMissingInputDir_) {
+        if (warnedMissingInputDir_)
+        {
             LOG(INFO) << "input_dir found again: " << config_.inputDir.string();
         }
         inputDirMissing_ = false;
@@ -219,32 +273,41 @@ class RankSupervisor {
         // 不访问元数据；历史文件增多只增加字符串解析开销，不增加系统调用。
         std::filesystem::directory_iterator it(config_.inputDir, ec);
         const std::filesystem::directory_iterator end;
-        if (ec) {
+        if (ec)
+        {
             LOG(WARNING) << "scan failed: " << ec.message();
             return false;
         }
-        for (; it != end; it.increment(ec)) {
-            if (ec) {
+        for (; it != end; it.increment(ec))
+        {
+            if (ec)
+            {
                 LOG(WARNING) << "scan incomplete: " << ec.message();
                 return false;
             }
             RankFile rankFile;
-            if (!ParseRankFileName(it->path(), rankFile)) {
+            if (!ParseRankFileName(it->path(), rankFile))
+            {
                 continue;
             }
             auto found = latestFiles.find(rankFile.rank);
-            if (found == latestFiles.end() || rankFile.timestamp > found->second.timestamp) {
+            if (found == latestFiles.end() || rankFile.timestamp > found->second.timestamp)
+            {
                 latestFiles[rankFile.rank] = rankFile;
             }
         }
 
         // 每个 rank 只对胜出的文件做一次类型校验，其余条目不再访问文件系统。
-        for (auto it = latestFiles.begin(); it != latestFiles.end();) {
+        for (auto it = latestFiles.begin(); it != latestFiles.end();)
+        {
             std::error_code fileEc;
-            if (!std::filesystem::is_regular_file(it->second.path, fileEc)) {
+            if (!std::filesystem::is_regular_file(it->second.path, fileEc))
+            {
                 VLOG(1) << "skip non-regular file: " << it->second.path.string();
                 it = latestFiles.erase(it);
-            } else {
+            }
+            else
+            {
                 ++it;
             }
         }
@@ -252,19 +315,24 @@ class RankSupervisor {
     }
 
     // 新 rank 建 worker，pid 变化重建，文件消失回收。
-    void Reconcile() {
+    void Reconcile()
+    {
         std::map<std::int64_t, RankFile> latestFiles;
-        if (!Scan(latestFiles)) {
+        if (!Scan(latestFiles))
+        {
             // 遍历不完整时保留现有 worker，等下一轮扫描结果
             return;
         }
-        for (const auto &entry : latestFiles) {
+        for (const auto &entry : latestFiles)
+        {
             const auto found = workers_.find(entry.first);
-            if (found != workers_.end() && found->second->ProcessId() == entry.second.processId) {
+            if (found != workers_.end() && found->second->ProcessId() == entry.second.processId)
+            {
                 // A restart without a checkpoint would replay exports and repeat deterministic failures.
                 continue;
             }
-            if (found != workers_.end()) {
+            if (found != workers_.end())
+            {
                 found->second->Stop();
                 workers_.erase(found);
             }
@@ -273,12 +341,16 @@ class RankSupervisor {
             workers_[entry.first] = std::move(worker);
         }
 
-        for (auto it = workers_.begin(); it != workers_.end();) {
-            if (latestFiles.find(it->first) == latestFiles.end()) {
+        for (auto it = workers_.begin(); it != workers_.end();)
+        {
+            if (latestFiles.find(it->first) == latestFiles.end())
+            {
                 LOG(INFO) << "rank=" << it->first << " worker released, input file no longer present";
                 it->second->Stop();
                 it = workers_.erase(it);
-            } else {
+            }
+            else
+            {
                 ++it;
             }
         }
@@ -301,15 +373,18 @@ class RankSupervisor {
 
 std::mutex g_runnerMutex;
 std::unique_ptr<RankSupervisor> g_supervisor;
-} // namespace
+}  // namespace
 
-bool Start(const RunnerConfig &config) {
+bool Start(const RunnerConfig &config)
+{
     std::lock_guard<std::mutex> lock(g_runnerMutex);
-    if (g_supervisor) {
+    if (g_supervisor)
+    {
         LOG(WARNING) << "process runner already started";
         return false;
     }
-    if (config.traceStepsPerFile < 0 || config.traceKeepFiles < 0) {
+    if (config.traceStepsPerFile < 0 || config.traceKeepFiles < 0)
+    {
         throw std::invalid_argument("trace step count and retention must be non-negative");
     }
     LOG(INFO) << "process runner start: input_dir=" << config.inputDir.string()
@@ -317,10 +392,13 @@ bool Start(const RunnerConfig &config) {
               << " poll_interval_ms=" << config.pollInterval.count() << " queue_capacity=" << config.queueCapacity
               << " trace_steps_per_file=" << config.traceStepsPerFile << " trace_keep_files=" << config.traceKeepFiles;
     auto resolved = config;
-    if (resolved.enableMetric) {
-        if (!resolved.tokenFile.empty()) {
+    if (resolved.enableMetric)
+    {
+        if (!resolved.tokenFile.empty())
+        {
             std::ifstream tokenFile(resolved.tokenFile);
-            if (!(tokenFile >> resolved.token) || resolved.token.empty()) {
+            if (!(tokenFile >> resolved.token) || resolved.token.empty())
+            {
                 throw std::invalid_argument("could not read Remote Write token file");
             }
         }
@@ -332,15 +410,17 @@ bool Start(const RunnerConfig &config) {
     return true;
 }
 
-void Stop() {
+void Stop()
+{
     std::unique_ptr<RankSupervisor> supervisor;
     {
         std::lock_guard<std::mutex> lock(g_runnerMutex);
         supervisor = std::move(g_supervisor);
     }
-    if (supervisor) {
+    if (supervisor)
+    {
         supervisor->Stop();
         LOG(INFO) << "process runner stopped";
     }
 }
-} // namespace msmonitor::process_runner
+}  // namespace msmonitor::process_runner

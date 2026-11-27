@@ -92,12 +92,18 @@ void WriteChromeTrace(const std::vector<StepDataPtr> &steps, const std::filesyst
     };
     std::set<std::pair<std::uint64_t, std::uint64_t>> namedTracks;
     std::unordered_set<const StepEvent *> crossingEvents;
+    // A later Host window can begin before its paired Device window.
+    std::vector<std::uint64_t> earliestStart(steps.size() + 1, std::numeric_limits<std::uint64_t>::max());
+    for (std::size_t index = steps.size(); index != 0; --index)
+    {
+        const auto &step = *steps[index - 1];
+        const auto hostStart = step.hostBoundary.value_or(step.boundary).startNs;
+        earliestStart[index - 1] = std::min({earliestStart[index], step.boundary.startNs, hostStart});
+    }
     auto metadata = nlohmann::json::array();
     for (std::size_t index = 0; index < steps.size(); ++index)
     {
         const auto &step = *steps[index];
-        const auto nextStart = index + 1 < steps.size() ? steps[index + 1]->boundary.startNs
-                                                        : std::numeric_limits<std::uint64_t>::max();
         interval("step " + std::to_string(step.boundary.stepId), "Step", track("Step", 0), 0, step.boundary.startNs,
                  step.boundary.endNs, {{"completion", static_cast<int>(step.completion)}});
         for (const auto &event : step.events)
@@ -107,7 +113,7 @@ void WriteChromeTrace(const std::vector<StepDataPtr> &steps, const std::filesyst
             {
                 continue;
             }
-            if (event->endNs >= nextStart)
+            if (event->endNs >= earliestStart[index + 1])
             {
                 crossingEvents.insert(event.get());
             }
@@ -133,7 +139,8 @@ void WriteChromeTrace(const std::vector<StepDataPtr> &steps, const std::filesyst
             {
                 if (namedTracks.emplace(pid, tid).second)
                 {
-                    emit({{"ph", "M"}, {"name", "thread_name"}, {"pid", pid}, {"tid", tid}, {"args", {{"name", name}}}});
+                    emit(
+                        {{"ph", "M"}, {"name", "thread_name"}, {"pid", pid}, {"tid", tid}, {"args", {{"name", name}}}});
                 }
                 for (const auto &[start, end] : *intervals)
                 {
@@ -142,9 +149,8 @@ void WriteChromeTrace(const std::vector<StepDataPtr> &steps, const std::filesyst
                 ++tid;
             }
         }
-        metadata.push_back({{"stepId", step.boundary.stepId},
-                            {"startNs", step.boundary.startNs},
-                            {"endNs", step.boundary.endNs}});
+        metadata.push_back(
+            {{"stepId", step.boundary.stepId}, {"startNs", step.boundary.startNs}, {"endNs", step.boundary.endNs}});
     }
     nlohmann::json traceMetadata{{"baseNs", base}, {"rank", rank}, {"steps", metadata}};
     if (steps.size() == 1)

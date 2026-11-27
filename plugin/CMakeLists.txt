@@ -51,6 +51,8 @@ file(GLOB_RECURSE IPC_SOURCES
 )
 
 file(GLOB_RECURSE SECUREC_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/third_party/securec/src/*.c)
+# The process trace library supplies the shared DB schema implementation.
+list(REMOVE_ITEM IPC_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ipc_monitor/db/DataBase.cpp")
 
 set(SOURCES
     bindings.cpp

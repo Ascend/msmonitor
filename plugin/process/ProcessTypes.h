@@ -2,6 +2,9 @@
 // Licensed under Mulan PSL v2. See the repository license.
 #pragma once
 
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -77,6 +80,7 @@ struct StepDataOutput
     std::vector<StepEventPtr> events;
     std::vector<StepEventPtr> ownedEvents;
     std::shared_ptr<const StepAnalysis> analysis;
+    std::optional<StepBoundary> hostBoundary;
 };
 
 using StepDataPtr = std::shared_ptr<const StepDataOutput>;

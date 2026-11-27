@@ -2,8 +2,11 @@
 // Licensed under Mulan PSL v2. See the repository license.
 #pragma once
 
+#include <cstdint>
 #include <map>
+#include <memory>
 #include <utility>
+#include <vector>
 
 #include "ProcessTypes.h"
 

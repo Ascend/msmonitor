@@ -5,15 +5,14 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <chrono>
 #include <deque>
-#include <iterator>
 #include <limits>
 #include <map>
 #include <stdexcept>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
 
 #include "StepAnalysis.h"
@@ -23,10 +22,28 @@ namespace msmonitor::process
 namespace
 {
 
-std::optional<StepBoundary> DecodeDeviceStep(const StepEvent &event)
+enum EventSide : std::size_t
+{
+    Device,
+    Host,
+    SideCount
+};
+
+EventSide GetEventSide(const nlohmann::json &data)
+{
+    const auto source = data.find("sourceKind");
+    if (source == data.end())
+    {
+        return data.contains("deviceId") ? Device : Host;
+    }
+    return *source == "Device" ? Device : Host;
+}
+
+std::optional<StepBoundary> DecodeStepMarker(const StepEvent &event)
 {
     const auto &data = event.data;
-    if (data.value("sourceKind", "") != "Device" || data.value("domain", "") != "default")
+    const auto source = data.value("sourceKind", "");
+    if ((source != "Device" && source != "Host") || data.value("domain", "") != "default")
     {
         return {};
     }
@@ -41,9 +58,15 @@ std::optional<StepBoundary> DecodeDeviceStep(const StepEvent &event)
     const auto parsed = std::from_chars(name.data() + prefix.size(), end, id);
     if (parsed.ec != std::errc{} || parsed.ptr != end)
     {
-        throw std::invalid_argument("invalid device step marker");
+        return {};
     }
     return StepBoundary{id, event.startNs, event.endNs};
+}
+
+std::optional<std::uint64_t> MarkerId(const StepEventPtr &event)
+{
+    const auto id = event->data.find("id");
+    return id != event->data.end() && id->is_number_unsigned() ? std::optional{id->get<std::uint64_t>()} : std::nullopt;
 }
 
 std::uint64_t ReadTimestamp(const nlohmann::json &data, const char *key)
@@ -85,13 +108,36 @@ struct StepDataAnalyser::Impl
         StepEventPtr event;
         std::size_t inputBytes;
         bool assigned{false};
+        bool owned{false};
+    };
+
+    using Boundaries = std::map<std::pair<std::uint64_t, std::uint64_t>, StepBoundary>;
+
+    struct Lane
+    {
+        std::deque<CachedEvent> events;
+        std::vector<Interval> batchIntervals;
+        std::optional<std::uint64_t> publishedEnd;
+        bool sorted{true};
+    };
+
+    struct StepMarker
+    {
+        StepBoundary boundary;
+        StepEventPtr event;
+        std::size_t inputBytes;
     };
 
     struct PendingStep
     {
-        StepBoundary boundary;
-        std::uint64_t observedBatch;
+        std::array<std::optional<StepMarker>, SideCount> markers;
+        std::uint64_t observedBatch{0};
         std::size_t quietBatches{0};
+
+        const StepBoundary &Boundary(std::size_t side) const
+        {
+            return markers[side] ? markers[side]->boundary : markers[side == Host ? Device : Host]->boundary;
+        }
     };
 
     Impl(Options config, StepMarkerDecoder decoder, std::function<void(const nlohmann::json &)> metadataSink)
@@ -122,137 +168,215 @@ struct StepDataAnalyser::Impl
         {
             throw std::runtime_error("event end precedes start");
         }
-        if (publishedEnd_ && start < *publishedEnd_)
+        StepEvent event{start, end, std::move(data)};
+        const auto boundary = kind == ProcessConstants::MarkerKind ? decodeStep_(event) : std::nullopt;
+        const auto side = GetEventSide(event.data);
+        auto &lane = lanes_[side];
+        // Step markers identify their own step. Other ranges may cross a sealed interval.
+        const bool late = boundary ? (publishedStep_ && boundary->stepId <= *publishedStep_)
+                                   : (lane.publishedEnd && start < *lane.publishedEnd && end <= *lane.publishedEnd);
+        if (late)
         {
-            throw std::runtime_error("late record after step publication; increase quietBatches or use offline replay");
+            LOG(ERROR) << "Process skipped late record, rank: " << options_.rank << ", file: " << line.file
+                       << ", line: " << line.lineNumber << ", kind: " << kind << ", start_ns: " << start
+                       << ", end_ns: " << end;
+            return;
         }
         if (line.text.size() > options_.maxBufferedInputBytes - bufferedInputBytes_)
         {
             throw std::runtime_error("step input buffer budget exceeded; check marker scope and pending steps");
         }
-        auto event = std::make_shared<StepEvent>(StepEvent{start, end, std::move(data)});
-        if (kind == ProcessConstants::MarkerKind)
+        auto record = std::make_shared<StepEvent>(std::move(event));
+        if (boundary)
         {
-            if (const auto boundary = decodeStep_(*event))
+            if (!RecordStepMarker(side, {*boundary, std::move(record), line.text.size()}))
             {
-                RecordStepBoundary(*boundary);
+                return;
             }
+        }
+        else
+        {
+            lane.sorted = lane.sorted && (lane.events.empty() || lane.events.back().event->startNs <= start);
+            lane.events.push_back({std::move(record), line.text.size()});
         }
         // A point at UINT64_MAX cannot belong to a representable half-open step.
         const auto intervalEnd = end == start && end != std::numeric_limits<std::uint64_t>::max() ? end + 1 : end;
-        batchIntervals_.emplace_back(start, intervalEnd);
-        eventsSorted_ = eventsSorted_ && (events_.empty() || events_.back().event->startNs <= start);
-        events_.push_back({std::move(event), line.text.size()});
+        lane.batchIntervals.emplace_back(start, intervalEnd);
         bufferedInputBytes_ += line.text.size();
     }
 
-    void RecordStepBoundary(const StepBoundary &boundary)
+    bool RecordStepMarker(EventSide side, StepMarker marker)
     {
-        if (boundary.endNs <= boundary.startNs || (publishedEnd_ && boundary.startNs < *publishedEnd_))
+        const auto &boundary = marker.boundary;
+        if (boundary.endNs <= boundary.startNs)
         {
-            throw std::runtime_error("invalid or already published step boundary");
+            LOG(ERROR) << "Process skipped invalid step marker, rank: " << options_.rank
+                       << ", step: " << boundary.stepId;
+            return false;
         }
-        const auto found = stepStarts_.find(boundary.stepId);
-        if (found != stepStarts_.end())
+        auto &step = steps_[boundary.stepId];
+        auto &current = step.markers[side];
+        if (current)
         {
-            const auto &known = steps_.at({found->second, boundary.stepId}).boundary;
-            if (known.startNs != boundary.startNs || known.endNs != boundary.endNs)
+            if (current->boundary.startNs != boundary.startNs || current->boundary.endNs != boundary.endNs ||
+                MarkerId(current->event) != MarkerId(marker.event))
             {
-                throw std::runtime_error("conflicting boundaries for the same step");
+                LOG(ERROR) << "Process skipped conflicting step marker, rank: " << options_.rank
+                           << ", step: " << boundary.stepId << ", side: " << (side == Host ? "Host" : "Device");
             }
-            return;
+            return false;
         }
-        // Markers already count toward the input byte budget; do not cap steps per read batch.
-        // Device step ranges may overlap. Keep their original boundaries and shared events.
-        steps_.emplace(std::make_pair(boundary.startNs, boundary.stepId), PendingStep{boundary, batchId_});
-        stepStarts_.emplace(boundary.stepId, boundary.startNs);
+        const auto &other = step.markers[side == Host ? Device : Host];
+        if (other)
+        {
+            const auto markerId = MarkerId(marker.event);
+            const auto otherId = MarkerId(other->event);
+            if (markerId && otherId && markerId != otherId)
+            {
+                LOG(ERROR) << "Process step marker IDs disagree, rank: " << options_.rank
+                           << ", step: " << boundary.stepId << ", ignoring Host marker";
+                if (side == Host)
+                {
+                    return false;
+                }
+                bufferedInputBytes_ -= other->inputBytes;
+                step.markers[Host].reset();
+            }
+        }
+        current = std::move(marker);
+        step.observedBatch = batchId_;
+        step.quietBatches = 0;
+        return true;
     }
 
-    // Merge this batch's timestamp coverage once; query each pending step in logarithmic time.
     void EndBatch(const ReadBatch &batch, const EmitStepData &emit)
     {
-        SortEventsByStartTime();
-        const bool canConfirmSteps = batch.hasData && !batch.hasPartialLine && !batchIntervals_.empty();
-        batchIntervals_ = MergeIntervals(std::move(batchIntervals_));
-        for (auto &[start, pending] : steps_)
+        bool hasTimedData = false;
+        for (auto &lane : lanes_)
         {
-            const auto &boundary = pending.boundary;
-            const auto found =
-                std::lower_bound(batchIntervals_.begin(), batchIntervals_.end(), boundary.startNs,
-                                 [](const Interval &interval, std::uint64_t time) { return interval.second <= time; });
-            const bool overlapsStep = found != batchIntervals_.end() && found->first < boundary.endNs;
-            const bool isQuiet = canConfirmSteps && batchId_ > pending.observedBatch && !overlapsStep;
-            pending.quietBatches = isQuiet ? pending.quietBatches + 1 : 0;
+            lane.batchIntervals = MergeIntervals(std::move(lane.batchIntervals));
+            hasTimedData |= !lane.batchIntervals.empty();
         }
-        while (!steps_.empty() && steps_.begin()->second.quietBatches >= options_.quietBatches)
+        if (batch.hasPartialLine || (batch.hasData && hasTimedData))
         {
-            PublishOldestStep(StepCompletion::QuietBatch, emit);
+            for (auto &[id, step] : steps_)
+            {
+                bool quiet = !batch.hasPartialLine && batchId_ > step.observedBatch;
+                for (std::size_t side = 0; side < SideCount && quiet; ++side)
+                {
+                    const auto &boundary = step.Boundary(side);
+                    const auto &intervals = lanes_[side].batchIntervals;
+                    const auto found = std::lower_bound(intervals.begin(), intervals.end(), boundary.startNs,
+                                                        [](const Interval &interval, std::uint64_t time)
+                                                        { return interval.second <= time; });
+                    quiet = found == intervals.end() || found->first >= boundary.endNs;
+                }
+                step.quietBatches = quiet ? step.quietBatches + 1 : 0;
+            }
         }
-        batchIntervals_.clear();
+        PublishSteps(StepCompletion::QuietBatch, emit);
+        for (auto &lane : lanes_)
+        {
+            lane.batchIntervals.clear();
+        }
         ++batchId_;
     }
 
-    void SortEventsByStartTime()
+    bool IsReady(const PendingStep &step) const
     {
-        if (!eventsSorted_)
+        // Give an identified marker one more quiet batch to receive its peer.
+        if (step.quietBatches < options_.quietBatches)
         {
-            std::stable_sort(events_.begin(), events_.end(), [](const CachedEvent &left, const CachedEvent &right)
-                             { return left.event->startNs < right.event->startNs; });
-            eventsSorted_ = true;
+            return false;
+        }
+        if (step.markers[Device] && step.markers[Host])
+        {
+            return true;
+        }
+        const auto &marker = step.markers[Device] ? *step.markers[Device] : *step.markers[Host];
+        return !MarkerId(marker.event) || step.quietBatches > options_.quietBatches;
+    }
+
+    void PublishSteps(StepCompletion completion, const EmitStepData &emit)
+    {
+        const auto ready = [&](const PendingStep &step)
+        { return completion != StepCompletion::QuietBatch || IsReady(step); };
+        if (steps_.empty() || !ready(steps_.begin()->second))
+        {
+            return;
+        }
+        std::array<Boundaries, SideCount> boundaries;
+        for (std::size_t side = 0; side < SideCount; ++side)
+        {
+            auto &lane = lanes_[side];
+            if (!lane.sorted)
+            {
+                std::stable_sort(lane.events.begin(), lane.events.end(),
+                                 [](const CachedEvent &left, const CachedEvent &right)
+                                 { return left.event->startNs < right.event->startNs; });
+                lane.sorted = true;
+            }
+            for (const auto &[id, step] : steps_)
+            {
+                const auto &boundary = step.Boundary(side);
+                boundaries[side].emplace(std::make_pair(boundary.startNs, id), boundary);
+            }
+        }
+
+        while (!steps_.empty() && ready(steps_.begin()->second))
+        {
+            const auto first = steps_.begin();
+            BuildAndPublishStep(first->second, boundaries, completion, emit);
+            publishedStep_ = first->first;
+            steps_.erase(first);
         }
     }
 
-    void PublishOldestStep(StepCompletion completion, const EmitStepData &emit)
+    // Share crossing ranges with trace, and give each metric sample a single owner.
+    std::size_t CollectLaneEvents(Lane &lane, const Boundaries &boundaries, const StepBoundary &boundary,
+                                  StepDataOutput &output)
     {
-        const auto first = steps_.begin();
-        const auto next = std::next(first);
-        const auto retainFrom = next == steps_.end()
-                                    ? first->second.boundary.endNs
-                                    : std::min(first->second.boundary.endNs, next->second.boundary.startNs);
-        BuildAndPublishStep(first->second.boundary, retainFrom, completion, emit);
-        stepStarts_.erase(first->second.boundary.stepId);
-        steps_.erase(first);
-    }
-
-    // Scan only events before this step's end. Keep events needed by later overlapping steps.
-    void BuildAndPublishStep(const StepBoundary &boundary, std::uint64_t retainFrom, StepCompletion completion,
-                             const EmitStepData &emit)
-    {
-        const auto analysisStart = std::chrono::steady_clock::now();
-        auto output = std::make_shared<StepDataOutput>();
-        output->boundary = boundary;
-        output->rank = options_.rank;
-        output->completion = completion;
         std::size_t unassigned = 0;
-        const auto scanEnd = std::lower_bound(events_.begin(), events_.end(), boundary.endNs,
+        const auto scanEnd = std::lower_bound(lane.events.begin(), lane.events.end(), boundary.endNs,
                                               [](const CachedEvent &cached, std::uint64_t time)
                                               { return cached.event->startNs < time; });
+        const auto retainFrom = [&]
+        {
+            auto next = boundaries.begin();
+            if (next->first == std::make_pair(boundary.startNs, boundary.stepId))
+            {
+                ++next;
+            }
+            return next == boundaries.end() ? boundary.endNs : std::min(boundary.endNs, next->first.first);
+        }();
         const auto retained = std::remove_if(
-            events_.begin(), scanEnd,
+            lane.events.begin(), scanEnd,
             [&](CachedEvent &cached)
             {
                 const auto &event = *cached.event;
                 if (Intersects(event, boundary))
                 {
-                    output->events.push_back(cached.event);
+                    output.events.push_back(cached.event);
                     cached.assigned = true;
-                    // The latest containing step owns a sample when device step ranges overlap.
-                    auto owner = steps_.upper_bound({event.startNs, std::numeric_limits<std::uint64_t>::max()});
-                    while (owner != steps_.begin())
+                    auto owner =
+                        cached.owned
+                            ? boundaries.begin()
+                            : boundaries.upper_bound({event.startNs, std::numeric_limits<std::uint64_t>::max()});
+                    while (owner != boundaries.begin())
                     {
                         --owner;
-                        if (event.startNs < owner->second.boundary.endNs)
+                        if (event.startNs < owner->second.endNs)
                         {
-                            if (owner->second.boundary.stepId == boundary.stepId)
+                            if (owner->second.stepId == boundary.stepId)
                             {
-                                output->ownedEvents.push_back(cached.event);
+                                output.ownedEvents.push_back(cached.event);
+                                cached.owned = true;
                             }
                             break;
                         }
                     }
                 }
-                // Once this frontier is sealed, older unassigned records cannot form a later step.
-                // Retain points at the end boundary and ranges crossing it for the next step.
+                // Retain points at the end boundary and ranges crossing it.
                 const bool consumed =
                     event.endNs < retainFrom || (event.endNs == retainFrom && event.startNs < event.endNs);
                 if (consumed)
@@ -262,7 +386,36 @@ struct StepDataAnalyser::Impl
                 }
                 return consumed;
             });
-        events_.erase(retained, scanEnd);
+        lane.events.erase(retained, scanEnd);
+        lane.publishedEnd = std::max(lane.publishedEnd.value_or(0), retainFrom);
+        return unassigned;
+    }
+
+    void BuildAndPublishStep(const PendingStep &step, std::array<Boundaries, SideCount> &boundaries,
+                             StepCompletion completion, const EmitStepData &emit)
+    {
+        const auto analysisStart = std::chrono::steady_clock::now();
+        auto output = std::make_shared<StepDataOutput>();
+        const auto &boundary = step.Boundary(Device);
+        output->boundary = boundary;
+        output->rank = options_.rank;
+        output->completion = completion;
+        if (step.markers[Host])
+        {
+            output->hostBoundary = step.markers[Host]->boundary;
+        }
+        std::size_t unassigned = 0;
+        for (std::size_t side = 0; side < SideCount; ++side)
+        {
+            const auto &sideBoundary = step.Boundary(side);
+            unassigned += CollectLaneEvents(lanes_[side], boundaries[side], sideBoundary, *output);
+            boundaries[side].erase({sideBoundary.startNs, sideBoundary.stepId});
+            if (const auto &marker = step.markers[side])
+            {
+                output->events.push_back(marker->event);
+                bufferedInputBytes_ -= marker->inputBytes;
+            }
+        }
         if (unassigned != 0)
         {
             LOG(WARNING) << "Process events outside known steps before sealed boundary, rank: " << options_.rank
@@ -275,28 +428,22 @@ struct StepDataAnalyser::Impl
         const auto ownedEventCount = output->ownedEvents.size();
         const auto deviceCount = output->analysis->devices.size();
         emit(std::move(output));
-        publishedEnd_ = std::max(publishedEnd_.value_or(0), boundary.endNs);
         LOG(INFO) << "Process step analysis complete, rank: " << options_.rank << ", step: " << boundary.stepId
-                  << ", events: " << eventCount << ", owned_events: " << ownedEventCount
-                  << ", devices: " << deviceCount << ", analysis_us: " << analysisUs.count()
-                  << ", completion: " << CompletionReason(completion);
+                  << ", events: " << eventCount << ", owned_events: " << ownedEventCount << ", devices: " << deviceCount
+                  << ", analysis_us: " << analysisUs.count() << ", completion: " << CompletionReason(completion);
     }
 
     Options options_;
     StepMarkerDecoder decodeStep_;
     std::function<void(const nlohmann::json &)> metadataSink_;
-    // Retire consumed prefixes without moving every future event for each step.
-    std::deque<CachedEvent> events_;
-    std::map<std::pair<std::uint64_t, std::uint64_t>, PendingStep> steps_;
-    std::unordered_map<std::uint64_t, std::uint64_t> stepStarts_;
-    std::vector<Interval> batchIntervals_;
-    std::optional<std::uint64_t> publishedEnd_;
+    std::array<Lane, SideCount> lanes_;
+    std::map<std::uint64_t, PendingStep> steps_;
+    std::optional<std::uint64_t> publishedStep_;
     std::size_t bufferedInputBytes_{0};
     std::uint64_t batchId_{0};
-    bool eventsSorted_{true};
 };
 
-StepDataAnalyser::StepDataAnalyser(Options options) : StepDataAnalyser(std::move(options), DecodeDeviceStep) {}
+StepDataAnalyser::StepDataAnalyser(Options options) : StepDataAnalyser(std::move(options), DecodeStepMarker) {}
 
 StepDataAnalyser::StepDataAnalyser(Options options, StepMarkerDecoder decodeStep,
                                    std::function<void(const nlohmann::json &)> metadataSink)
@@ -318,21 +465,21 @@ void StepDataAnalyser::EndBatch(const ReadBatch &batch, const EmitStepData &emit
 void StepDataAnalyser::Finish(bool inputComplete, const EmitStepData &emit)
 {
     const auto completion = inputComplete ? StepCompletion::EndOfInput : StepCompletion::Stopped;
-    impl_->SortEventsByStartTime();
-    while (!impl_->steps_.empty())
+    impl_->PublishSteps(completion, emit);
+    std::size_t unassigned = 0;
+    for (auto &lane : impl_->lanes_)
     {
-        impl_->PublishOldestStep(completion, emit);
+        unassigned +=
+            std::count_if(lane.events.begin(), lane.events.end(), [](const auto &cached) { return !cached.assigned; });
+        lane.events.clear();
+        lane.batchIntervals.clear();
     }
-    const auto unassigned = std::count_if(impl_->events_.begin(), impl_->events_.end(),
-                                          [](const auto &cached) { return !cached.assigned; });
     if (unassigned != 0)
     {
         LOG(WARNING) << "Process unassigned events at shutdown, rank: " << impl_->options_.rank
                      << ", count: " << unassigned;
     }
-    impl_->events_.clear();
     impl_->bufferedInputBytes_ = 0;
-    impl_->batchIntervals_.clear();
 }
 
 std::int64_t StepDataAnalyser::Rank() const { return impl_->options_.rank; }

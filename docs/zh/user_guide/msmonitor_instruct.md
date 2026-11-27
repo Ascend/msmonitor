@@ -64,7 +64,7 @@ msmonitor start --output-dir /data/msmonitor --monitor-target trace
 | --token-file | 可选 | 认证 token 文件路径，与 `--token` 二选一，两者同时指定会报错。 |
 | --token | 可选 | 明文认证 token，与 `--token-file` 二选一，两者同时指定会报错；无需在每台机器上准备 token 文件。 |
 | --ca-file | 可选 | 私有 CA 的公共证书路径。省略时使用系统信任库。 |
-| --monitor-target | 可选 | `trace` 导出本地 trace 文件，`metric` 通过 Remote Write 上报。默认 `trace,metric`。启用 metric 时提供 `--remote-write-url` 和 `--token-file` 或 `--token`。 |
+| --monitor-target | 可选 | 默认 `trace,metric`。<br/>• trace：导出本地 trace 文件，详见[输出结果文件说明](#输出结果文件说明)。<br/>• metric：通过 Remote Write 上报。启用时提供 `--remote-write-url`，以及 `--token-file` 或 `--token`。 |
 
 命令执行成功后会打印 collector 的 pid、采集结果目录与日志路径。
 
@@ -121,7 +121,13 @@ msmonitor stop
 
 * Jsonl 格式：每行数据包含一条采集到的性能数据，方便用户后续分析；单个文件的最大行数与保留份数由 `--json-rotate-log-lines`、`--json-rotate-log-files` 控制。
 
-processor 读取结果目录第一层的 `msmonitor_<pid>_<timestamp>_<rank>.jsonl` 文件。每个 rank 用自己的设备侧 MSTX range 划分 step，range 名称为 `step N`，domain 为 `default`，N 为数字。训练框架已有这种打点时可直接使用。缺少这一打点时，原始 JSONL 可以采集，逐 step 的指标和 trace 无法生成。
+启用 trace 时，目录示例如下。每个 rank 用设备侧 MSTX 的 `default` 域中名为 `step N` 的区间划分 step，`N` 为数字。
+
+```text
+<output-dir>/
+├── msmonitor_<pid>_<timestamp>_<rank>.jsonl
+└── trace/<run_id>/<pid>/rank_<rank>/step_1_5/trace.json
+```
 
 ## 附录
 

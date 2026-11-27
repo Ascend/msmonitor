@@ -43,19 +43,20 @@ TEST(ProcessMetrics, UsesOwnedEventsAndGroupsByOperationAndStream)
     step.rank = 2;
     step.boundary = {7, 100, 300};
     step.completion = StepCompletion::QuietBatch;
-    const auto kernel = [](const char *name, unsigned stream) {
-        return std::make_shared<StepEvent>(StepEvent{
-            120, 140, {{"kind", "Kernel"}, {"name", name}, {"deviceId", 0}, {"streamId", stream}}});
+    const auto kernel = [](const char *name, unsigned stream)
+    {
+        return std::make_shared<StepEvent>(
+            StepEvent{120, 140, {{"kind", "Kernel"}, {"name", name}, {"deviceId", 0}, {"streamId", stream}}});
     };
     step.ownedEvents = {kernel("Add_hash1", 2), kernel("Add_hash2", 2), kernel("Add_hash1", 3),
                         kernel("AddN_hash1", 2)};
-    step.ownedEvents.push_back(std::make_shared<StepEvent>(StepEvent{
-        150, 190, {{"kind", "Marker"}, {"sourceKind", "Host"}, {"domain", "custom"}, {"name", "forward"}}}));
+    step.ownedEvents.push_back(std::make_shared<StepEvent>(
+        StepEvent{150, 190, {{"kind", "Marker"}, {"sourceKind", "Host"}, {"domain", "custom"}, {"name", "forward"}}}));
     step.events = step.ownedEvents;
     step.events.push_back(kernel("Other_hash", 2));
     StepSummary summary;
-    StepMetricExporter exporter({}, [](const StepMetricData &) {},
-                                [&](StepSummary value) { summary = std::move(value); });
+    StepMetricExporter exporter(
+        {}, [](const StepMetricData &) {}, [&](StepSummary value) { summary = std::move(value); });
     exporter.ExportStep(step);
 
     EXPECT_TRUE(summary.valid);
@@ -75,15 +76,15 @@ TEST(ProcessMetrics, InvalidatesIncompleteAndOverBudgetSummaries)
     StepDataOutput step;
     step.rank = 0;
     step.boundary = {1, 100, 200};
-    const auto event = std::make_shared<StepEvent>(StepEvent{
-        110, 120, {{"kind", "Kernel"}, {"name", "Add"}, {"deviceId", 0}, {"streamId", 0}}});
+    const auto event = std::make_shared<StepEvent>(
+        StepEvent{110, 120, {{"kind", "Kernel"}, {"name", "Add"}, {"deviceId", 0}, {"streamId", 0}}});
     step.events = step.ownedEvents = {event, event};
 
     StepSummary summary;
     MetricOptions options;
     options.maxSamplesPerGroup = 1;
-    StepMetricExporter exporter(options, [](const StepMetricData &) {},
-                                [&](StepSummary value) { summary = std::move(value); });
+    StepMetricExporter exporter(
+        options, [](const StepMetricData &) {}, [&](StepSummary value) { summary = std::move(value); });
     step.completion = StepCompletion::QuietBatch;
     exporter.ExportStep(step);
     EXPECT_TRUE(summary.complete);

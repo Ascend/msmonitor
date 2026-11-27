@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <future>
@@ -208,8 +209,7 @@ TEST_F(ProcessorTest, GroupsTracesAndFlushesTailWhileExportingEachMetric)
     EXPECT_EQ(metrics.steps, (std::vector<std::uint64_t>{1, 2, 3, 4, 5}));
     const auto output = traceOptions.outputDir / "rank_2";
     for (const auto &[directory, expected] :
-         std::map<std::string, std::vector<std::uint64_t>>{{"step_1_2", {1, 2}}, {"step_3_4", {3, 4}},
-                                                            {"step_5", {5}}})
+         std::map<std::string, std::vector<std::uint64_t>>{{"step_1_2", {1, 2}}, {"step_3_4", {3, 4}}, {"step_5", {5}}})
     {
         std::ifstream file(output / directory / "trace.json");
         ASSERT_TRUE(file.is_open());
@@ -243,7 +243,7 @@ TEST_F(ProcessorTest, AnalysesDeviceStepAfterLateEventsAndBuildsMetrics)
     std::vector<StepDataPtr> steps;
     const EmitStepData emit = [&](StepDataPtr step) { steps.push_back(std::move(step)); };
     const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
-    read(R"({"kind":"Marker","name":"step 99","sourceKind":"Host","domain":"default","startNs":100,"endNs":200})");
+    read(R"({"kind":"Marker","name":"host range","sourceKind":"Host","domain":"default","startNs":100,"endNs":200})");
     read(R"({"kind":"Marker","name":"step 98","sourceKind":"Device","domain":"custom","startNs":100,"endNs":200})");
     read(R"({"kind":"Marker","name":"step 7","sourceKind":"Device","domain":"default","startNs":100,"endNs":200})");
     stepAnalyser.EndBatch({true, false}, emit);
@@ -264,8 +264,8 @@ TEST_F(ProcessorTest, AnalysesDeviceStepAfterLateEventsAndBuildsMetrics)
     EXPECT_EQ(device.uncoveredCommunication, (Intervals{{160, 180}}));
 
     StepSummary summary;
-    StepMetricExporter exporter({}, [](const StepMetricData &) {},
-                                [&](StepSummary result) { summary = std::move(result); });
+    StepMetricExporter exporter(
+        {}, [](const StepMetricData &) {}, [&](StepSummary result) { summary = std::move(result); });
     exporter.ExportStep(*steps.front());
     EXPECT_TRUE(summary.valid);
     EXPECT_EQ(summary.stepId, 7U);
@@ -278,12 +278,143 @@ TEST_F(ProcessorTest, AnalysesDeviceStepAfterLateEventsAndBuildsMetrics)
     EXPECT_EQ(steps.back()->boundary.stepId, 8U);
 }
 
-TEST_F(ProcessorTest, RejectsMalformedDeviceStepNumber)
+TEST_F(ProcessorTest, KeepsStepLikeUserRangeWithoutCreatingBoundary)
 {
     StepDataAnalyser stepAnalyser(options);
-    EXPECT_THROW(stepAnalyser.ProcessLine({{}, 1,
-        R"({"kind":"Marker","name":"step 7x","sourceKind":"Device","domain":"default","startNs":100,"endNs":200})"}),
-        std::invalid_argument);
+    stepAnalyser.ProcessLine(
+        {{},
+         1,
+         R"({"kind":"Marker","name":"step 7","sourceKind":"Device","domain":"default","startNs":100,"endNs":200})"});
+    stepAnalyser.ProcessLine(
+        {{},
+         2,
+         R"({"kind":"Marker","name":"step warmup","sourceKind":"Device","domain":"default","startNs":110,"endNs":120})"});
+    std::vector<StepDataPtr> steps;
+    stepAnalyser.Finish(true, [&](StepDataPtr step) { steps.push_back(std::move(step)); });
+    ASSERT_EQ(steps.size(), 1U);
+    EXPECT_EQ(steps.front()->boundary.stepId, 7U);
+    ASSERT_EQ(steps.front()->events.size(), 2U);
+    EXPECT_TRUE(std::any_of(steps.front()->events.begin(), steps.front()->events.end(),
+                            [](const auto &event) { return event->data.at("name") == "step warmup"; }));
+}
+
+TEST_F(ProcessorTest, AcceptsLateRecordForPendingOverlappingStep)
+{
+    StepDataAnalyser stepAnalyser(options);
+    std::vector<StepDataPtr> steps;
+    const EmitStepData emit = [&](StepDataPtr step) { steps.push_back(std::move(step)); };
+    const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
+    read(R"({"kind":"Marker","name":"step 1","sourceKind":"Device","domain":"default","startNs":100,"endNs":200})");
+    read(R"({"kind":"Marker","name":"step 2","sourceKind":"Device","domain":"default","startNs":150,"endNs":250})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    read(R"({"kind":"Kernel","deviceId":0,"streamId":1,"startNs":210,"endNs":220})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    ASSERT_EQ(steps.size(), 1U);
+    read(R"({"kind":"Kernel","deviceId":0,"streamId":1,"startNs":170,"endNs":180})");
+    stepAnalyser.Finish(true, emit);
+    ASSERT_EQ(steps.size(), 2U);
+    EXPECT_EQ(steps[1]->boundary.stepId, 2U);
+    EXPECT_EQ(steps[1]->analysis->devices.at(0).computing, (Intervals{{170, 180}, {210, 220}}));
+}
+
+TEST_F(ProcessorTest, KeepsProcessingAfterLateRecords)
+{
+    StepDataAnalyser stepAnalyser(options);
+    std::vector<StepDataPtr> steps;
+    const EmitStepData emit = [&](StepDataPtr step) { steps.push_back(std::move(step)); };
+    const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
+    const char *first =
+        R"({"kind":"Marker","name":"step 1","sourceKind":"Device","domain":"default","startNs":100,"endNs":200})";
+    read(first);
+    stepAnalyser.EndBatch({true, false}, emit);
+    read(R"({"kind":"Kernel","deviceId":0,"streamId":1,"startNs":210,"endNs":220})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    ASSERT_EQ(steps.size(), 1U);
+    read(first);
+    read(R"({"kind":"Kernel","deviceId":0,"streamId":1,"startNs":170,"endNs":200})");
+    read(R"({"kind":"Marker","name":"step 2","sourceKind":"Host","domain":"default","startNs":198,"endNs":298})");
+    read(R"({"kind":"Marker","name":"step 2","sourceKind":"Device","domain":"default","startNs":200,"endNs":300})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    read(R"({"kind":"Kernel","deviceId":0,"streamId":1,"startNs":310,"endNs":320})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    ASSERT_EQ(steps.size(), 2U);
+    EXPECT_EQ(steps[1]->completion, StepCompletion::QuietBatch);
+    EXPECT_EQ(steps[1]->boundary.stepId, 2U);
+    ASSERT_EQ(steps[1]->events.size(), 3U);
+    ASSERT_TRUE(steps[1]->hostBoundary);
+    EXPECT_EQ(steps[1]->hostBoundary->startNs, 198U);
+    EXPECT_EQ(steps[1]->analysis->devices.at(0).computing, (Intervals{{210, 220}}));
+}
+
+TEST_F(ProcessorTest, UsesSeparateHostAndDeviceWindowsForPairedSteps)
+{
+    StepDataAnalyser stepAnalyser(options);
+    const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
+    read(
+        R"({"kind":"Marker","name":"step 1","sourceKind":"Host","domain":"default","id":18,"startNs":80,"endNs":180})");
+    std::vector<StepDataPtr> steps;
+    const EmitStepData emit = [&](StepDataPtr step) { steps.push_back(std::move(step)); };
+    stepAnalyser.EndBatch({true, false}, emit);
+    read(R"({"kind":"Marker","name":"after step","sourceKind":"Host","startNs":350,"endNs":360})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    EXPECT_TRUE(steps.empty());
+    read(
+        R"({"kind":"Marker","name":"step 1","sourceKind":"Device","domain":"default","id":18,"startNs":100,"endNs":200})");
+    read(
+        R"({"kind":"Marker","name":"step 2","sourceKind":"Device","domain":"default","id":19,"startNs":200,"endNs":300})");
+    read(
+        R"({"kind":"Marker","name":"step 2","sourceKind":"Host","domain":"default","id":19,"startNs":180,"endNs":280})");
+    read(R"({"kind":"Marker","name":"cpu","sourceKind":"Host","startNs":185,"endNs":195})");
+    read(R"({"kind":"Kernel","name":"npu","deviceId":0,"streamId":1,"startNs":185,"endNs":195})");
+    stepAnalyser.Finish(true, emit);
+    ASSERT_EQ(steps.size(), 2U);
+    EXPECT_EQ(steps[1]->boundary.startNs, 200U);
+    ASSERT_TRUE(steps[1]->hostBoundary);
+    EXPECT_EQ(steps[1]->hostBoundary->startNs, 180U);
+    ASSERT_EQ(steps[0]->ownedEvents.size(), 1U);
+    ASSERT_EQ(steps[1]->ownedEvents.size(), 1U);
+    EXPECT_EQ(steps[0]->ownedEvents.front()->data.at("name"), "npu");
+    EXPECT_EQ(steps[1]->ownedEvents.front()->data.at("name"), "cpu");
+}
+
+TEST_F(ProcessorTest, FallsBackToHostWindowWithoutDeviceMarker)
+{
+    StepDataAnalyser stepAnalyser(options);
+    const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
+    read(
+        R"({"kind":"Marker","name":"step 1","sourceKind":"Host","domain":"default","id":18,"startNs":80,"endNs":180})");
+    read(R"({"kind":"Marker","name":"cpu","sourceKind":"Host","startNs":85,"endNs":95})");
+    std::vector<StepDataPtr> steps;
+    const EmitStepData emit = [&](StepDataPtr step) { steps.push_back(std::move(step)); };
+    stepAnalyser.EndBatch({true, false}, emit);
+    read(R"({"kind":"Marker","name":"after step","sourceKind":"Host","startNs":190,"endNs":195})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    EXPECT_TRUE(steps.empty());
+    stepAnalyser.EndBatch({false, false}, emit);
+    read(R"({"kind":"Marker","name":"later range","sourceKind":"Host","startNs":195,"endNs":199})");
+    stepAnalyser.EndBatch({true, false}, emit);
+    ASSERT_EQ(steps.size(), 1U);
+    EXPECT_EQ(steps[0]->boundary.startNs, 80U);
+    EXPECT_EQ(steps[0]->boundary.endNs, 180U);
+    ASSERT_EQ(steps[0]->ownedEvents.size(), 1U);
+    EXPECT_EQ(steps[0]->ownedEvents.front()->data.at("name"), "cpu");
+}
+
+TEST_F(ProcessorTest, DoesNotPairConflictingMarkerIds)
+{
+    StepDataAnalyser stepAnalyser(options);
+    const auto read = [&](const char *line) { stepAnalyser.ProcessLine({{}, 1, line}); };
+    read(
+        R"({"kind":"Marker","name":"step 1","sourceKind":"Host","domain":"default","id":18,"startNs":80,"endNs":180})");
+    read(
+        R"({"kind":"Marker","name":"step 1","sourceKind":"Device","domain":"default","id":19,"startNs":100,"endNs":200})");
+    std::vector<StepDataPtr> steps;
+    stepAnalyser.Finish(true, [&](StepDataPtr step) { steps.push_back(std::move(step)); });
+    ASSERT_EQ(steps.size(), 1U);
+    EXPECT_FALSE(steps[0]->hostBoundary);
+    EXPECT_EQ(steps[0]->boundary.startNs, 100U);
+    ASSERT_EQ(steps[0]->events.size(), 1U);
+    EXPECT_EQ(steps[0]->events.front()->data.at("sourceKind"), "Device");
 }
 
 TEST_F(ProcessorTest, FollowsAppendsAndRotatedFilesUntilStopped)
