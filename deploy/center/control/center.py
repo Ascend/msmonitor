@@ -2,12 +2,14 @@
 
 import fcntl
 import json
+import logging
 import os
 import signal
 import subprocess  # nosec B404  # Only argv-based calls to bundled executables.
 import sys
 import tempfile
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from string import Template
 from urllib.error import URLError
@@ -41,6 +43,10 @@ CHECK_URLS = {
     "storage": f"http://{ADDRESSES['storage']}/-/healthy",
 }
 LOCAL_HTTP = build_opener(ProxyHandler({}))
+LOGGER = logging.getLogger(__name__)
+VISUALIZATION_RESTART_DELAY = 5
+VISUALIZATION_MAX_RESTART_DELAY = 60
+VISUALIZATION_STABLE_SECONDS = 60
 
 
 def healthy(url):
@@ -49,6 +55,32 @@ def healthy(url):
             return response.status == 200
     except (URLError, OSError):
         return False
+
+
+@dataclass
+class Child:
+    command: list[str]
+    env: dict | None
+    stop_signal: int
+    readiness_url: str | None
+    process: subprocess.Popen | None = None
+    restart_at: float = 0
+    launched_at: float = 0
+    ready_once: bool = False
+    failures: int = 0
+
+    def launch(self):
+        # pylint: disable-next=consider-using-with
+        self.process = subprocess.Popen(self.command, env=self.env)  # nosec B603  # Bundled executables only.
+        self.launched_at = time.monotonic()
+
+    def schedule_restart(self, now, message):
+        self.process = None
+        self.failures += 1
+        delay = min(VISUALIZATION_RESTART_DELAY * 2 ** min(self.failures - 1, 4), VISUALIZATION_MAX_RESTART_DELAY)
+        self.restart_at = now + delay
+        level = logging.ERROR if delay == VISUALIZATION_MAX_RESTART_DELAY else logging.WARNING
+        LOGGER.log(level, "%s. Consecutive failures: %s. Retrying in %s seconds.", message, self.failures, delay)
 
 
 class Processes:
@@ -61,20 +93,42 @@ class Processes:
     def request_stop(self, *_):
         self.stopping = True
 
-    def start(self, command, env=None, stop_signal=signal.SIGTERM):
+    def start(self, command, env=None, stop_signal=signal.SIGTERM, *, readiness_url=None):
         if self.stopping:
             raise InterruptedError
-        # pylint: disable-next=consider-using-with
-        child = subprocess.Popen(command, env=env)  # nosec B603  # Commands use bundled binaries and validated fields.
-        self.children.append((Path(command[0]).name, child, stop_signal))
-        return child
+        child = Child(command, env, stop_signal, readiness_url)
+        child.launch()
+        self.children.append(child)
+
+    def wait_for_visualization(self):
+        children = [child for child in self.children if child.readiness_url is not None]
+        self.wait_for(lambda: all(healthy(child.readiness_url) for child in children), "visualization readiness")
+        self.check()
+        for child in children:
+            child.ready_once = True
 
     def check(self):
         if self.stopping:
             raise InterruptedError
-        for name, child, _ in self.children:
-            if child.poll() is not None:
-                raise RuntimeError(f"{name} exited with status {child.returncode}")
+        now = time.monotonic()
+        for child in self.children:
+            if self.stopping:
+                raise InterruptedError
+            if child.process is not None:
+                status = child.process.poll()
+                if status is None:
+                    if child.failures and now - child.launched_at >= VISUALIZATION_STABLE_SECONDS:
+                        child.failures = 0
+                    continue
+                message = f"{child.command[0]} exited with status {status}"
+                if not child.ready_once:
+                    raise RuntimeError(message)
+                child.schedule_restart(now, message)
+            elif now >= child.restart_at:
+                try:
+                    child.launch()
+                except OSError as error:
+                    child.schedule_restart(now, f"Could not start {child.command[0]}: {error}")
 
     def wait_for(self, condition, description):
         deadline = time.monotonic() + 90
@@ -87,15 +141,16 @@ class Processes:
 
     def close(self):
         deadline = time.monotonic() + 35
-        for _, child, stop_signal in reversed(self.children):
-            if child.poll() is None:
-                child.send_signal(stop_signal)
+        for child in reversed(self.children):
+            process = child.process
+            if process is not None and process.poll() is None:
+                process.send_signal(child.stop_signal)
                 try:
                     timeout = min(20, max(0.1, deadline - time.monotonic()))
-                    child.wait(timeout=timeout)
+                    process.wait(timeout=timeout)
                 except subprocess.TimeoutExpired:
-                    child.kill()
-                    child.wait()
+                    process.kill()
+                    process.wait()
 
 
 def run_once(command, env=None):
@@ -241,6 +296,7 @@ def standalone(command):
                 processes.start(["/usr/sbin/haproxy", "-db", "-f", str(proxy)])
                 if visualization_enabled():
                     visualization.start(processes)
+                    processes.wait_for_visualization()
                 while True:
                     processes.check()
                     time.sleep(0.25)
@@ -252,10 +308,15 @@ def standalone(command):
 
 def main():
     mode = os.getenv("MSMONITOR_MODE", "standalone")
+    if sys.argv[1:] == ["visualization-healthcheck"]:
+        if mode != "standalone" or not visualization_enabled():
+            print("Bundled visualization is disabled")
+            return 1
+        status = {name: healthy(url) for name, url in visualization.HEALTH_URLS.items()}
+        print(json.dumps(status))
+        return 0 if all(status.values()) else 1
     if sys.argv[1:] == ["healthcheck"]:
         urls = (CHECK_URLS["control"],) if mode == "cluster" else CHECK_URLS.values()
-        if mode == "standalone" and visualization_enabled():
-            urls = (*urls, *visualization.HEALTH_URLS)
         return 0 if all(map(healthy, urls)) else 1
     if mode not in ("standalone", "cluster") or len(sys.argv) < 2:
         raise ValueError("Expected standalone or cluster mode and an I8 command")

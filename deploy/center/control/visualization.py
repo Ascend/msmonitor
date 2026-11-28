@@ -11,7 +11,10 @@ GRAFANA_HOME = Path("/usr/share/grafana")
 GRAFANA_DATA = Path("/data/grafana")
 QUERY_ADDRESS = "127.0.0.1:19104"
 SUMMARY_PORT = "19103"
-HEALTH_URLS = ("http://127.0.0.1:3000/api/health", f"http://127.0.0.1:{SUMMARY_PORT}/health")
+HEALTH_URLS = {
+    "summary": f"http://127.0.0.1:{SUMMARY_PORT}/health",
+    "grafana": "http://127.0.0.1:3000/api/health",
+}
 
 
 def query_proxy(config, auth_address):
@@ -49,7 +52,9 @@ def start(processes):
         "MSMONITOR_PROMETHEUS_URL": f"http://{QUERY_ADDRESS}",
         "MSMONITOR_SUMMARY_PORT": SUMMARY_PORT,
     }
-    processes.start([sys.executable, str(ASSETS / "backend/server.py")], query_env)
+    processes.start(
+        [sys.executable, str(ASSETS / "backend/server.py")], query_env, readiness_url=HEALTH_URLS["summary"]
+    )
     grafana_env = {
         **query_env,
         "GF_PATHS_DATA": str(GRAFANA_DATA),
@@ -63,4 +68,8 @@ def start(processes):
         "GF_USERS_ALLOW_SIGN_UP": "false",
         "GF_SECURITY_ADMIN_PASSWORD": password,
     }
-    processes.start([str(GRAFANA_HOME / "bin/grafana"), "server", "--homepath", str(GRAFANA_HOME)], grafana_env)
+    processes.start(
+        [str(GRAFANA_HOME / "bin/grafana"), "server", "--homepath", str(GRAFANA_HOME)],
+        grafana_env,
+        readiness_url=HEALTH_URLS["grafana"],
+    )
