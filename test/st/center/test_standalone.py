@@ -20,7 +20,86 @@ def docker(*args):
     return subprocess.check_output(["docker", *args], text=True).strip()
 
 
-def exercise(image, root):
+def wait_for_visualization(container, url):
+    docker(
+        "exec",
+        container,
+        "python",
+        "-c",
+        """
+import sys
+import time
+from urllib.request import urlopen
+
+deadline = time.monotonic() + 120
+while True:
+    try:
+        with urlopen(sys.argv[1], timeout=2) as response:
+            if response.status == 200:
+                break
+    except OSError:
+        pass
+    if time.monotonic() >= deadline:
+        raise RuntimeError(f"Visualization health check timed out: {sys.argv[1]}")
+    time.sleep(0.5)
+""",
+        url,
+    )
+
+
+def stop_visualization_process(container, executable):
+    docker(
+        "exec",
+        container,
+        "python",
+        "-c",
+        """
+import os
+import signal
+import sys
+from pathlib import Path
+
+target = os.fsencode(sys.argv[1])
+for path in Path("/proc").glob("[0-9]*/cmdline"):
+    try:
+        arguments = path.read_bytes().split(b"\\0")[:2]
+    except FileNotFoundError:
+        continue
+    if target in arguments:
+        os.kill(int(path.parent.name), signal.SIGKILL)
+        break
+else:
+    raise RuntimeError(f"Process not found: {sys.argv[1]}")
+""",
+        executable,
+    )
+
+
+def verify_visualization_isolation(container, opener, origin, tokens):
+    components = (
+        ("Grafana", "/usr/share/grafana/bin/grafana", "http://127.0.0.1:3000/api/health"),
+        ("summary service", "/opt/msmonitor-visualization/backend/server.py", "http://127.0.0.1:19103/health"),
+    )
+    for name, executable, url in components:
+        wait_for_visualization(container, url)
+        stop_visualization_process(container, executable)
+        degraded = subprocess.run(
+            ["docker", "exec", container, "python", "/app/center.py", "visualization-healthcheck"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        component = "grafana" if name == "Grafana" else "summary"
+        if degraded.returncode != 1 or json.loads(degraded.stdout).get(component) is not False:
+            raise RuntimeError(f"Fault not reported for {name}: {degraded.stdout} {degraded.stderr}")
+        verify_write(opener, origin, 10, tokens["write"]["10"], secrets.token_hex(8), query_token=tokens["read"]["10"])
+        docker("exec", container, "python", "/app/center.py", "healthcheck")
+        wait_for_visualization(container, url)
+        docker("exec", container, "python", "/app/center.py", "visualization-healthcheck")
+        print(f"PASS: {name} restarted and center samples written after the fault were read back")
+
+
+def exercise(image, root, *, with_visualization=False):
     config_dir = root / "config"
     config_dir.mkdir(mode=0o755)
     config_dir.chmod(0o755)
@@ -67,6 +146,10 @@ def exercise(image, root):
     config_file = config_dir / "center.json"
     config_file.write_text(json.dumps(config))
     config_file.chmod(0o644)
+    if with_visualization:
+        password_file = config_dir / "grafana-admin-password"
+        password_file.write_text(secrets.token_hex(24))
+        password_file.chmod(0o644)
     opener = build_opener(NoRedirect(), HTTPSHandler(context=ssl.create_default_context(cafile=str(cert))))
 
     def post(endpoint, data, expected=200):
@@ -96,6 +179,7 @@ def exercise(image, root):
                 volume + ":/data",
                 "-v",
                 str(config_dir) + ":/etc/msmonitor:ro",
+                *(("-e", "MSMONITOR_GRAFANA_TENANT=10") if with_visualization else ()),
                 image,
             )
             deadline = time.monotonic() + 180
@@ -130,6 +214,8 @@ def exercise(image, root):
                     ],
                     check=True,
                 )
+                if with_visualization:
+                    verify_visualization_isolation(container, opener, origin, tokens)
             else:
                 assert registration["session_id"] == session
                 post("submit-summary", {**batch, "records": [{"value": 2}]}, expected=409)
@@ -163,7 +249,10 @@ def exercise(image, root):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--image", required=True)
+    parser.add_argument(
+        "--with-visualization", action="store_true", help="Verify recovery from Grafana process failures"
+    )
     options = parser.parse_args()
     os.umask(0o077)
     with tempfile.TemporaryDirectory(dir=Path.home(), prefix=".msmonitor-standalone-") as folder:
-        exercise(options.image, Path(folder))
+        exercise(options.image, Path(folder), with_visualization=options.with_visualization)
