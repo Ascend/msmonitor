@@ -55,6 +55,7 @@ MetricManager::MetricManager()
 
 void MetricManager::RunPostTask()
 {
+    SendMetricMsg();
     for (int i = 0; i < MSPTI_ACTIVITY_KIND_COUNT; i++)
     {
         if (kindSwitches_[i].load())

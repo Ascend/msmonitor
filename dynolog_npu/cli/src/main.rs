@@ -410,6 +410,8 @@ fn verify_certificate(cert_der: &[u8], is_root_cert: bool) -> Result<()> {
     let mut has_key_usage = false;
     let mut has_crl_sign = false;
     let mut has_cert_sign = false;
+    let mut has_extended_key_usage = false;
+    let mut has_client_auth = false;
 
     for ext in cert.tbs_certificate.extensions() {
         if ext.oid == oid_registry::OID_X509_EXT_BASIC_CONSTRAINTS {
@@ -426,6 +428,14 @@ fn verify_certificate(cert_der: &[u8], is_root_cert: bool) -> Result<()> {
                 has_crl_sign = usage.crl_sign();
             } else {
                 println!("Failed to parse Key Usage");
+            }
+        } else if ext.oid == oid_registry::OID_X509_EXT_EXTENDED_KEY_USAGE {
+            println!("Found Extended Key Usage extension");
+            if let Ok((_, usage)) = ExtendedKeyUsage::from_der(ext.value) {
+                has_extended_key_usage = true;
+                has_client_auth = usage.client_auth;
+            } else {
+                println!("Failed to parse Extended Key Usage");
             }
         }
     }
@@ -469,6 +479,18 @@ fn verify_certificate(cert_der: &[u8], is_root_cert: bool) -> Result<()> {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Client certificate must have key usage extension"
+            ).into());
+        }
+        if !has_extended_key_usage {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Client certificate must have extended key usage extension"
+            ).into());
+        }
+        if !has_client_auth {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Client certificate must have clientAuth extended key usage"
             ).into());
         }
     }
@@ -620,16 +642,6 @@ fn create_dyno_client_with_certs(
     port: u16,
     config: &ClientConfigPath,
 ) -> Result<StreamOwned<ClientConnection, TcpStream>> {
-    let addr = (host, port)
-        .to_socket_addrs()?
-        .next()
-        .ok_or_else(|| io::Error::new(
-            io::ErrorKind::NotFound,
-            "Could not resolve the host address"
-        ))?;
-
-    let stream = TcpStream::connect(addr)?;
-
     println!("Loading CA cert from: {}", config.ca_cert_path.display());
     let mut root_store = RootCertStore::empty();
     let ca_file = File::open(&config.ca_cert_path)?;
@@ -652,31 +664,31 @@ fn create_dyno_client_with_certs(
         verify_certificate(cert, false)?;  // 验证客户端证书
     }
 
-    // 检查证书吊销状态
+    // 检查证书吊销状态，CRL 为必需文件
     let crl_path = config.cert_path.parent().unwrap().join("ca.crl");
-    if crl_path.exists() {
-        println!("Checking CRL file: {}", crl_path.display());
-        for cert in &certs {
-            match is_cert_revoked(cert, &crl_path) {
-                Ok(true) => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "Certificate is revoked"
-                    ).into());
-                }
-                Ok(false) => {
-                    continue;
-                }
-                Err(e) => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("CRL verification failed: {}", e)
-                    ).into());
-                }
+    if !crl_path.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("CRL file does not exist: {}", crl_path.display())
+        ).into());
+    }
+    println!("Checking CRL file: {}", crl_path.display());
+    for cert in &certs {
+        match is_cert_revoked(cert, &crl_path) {
+            Ok(true) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Certificate is revoked"
+                ).into());
+            }
+            Ok(false) => {}
+            Err(e) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("CRL verification failed: {}", e)
+                ).into());
             }
         }
-    } else {
-        println!("CRL file does not exist: {}", crl_path.display());
     }
 
     let certs = certs.into_iter().map(Certificate).collect();
@@ -733,6 +745,16 @@ fn create_dyno_client_with_certs(
         Arc::new(config),
         server_name
     )?;
+
+    // Validate all local material (CA, client cert, CRL, key) before connecting.
+    let addr = (host, port)
+        .to_socket_addrs()?
+        .next()
+        .ok_or_else(|| io::Error::new(
+            io::ErrorKind::NotFound,
+            "Could not resolve the host address"
+        ))?;
+    let stream = TcpStream::connect(addr)?;
 
     Ok(StreamOwned::new(conn, stream))
 }

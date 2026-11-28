@@ -15,7 +15,7 @@
  * See the Mulan PSL v2 for more details.
  * -------------------------------------------------------------------------
  */
-
+// Copyright (c) Meta Platforms Inc. and affiliates
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
@@ -47,14 +47,17 @@ constexpr int CLIENT_QUEUE_LEN = 50;
 constexpr int MAX_MESSAGE_LEN = 2 * 4096;  // twice the maximum linux path length
 constexpr int SOCKET_TIMEOUT_SEC = 3;
 
-namespace dynolog
-{
 const std::string NO_CERTS_MODE = "NO_CERTS";
 DEFINE_string(certs_dir, NO_CERTS_MODE, "TLS crets dir");
 
+namespace dynolog
+{
 constexpr size_t MIN_RSA_KEY_LENGTH = 3072;
 constexpr char BACKSPACE_ASCII = 8;
 constexpr char DEL_ASCII = 127;
+constexpr long long SECONDS_PER_DAY = 24LL * 60 * 60;
+constexpr long long CRL_WARN_THRESHOLD_SECONDS = 7LL * SECONDS_PER_DAY;
+constexpr time_t CRL_WARN_INTERVAL_SECONDS = 60 * 60;
 
 SimpleJsonServerBase::SimpleJsonServerBase(int port) : port_(port)
 {
@@ -373,6 +376,7 @@ void SimpleJsonServerBase::loop() noexcept
 
 void SimpleJsonServerBase::processOne() noexcept
 {
+    check_crl_expiry();
     LOG(INFO) << "Waiting for connection.";
     ClientSocketWrapper client;
     if (!client.accept(sock_fd_, ctx_))
@@ -420,6 +424,121 @@ SSL_CTX* SimpleJsonServerBase::create_context()
         throw std::runtime_error("Unable to create SSL context");
     }
     return ctx;
+}
+
+static std::string format_asn1_time(const ASN1_TIME* time)
+{
+    BIO* bio = BIO_new(BIO_s_mem());
+    if (!bio)
+    {
+        return "unknown";
+    }
+    std::string result = "none";
+    char* data = nullptr;
+    const long len = time && ASN1_TIME_print(bio, time) == 1 ? BIO_get_mem_data(bio, &data) : 0;
+    if (len > 0)
+    {
+        result.assign(data, static_cast<size_t>(len));
+    }
+    BIO_free(bio);
+    return result;
+}
+
+static void verify_crl_signature(X509_CRL* crl, X509_STORE* store)
+{
+    X509_NAME* issuer = X509_CRL_get_issuer(crl);
+    X509_STORE_CTX* store_ctx = X509_STORE_CTX_new();
+    if (!issuer || !store_ctx)
+    {
+        X509_STORE_CTX_free(store_ctx);
+        throw std::runtime_error("Failed to get CRL issuer or create store context");
+    }
+    const bool initialized = X509_STORE_CTX_init(store_ctx, store, nullptr, nullptr) == 1;
+    STACK_OF(X509)* ca_certs = initialized ? X509_STORE_CTX_get1_certs(store_ctx, issuer) : nullptr;
+    X509_STORE_CTX_free(store_ctx);
+    if (!ca_certs || sk_X509_num(ca_certs) == 0)
+    {
+        sk_X509_pop_free(ca_certs, X509_free);
+        throw std::runtime_error("No trusted CA certificate found for CRL issuer");
+    }
+
+    bool verified = false;
+    for (int i = 0; i < sk_X509_num(ca_certs) && !verified; i++)
+    {
+        EVP_PKEY* pkey = X509_get_pubkey(sk_X509_value(ca_certs, i));
+        verified = pkey && X509_CRL_verify(crl, pkey) == 1;
+        EVP_PKEY_free(pkey);
+    }
+    sk_X509_pop_free(ca_certs, X509_free);
+    if (!verified)
+    {
+        throw std::runtime_error("CRL signature verification failed");
+    }
+}
+
+// 仅支持单 CA：CRL 必须覆盖信任库中的所有 CA，避免多根配置在握手期才失败。
+static void verify_crl_covers_trusted_cas(X509_CRL* crl, X509_STORE* store)
+{
+    X509_NAME* issuer = X509_CRL_get_issuer(crl);
+    STACK_OF(X509_OBJECT)* objects = X509_STORE_get0_objects(store);
+    if (!issuer || !objects)
+    {
+        throw std::runtime_error("Failed to inspect trusted CA certificates");
+    }
+
+    int trusted_cert_count = 0;
+    for (int i = 0; i < sk_X509_OBJECT_num(objects); i++)
+    {
+        X509_OBJECT* object = sk_X509_OBJECT_value(objects, i);
+        if (!object || X509_OBJECT_get_type(object) != X509_LU_X509)
+        {
+            continue;
+        }
+        X509* trusted_cert = X509_OBJECT_get0_X509(object);
+        if (!trusted_cert)
+        {
+            continue;
+        }
+        ++trusted_cert_count;
+
+        bool covered = X509_NAME_cmp(X509_get_subject_name(trusted_cert), issuer) == 0;
+        if (covered)
+        {
+            EVP_PKEY* pkey = X509_get_pubkey(trusted_cert);
+            covered = pkey && X509_CRL_verify(crl, pkey) == 1;
+            EVP_PKEY_free(pkey);
+        }
+        if (!covered)
+        {
+            char* subject = X509_NAME_oneline(X509_get_subject_name(trusted_cert), nullptr, 0);
+            const std::string name = subject ? subject : "unknown";
+            OPENSSL_free(subject);
+            throw std::runtime_error("CA certificate is not covered by CRL: " + name);
+        }
+    }
+
+    if (trusted_cert_count == 0)
+    {
+        throw std::runtime_error("No trusted CA certificate found in CA file");
+    }
+}
+
+static void verify_crl_validity(X509_CRL* crl)
+{
+    time_t current_time = time(nullptr);
+    if (X509_cmp_time(X509_CRL_get0_lastUpdate(crl), &current_time) >= 0)
+    {
+        throw std::runtime_error("CRL is not yet valid or has invalid thisUpdate");
+    }
+    const ASN1_TIME* next_update = X509_CRL_get0_nextUpdate(crl);
+    if (!next_update)
+    {
+        LOG(WARNING) << "CRL has no nextUpdate field";
+    }
+    else if (X509_cmp_time(next_update, &current_time) <= 0)
+    {
+        throw std::runtime_error("CRL has expired or has invalid nextUpdate");
+    }
 }
 
 static bool is_cert_revoked(X509* cert, X509_STORE* store)
@@ -618,7 +737,7 @@ void SimpleJsonServerBase::verify_rsa_key_length(EVP_PKEY* pkey)
         size_t key_length = 0;
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
         // OpenSSL 3.0 及以上版本
-        key_length = EVP_PKEY_get_size(pkey) * 8;  // 转换为位数
+        key_length = static_cast<size_t>(EVP_PKEY_get_bits(pkey));  // 精确位数
 #else
         // OpenSSL 1.1.1 及以下版本
         RSA* rsa = EVP_PKEY_get0_RSA(pkey);
@@ -642,6 +761,50 @@ void SimpleJsonServerBase::verify_rsa_key_length(EVP_PKEY* pkey)
                                      std::to_string(MIN_RSA_KEY_LENGTH) + " bits");
         }
     }
+}
+
+// 对端证书验证回调：限制链深度，并对叶子证书执行密钥强度与扩展域校验
+int SimpleJsonServerBase::verify_callback(int preverify_ok, X509_STORE_CTX* x509_ctx)
+{
+    if (!x509_ctx)
+    {
+        return 0;
+    }
+
+    const int depth = X509_STORE_CTX_get_error_depth(x509_ctx);
+    if (!preverify_ok)
+    {
+        LOG(ERROR) << "Certificate verification failed at depth " << depth << ": "
+                   << X509_verify_cert_error_string(X509_STORE_CTX_get_error(x509_ctx));
+    }
+    // 仅允许“叶子证书 + 直接受信根”两级链，拒绝客户端自带中间 CA
+    if (depth > 1)
+    {
+        LOG(ERROR) << "Certificate chain depth " << depth << " exceeds the allowed maximum of 1";
+        return 0;
+    }
+    if (depth != 0)
+    {
+        return preverify_ok;
+    }
+
+    X509* cert = X509_STORE_CTX_get_current_cert(x509_ctx);
+    std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> pkey(cert ? X509_get_pubkey(cert) : nullptr, EVP_PKEY_free);
+    try
+    {
+        if (!cert || !pkey)
+        {
+            throw std::runtime_error("Failed to get peer certificate or public key");
+        }
+        verify_rsa_key_length(pkey.get());
+        verify_certificate_extensions(cert, CertificateType::Client);
+    }
+    catch (const std::exception& e)
+    {
+        LOG(ERROR) << "Peer certificate verification failed: " << e.what();
+        return 0;
+    }
+    return preverify_ok;
 }
 
 // 验证证书有效期
@@ -707,60 +870,53 @@ void SimpleJsonServerBase::verify_certificate_validity(X509* cert)
 }
 
 // 验证证书扩展域
-void SimpleJsonServerBase::verify_certificate_extensions(X509* cert)
+void SimpleJsonServerBase::verify_certificate_extensions(X509* cert, CertificateType type)
 {
-    bool has_ca_constraint = false;
-    bool has_key_usage = false;
-    bool has_cert_sign = false;
-    bool has_crl_sign = false;
+    const char* cert_type = (type == CertificateType::Client) ? "Client" : "Server";
+    BASIC_CONSTRAINTS* constraints =
+        static_cast<BASIC_CONSTRAINTS*>(X509_get_ext_d2i(cert, NID_basic_constraints, nullptr, nullptr));
+    const bool has_ca_constraint = constraints && constraints->ca;
+    BASIC_CONSTRAINTS_free(constraints);
 
-    const STACK_OF(X509_EXTENSION)* exts = X509_get0_extensions(cert);
-    if (exts)
-    {
-        for (int i = 0; i < sk_X509_EXTENSION_num(exts); i++)
-        {
-            X509_EXTENSION* ext = sk_X509_EXTENSION_value(exts, i);
-            ASN1_OBJECT* obj = X509_EXTENSION_get_object(ext);
-
-            if (OBJ_obj2nid(obj) == NID_basic_constraints)
-            {
-                BASIC_CONSTRAINTS* constraints = (BASIC_CONSTRAINTS*)X509V3_EXT_d2i(ext);
-                if (constraints)
-                {
-                    has_ca_constraint = constraints->ca;
-                    BASIC_CONSTRAINTS_free(constraints);
-                }
-            }
-            else if (OBJ_obj2nid(obj) == NID_key_usage)
-            {
-                ASN1_BIT_STRING* usage = (ASN1_BIT_STRING*)X509V3_EXT_d2i(ext);
-                if (usage)
-                {
-                    has_key_usage = true;
-                    if (usage->data)
-                    {
-                        has_cert_sign = (usage->data[0] & KU_KEY_CERT_SIGN) != 0;
-                        has_crl_sign = (usage->data[0] & KU_CRL_SIGN) != 0;
-                    }
-                    else
-                    {
-                        /* 位串为空，视为两项均未置位 */
-                        has_cert_sign = false;
-                        has_crl_sign = false;
-                    }
-                    ASN1_BIT_STRING_free(usage);
-                }
-            }
-        }
-    }
+    ASN1_BIT_STRING* usage = static_cast<ASN1_BIT_STRING*>(X509_get_ext_d2i(cert, NID_key_usage, nullptr, nullptr));
+    const bool has_key_usage = usage != nullptr;
+    ASN1_BIT_STRING_free(usage);
 
     if (has_ca_constraint)
     {
-        throw std::runtime_error("Client certificate should not have CA constraint");
+        throw std::runtime_error(std::string(cert_type) + " certificate should not have CA constraint");
     }
     if (!has_key_usage)
     {
-        throw std::runtime_error("Client certificate must have key usage extension");
+        throw std::runtime_error(std::string(cert_type) + " certificate must have key usage extension");
+    }
+    if (type == CertificateType::Server)
+    {
+        return;
+    }
+
+    EXTENDED_KEY_USAGE* eku =
+        static_cast<EXTENDED_KEY_USAGE*>(X509_get_ext_d2i(cert, NID_ext_key_usage, nullptr, nullptr));
+    const bool has_extended_key_usage = eku != nullptr;
+    bool has_client_auth = false;
+    for (int i = 0; eku && i < sk_ASN1_OBJECT_num(eku); i++)
+    {
+        ASN1_OBJECT* obj = sk_ASN1_OBJECT_value(eku, i);
+        if (obj && OBJ_obj2nid(obj) == NID_client_auth)
+        {
+            has_client_auth = true;
+            break;
+        }
+    }
+    EXTENDED_KEY_USAGE_free(eku);
+
+    if (!has_extended_key_usage)
+    {
+        throw std::runtime_error("Client certificate must have extended key usage extension");
+    }
+    if (!has_client_auth)
+    {
+        throw std::runtime_error("Client certificate must have clientAuth extended key usage");
     }
 }
 
@@ -834,7 +990,7 @@ void SimpleJsonServerBase::load_private_key(SSL_CTX* ctx, const std::string& ser
     }
 }
 
-// 加载和验证 CRL
+// 加载并验证 CRL；TLS 模式下 CRL 为必需文件
 void SimpleJsonServerBase::load_and_verify_crl(SSL_CTX* ctx, const std::string& crl_file)
 {
     X509_STORE* store = SSL_CTX_get_cert_store(ctx);
@@ -843,46 +999,85 @@ void SimpleJsonServerBase::load_and_verify_crl(SSL_CTX* ctx, const std::string& 
         throw std::runtime_error("Failed to get certificate store");
     }
 
-    if (access(crl_file.c_str(), F_OK) != -1)
+    FILE* crl_file_ptr = fopen(crl_file.c_str(), "r");
+    if (!crl_file_ptr)
     {
-        FILE* crl_file_ptr = fopen(crl_file.c_str(), "r");
-        if (!crl_file_ptr)
+        const int error_code = errno;
+        if (error_code == ENOENT)
         {
-            LOG(WARNING) << "Failed to open CRL file: " << crl_file;
-            return;
+            throw std::runtime_error("CRL file is required but not found: " + crl_file);
         }
-
-        X509_CRL* crl = PEM_read_X509_CRL(crl_file_ptr, nullptr, nullptr, nullptr);
-        fclose(crl_file_ptr);
-
-        if (!crl)
-        {
-            LOG(WARNING) << "Failed to read CRL from file: " << crl_file;
-            return;
-        }
-
-        if (X509_STORE_add_crl(store, crl) != 1)
-        {
-            LOG(WARNING) << "Failed to add CRL to certificate store";
-            X509_CRL_free(crl);
-            return;
-        }
-
-        X509* cert = SSL_CTX_get0_certificate(ctx);
-        if (!cert)
-        {
-            X509_CRL_free(crl);
-            throw std::runtime_error("Failed to get server certificate");
-        }
-
-        if (is_cert_revoked(cert, store))
-        {
-            X509_CRL_free(crl);
-            throw std::runtime_error("Server certificate is revoked");
-        }
-
-        X509_CRL_free(crl);
+        throw std::runtime_error("Failed to open CRL file: " + crl_file + ": " +
+                                 std::string(std::strerror(error_code)));
     }
+    std::unique_ptr<X509_CRL, decltype(&X509_CRL_free)> crl(PEM_read_X509_CRL(crl_file_ptr, nullptr, nullptr, nullptr),
+                                                            X509_CRL_free);
+    fclose(crl_file_ptr);
+    if (!crl)
+    {
+        throw std::runtime_error("Failed to read CRL from file: " + crl_file);
+    }
+
+    verify_crl_signature(crl.get(), store);
+    verify_crl_validity(crl.get());
+    verify_crl_covers_trusted_cas(crl.get(), store);
+    if (X509_STORE_add_crl(store, crl.get()) != 1)
+    {
+        throw std::runtime_error("Failed to add CRL to certificate store");
+    }
+
+    X509* cert = SSL_CTX_get0_certificate(ctx);
+    if (!cert)
+    {
+        throw std::runtime_error("Failed to get server certificate");
+    }
+    if (is_cert_revoked(cert, store))
+    {
+        throw std::runtime_error("Server certificate is revoked");
+    }
+
+    STACK_OF(X509_REVOKED)* revoked = X509_CRL_get_REVOKED(crl.get());
+    char* issuer = X509_NAME_oneline(X509_CRL_get_issuer(crl.get()), nullptr, 0);
+    LOG(INFO) << "CRL loaded: issuer=" << (issuer ? issuer : "unknown")
+              << ", revoked_serials=" << (revoked ? sk_X509_REVOKED_num(revoked) : 0)
+              << ", next_update=" << format_asn1_time(X509_CRL_get0_nextUpdate(crl.get()));
+    OPENSSL_free(issuer);
+
+    const ASN1_TIME* next_update = X509_CRL_get0_nextUpdate(crl.get());
+    const time_t now = time(nullptr);
+    ASN1_TIME* now_time = ASN1_TIME_set(nullptr, now);
+    int days = 0;
+    int seconds = 0;
+    if (next_update && now_time && ASN1_TIME_diff(&days, &seconds, now_time, next_update) == 1)
+    {
+        crl_next_update_ = now + static_cast<time_t>(days) * SECONDS_PER_DAY + seconds;
+    }
+    ASN1_TIME_free(now_time);
+    check_crl_expiry();
+}
+
+// 运行期按小时限频告警，提醒在 nextUpdate 前更新 CRL 并重启进程
+void SimpleJsonServerBase::check_crl_expiry() noexcept
+{
+    if (crl_next_update_ == 0)
+    {
+        return;
+    }
+    const time_t now = time(nullptr);
+    const long long remaining = static_cast<long long>(crl_next_update_) - static_cast<long long>(now);
+    if (remaining > CRL_WARN_THRESHOLD_SECONDS || now - last_crl_warning_ < CRL_WARN_INTERVAL_SECONDS)
+    {
+        return;
+    }
+    last_crl_warning_ = now;
+    if (remaining <= 0)
+    {
+        LOG(ERROR) << "CRL has expired; all new TLS handshakes will be rejected. "
+                   << "Renew ca.crl and restart dynolog.";
+        return;
+    }
+    LOG(WARNING) << "CRL expires in " << (remaining + SECONDS_PER_DAY - 1) / SECONDS_PER_DAY
+                 << " day(s); renew ca.crl and restart dynolog before nextUpdate.";
 }
 
 void SimpleJsonServerBase::configure_context(SSL_CTX* ctx)
@@ -904,51 +1099,42 @@ void SimpleJsonServerBase::configure_context(SSL_CTX* ctx)
     LOG(INFO) << "Loading server key: " << server_key;
     LOG(INFO) << "Loading CA cert: " << ca_cert;
 
-    // 1. 加载并验证服务器证书
+    // 加载并校验服务端证书、密钥、CA 和 CRL
     if (SSL_CTX_use_certificate_file(ctx, server_cert.c_str(), SSL_FILETYPE_PEM) <= 0)
     {
         ERR_print_errors_fp(stderr);
         throw std::runtime_error("Failed to load server certificate");
     }
-
     X509* cert = SSL_CTX_get0_certificate(ctx);
     if (!cert)
     {
         throw std::runtime_error("Failed to get server certificate");
     }
-
-    // 2. 验证证书版本和签名算法
     verify_certificate_version_and_algorithm(cert);
-
-    // 3. 验证 RSA 密钥长度
-    EVP_PKEY* pkey = X509_get_pubkey(cert);
+    std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> pkey(X509_get_pubkey(cert), EVP_PKEY_free);
     if (!pkey)
     {
         throw std::runtime_error("Failed to get public key");
     }
-    verify_rsa_key_length(pkey);
-    EVP_PKEY_free(pkey);
-
-    // 4. 验证证书有效期
+    verify_rsa_key_length(pkey.get());
     verify_certificate_validity(cert);
-
-    // 5. 验证证书扩展域
-    verify_certificate_extensions(cert);
-
-    // 6. 加载私钥
+    verify_certificate_extensions(cert, CertificateType::Server);
     load_private_key(ctx, server_key);
 
-    // 7. 加载 CA 证书
     if (SSL_CTX_load_verify_locations(ctx, ca_cert.c_str(), NULL) <= 0)
     {
         ERR_print_errors_fp(stderr);
         throw std::runtime_error("Failed to load CA certificate");
     }
-
-    // 8. 加载和验证 CRL
     load_and_verify_crl(ctx, crl_file);
 
-    // 9. 设置证书验证选项
-    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    // 双向认证；只允许叶子证书由直接根签发，并对叶子证书执行 CRL 检查
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verify_callback);
+    SSL_CTX_set_verify_depth(ctx, 1);
+    X509_VERIFY_PARAM* param = SSL_CTX_get0_param(ctx);
+    if (!param || X509_VERIFY_PARAM_set_flags(param, X509_V_FLAG_CRL_CHECK) != 1)
+    {
+        throw std::runtime_error("Failed to enable CRL checking");
+    }
 }
 }  // namespace dynolog

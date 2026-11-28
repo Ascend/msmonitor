@@ -15,7 +15,7 @@
  * See the Mulan PSL v2 for more details.
  * -------------------------------------------------------------------------
  */
-
+// Copyright (c) Meta Platforms Inc. and affiliates
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
@@ -110,6 +110,13 @@ std::unique_ptr<Logger> getLogger(const std::string& scribe_category = "")
 auto next_wakeup(int sec) { return std::chrono::steady_clock::now() + std::chrono::seconds(sec); }
 }  // namespace
 
+// Sleeps until the deadline, but returns early once shutdown is requested.
+void ThreadManager::wait_until(const std::chrono::steady_clock::time_point& wakeup)
+{
+    std::unique_lock<std::mutex> lock(mutex_);
+    cv_.wait_until(lock, wakeup, [this] { return !still_alive_.load(); });
+}
+
 void ThreadManager::gpu_monitor_loop()
 {
     auto logger = getLogger(FLAGS_scribe_category);
@@ -125,7 +132,7 @@ void ThreadManager::gpu_monitor_loop()
         dcgm_->log(*logger);
 
         /* sleep override */
-        std::this_thread::sleep_until(wakeup_timepoint);
+        wait_until(wakeup_timepoint);
     }
 }
 
@@ -145,7 +152,7 @@ void ThreadManager::kernel_monitor_loop()
         logger->finalize();
 
         /* sleep override */
-        std::this_thread::sleep_until(wakeup_timepoint);
+        wait_until(wakeup_timepoint);
     }
 }
 
@@ -166,7 +173,7 @@ void ThreadManager::perf_monitor_loop()
 
         logger->finalize();
         /* sleep override */
-        std::this_thread::sleep_until(wakeup_timepoint);
+        wait_until(wakeup_timepoint);
     }
 }
 
@@ -230,7 +237,11 @@ void ThreadManager::run(int argc, char** argv)
     {
         LOG(ERROR) << "ThreadManager run failed: " << e.what();
         // to stop km_thread_, pm_thread_ and gpumon_thread_
-        still_alive_.store(false);
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            still_alive_.store(false);
+        }
+        cv_.notify_all();
 
         // to stop ipcmon_thread_ and data_ipcmon_thread_
         if (ipcmon_)
